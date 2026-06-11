@@ -100,8 +100,21 @@ describe('Claude layout balance contract', function () {
     assert.match(indexHtml, /alt="Seraph's Pictures Logo"/);
     assert.match(indexHtml, /<span>Seraph's Pictures<\/span>/);
     assert.match(indexHtml, /class="theme-toggle-btn header-theme-toggle theme-icon-only"/);
+    assert.match(indexHtml, /class="nav-link is-active" aria-current="page"><i class="fas fa-home"><\/i> 首页/);
+    assert.doesNotMatch(indexHtml, /class="logout-link"/);
     assert.doesNotMatch(indexHtml, /data-theme-label/);
     assert.match(layout, /\.theme-icon-only[\s\S]*aspect-ratio:\s*1/);
+    assert.match(layout, /\.nav-links a\.is-active[\s\S]*box-shadow:/);
+
+    const themeIndex = indexHtml.indexOf('class="theme-toggle-btn header-theme-toggle theme-icon-only"');
+    const navIndex = indexHtml.indexOf('class="nav-links"');
+    const storageIndex = indexHtml.indexOf('存储配置');
+    const webdavIndex = indexHtml.indexOf('WebDAV');
+    const adminIndex = indexHtml.indexOf('管理后台');
+
+    assert.ok(navIndex < themeIndex, 'theme toggle should render after navigation');
+    assert.ok(storageIndex < webdavIndex, 'storage config should move before WebDAV');
+    assert.ok(webdavIndex < adminIndex, 'admin should move to the old storage-side position');
   });
 
   it('keeps upload results and uploaded file cards evenly sized as content grows', function () {

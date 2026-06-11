@@ -13,6 +13,7 @@
 
 .header {
   gap: 14px !important;
+  justify-content: flex-start !important;
 }
 
 .header-title {
@@ -25,11 +26,27 @@
 
 .nav-links {
   justify-content: center !important;
+  margin-left: auto !important;
 }
 
 .nav-links a {
   min-height: 38px !important;
   justify-content: center !important;
+}
+
+.nav-links a.is-active {
+  background: rgba(43, 43, 41, 0.48) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.16) !important;
+}
+
+.nav-links a.is-active i {
+  color: var(--text-primary) !important;
+}
+
+.header-theme-toggle {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
 }
 
 .upload-section,
