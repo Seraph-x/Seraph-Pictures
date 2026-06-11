@@ -23,8 +23,8 @@ describe('Claude layout balance contract', function () {
     const adminHtml = readRepoFile('admin.html');
     const copyLegacy = readRepoFile('frontend/scripts/copy-legacy.mjs');
 
-    assert.match(adminHtml, /href="\/claude-admin-layout\.css\?v=20260611-detail-layout"/);
-    assert.match(adminHtml, /href="\/seraph-admin-polish\.css\?v=20260611-detail-layout"/);
+    assert.match(adminHtml, /href="\/claude-admin-layout\.css\?v=20260611-grid-pagination"/);
+    assert.match(adminHtml, /href="\/seraph-admin-polish\.css\?v=20260611-grid-pagination"/);
     assert.match(copyLegacy, /'claude-admin-layout\.css'/);
   });
 
@@ -73,10 +73,15 @@ describe('Claude layout balance contract', function () {
     assert.match(layout, /\.folder-stats[\s\S]*grid-template-columns:\s*auto\s+minmax\(0,\s*1fr\)/);
     assert.match(
       layout,
-      /\.admin-page\s+\.disk-layout[\s\S]*grid-template-columns:\s*320px\s+minmax\(560px,\s*720px\)\s+320px\s*!important/
+      /\.admin-page\s+\.disk-layout[\s\S]*grid-template-columns:\s*320px\s+minmax\(0,\s*1fr\)\s*!important/
+    );
+    assert.match(
+      layout,
+      /\.disk-layout\.is-list-view[\s\S]*grid-template-columns:\s*320px\s+minmax\(560px,\s*720px\)\s+320px\s*!important/
     );
     assert.match(layout, /\.folder-sidebar[\s\S]*grid-column:\s*1\s*!important/);
-    assert.match(layout, /\.disk-content[\s\S]*justify-self:\s*center\s*!important/);
+    assert.match(layout, /\.disk-content[\s\S]*justify-self:\s*stretch\s*!important/);
+    assert.match(admin, /<div class="disk-layout"\s+:class="\{\s*'is-list-view':\s*viewMode\s*===\s*'list'\s*\}">/);
     assert.match(admin, /<section class="disk-content"\s+:class="\{\s*'is-list-view':\s*viewMode\s*===\s*'list'\s*\}">/);
     assert.match(layout, /\.disk-content\.is-list-view[\s\S]*grid-column:\s*2\s*\/\s*4\s*!important/);
     assert.match(layout, /\.disk-content\.is-list-view[\s\S]*justify-self:\s*start\s*!important/);
@@ -87,7 +92,13 @@ describe('Claude layout balance contract', function () {
     assert.match(layout, /\.disk-content\.is-list-view\s+\.list-view-card[\s\S]*overflow-x:\s*auto\s*!important/);
     assert.match(layout, /\.list-view-card\s+\.el-table[\s\S]*min-width:\s*1100px\s*!important/);
     assert.match(layout, /\.folder-breadcrumb,[\s\S]*\.admin-page\s+\.empty-tip,[\s\S]*\.admin-page\s+\.content[\s\S]*box-sizing:\s*border-box\s*!important/);
+    assert.match(layout, /\.content[\s\S]*grid-template-columns:\s*repeat\(auto-fill,\s*minmax\(300px,\s*1fr\)\)\s*!important/);
+    assert.match(layout, /\.content[\s\S]*grid-auto-flow:\s*row\s*!important/);
     assert.match(layout, /\.content[\s\S]*padding:\s*0\s*!important/);
+    assert.match(layout, /\.pagination-container[\s\S]*position:\s*fixed\s*!important/);
+    assert.match(layout, /\.pagination-container[\s\S]*left:\s*50%\s*!important/);
+    assert.doesNotMatch(admin, /load-more-end/);
+    assert.doesNotMatch(admin, /全部加载完成/);
     assert.match(layout, /\.empty-tip[\s\S]*display:\s*grid\s*!important/);
     assert.match(layout, /\.empty-tip[\s\S]*place-items:\s*center\s*!important/);
   });
@@ -135,7 +146,7 @@ describe('Claude layout balance contract', function () {
     const layout = readRepoFile('seraph-admin-polish.css');
     const copyLegacy = readRepoFile('frontend/scripts/copy-legacy.mjs');
 
-    assert.match(adminHtml, /href="\/seraph-admin-polish\.css\?v=20260611-detail-layout"/);
+    assert.match(adminHtml, /href="\/seraph-admin-polish\.css\?v=20260611-grid-pagination"/);
     assert.match(copyLegacy, /'seraph-admin-polish\.css'/);
     assert.match(adminHtml, /class="admin-header-primary"/);
     assert.match(adminHtml, /class="actions admin-header-tools"/);
@@ -147,6 +158,7 @@ describe('Claude layout balance contract', function () {
     assert.doesNotMatch(adminHtml, /Movavi|FreeConvert|YouCompress|Cloudinary/);
     assert.doesNotMatch(adminHtml, /editWebsites|编辑快捷方式/);
     assert.doesNotMatch(adminHtml, /window\.open\(url, '_blank'\)/);
+    assert.doesNotMatch(adminHtml, /command="uiDesign"/);
     assert.match(layout, /\.admin-page\s+\.header-content[\s\S]*display:\s*grid\s*!important/);
     assert.match(layout, /grid-template-columns:\s*minmax\(300px,\s*0\.85fr\)\s+minmax\(520px,\s*1\.45fr\)\s+minmax\(160px,\s*0\.45fr\)\s*!important/);
     assert.match(layout, /\.admin-header-tools[\s\S]*justify-content:\s*center\s*!important/);

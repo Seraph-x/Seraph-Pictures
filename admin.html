@@ -812,8 +812,8 @@
   <link rel="stylesheet" href="/mobile-refactor.css">
   <link rel="stylesheet" href="/claude-theme.css">
   <link rel="stylesheet" href="/claude-layout.css">
-  <link rel="stylesheet" href="/claude-admin-layout.css?v=20260611-detail-layout">
-  <link rel="stylesheet" href="/seraph-admin-polish.css?v=20260611-detail-layout">
+  <link rel="stylesheet" href="/claude-admin-layout.css?v=20260611-grid-pagination">
+  <link rel="stylesheet" href="/seraph-admin-polish.css?v=20260611-grid-pagination">
 </head>
 <body class="admin-page">
   <div id="app" v-cloak>
@@ -919,7 +919,6 @@
                 <el-dropdown-item command="dataSaver" :class="{ 'el-dropdown-menu__item--selected': loadMode === 'dataSaver' }"><i class="fas fa-bolt"></i> 省流模式</el-dropdown-item>
                 <el-dropdown-item command="noImage" :class="{ 'el-dropdown-menu__item--selected': loadMode === 'noImage' }"><i class="fas fa-eye-slash"></i> 无图模式</el-dropdown-item>
                 <el-dropdown-item command="safeMode" divided :class="{ 'el-dropdown-menu__item--selected': safeMode }"><i class="fas fa-shield-alt"></i> {{ safeMode ? '✓' : '' }} 安全模式(NSFW)</el-dropdown-item>
-                <el-dropdown-item command="uiDesign" divided><i class="fas fa-sliders-h"></i> 前端 UI 设计</el-dropdown-item>
               </el-dropdown-menu>
             </el-dropdown>
             <el-tooltip content="存储状态与配置" placement="bottom"><i class="fas fa-server" @click="showStorageConfigPanel"></i></el-tooltip>
@@ -929,7 +928,7 @@
         </div>
       </el-header>
       <el-main class="main-container">
-        <div class="disk-layout">
+        <div class="disk-layout" :class="{ 'is-list-view': viewMode === 'list' }">
           <aside class="folder-sidebar">
             <div class="folder-stats" role="status" aria-live="polite">
               <i class="fas fa-chart-line"></i>
@@ -1206,13 +1205,10 @@
                 :total="paginationTotal" :page-size="pageSize"
                 @current-change="handlePageChange" :current-page.sync="currentPage" />
             </div>
-            <div style="text-align:center;margin-top:16px;">
-              <el-button v-if="nextCursor" :loading="isLoadingMore" :disabled="isLoadingMore" @click="loadMore">
+            <div v-if="nextCursor" class="load-more-container">
+              <el-button :loading="isLoadingMore" :disabled="isLoadingMore" @click="loadMore">
                 {{ isLoadingMore ? '加载中...' : ('加载更多 (' + Number + '/' + (totalCount || Number) + ')') }}
               </el-button>
-              <div v-else-if="(totalCount || Number) > 0 && Number >= (totalCount || Number)" class="load-more-end">
-                全部加载完成，共 {{ totalCount || Number }} 条
-              </div>
             </div>
           </section>
         </div>
@@ -3674,7 +3670,7 @@
           this.safeMode = !this.safeMode;
           localStorage.setItem('safeMode', this.safeMode);
           this.$message.success(this.safeMode ? '安全模式已开启' : '安全模式已关闭');
-        } else if (command === 'loginBackground' || command === 'uiDesign') {
+        } else if (command === 'loginBackground') {
           this.showUiDesignSettingsPanel();
         } else {
           this.loadMode = command;
