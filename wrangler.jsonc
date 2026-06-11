@@ -1,0 +1,21 @@
+// Cloudflare Pages configuration for K-Vault.
+// Keep this file in sync with the Pages dashboard. When present, it becomes the source of truth for these settings.
+// WARNING: No R2 jurisdiction will be written. This is correct for normal buckets created with Automatic placement.
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "k-vault",
+  "pages_build_output_dir": "frontend/dist",
+  "compatibility_date": "2026-05-03",
+  "kv_namespaces": [
+    {
+      "binding": "img_url",
+      "id": "1dd5b18021224616b0cd017ec1f3f455"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "R2_BUCKET",
+      "bucket_name": "k-vault-files"
+    }
+  ]
+}

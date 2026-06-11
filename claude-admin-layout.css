@@ -1,0 +1,253 @@
+body.admin-page #app {
+  width: min(100% - 32px, 2048px) !important;
+  max-width: 2048px !important;
+}
+
+body.admin-page .el-header {
+  height: auto !important;
+  padding: 0 !important;
+}
+
+body.admin-page .header-content {
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 12px !important;
+  height: 56px !important;
+  min-width: 0 !important;
+  padding: 8px 16px !important;
+  overflow: visible !important;
+}
+
+body.admin-page .home-btn,
+body.admin-page .title {
+  flex: 0 0 auto !important;
+  white-space: nowrap !important;
+}
+
+body.admin-page .title {
+  margin-right: 0 !important;
+  font-size: 1.2rem !important;
+}
+
+body.admin-page .search-card {
+  flex: 0 1 240px !important;
+  min-width: 160px !important;
+  max-width: 240px !important;
+  margin: 0 4px 0 8px !important;
+}
+
+body.admin-page .search-card .el-input__inner {
+  width: 100% !important;
+  height: 34px !important;
+  font-size: 0.95rem !important;
+}
+
+body.admin-page .header-content .actions {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 6px !important;
+  overflow: visible !important;
+}
+
+body.admin-page .header-content .actions > * {
+  order: 0 !important;
+}
+
+body.admin-page .header-content .actions > i,
+body.admin-page .header-content .actions > .el-dropdown > .el-dropdown-link,
+body.admin-page .header-content .actions > .theme-admin-toggle {
+  flex: 0 0 34px !important;
+  width: 34px !important;
+  height: 34px !important;
+  margin: 0 !important;
+  display: inline-grid !important;
+  place-items: center !important;
+}
+
+body.admin-page .header-content .actions i {
+  font-size: 1rem !important;
+  margin: 0 !important;
+}
+
+body.admin-page .main-container {
+  width: 100% !important;
+  max-width: 2048px !important;
+  box-sizing: border-box !important;
+  margin: 0 auto !important;
+  display: block !important;
+  padding: 96px 16px 36px !important;
+}
+
+body.admin-page .disk-layout {
+  width: 100% !important;
+  max-width: 1880px !important;
+  margin: 0 auto !important;
+  display: grid !important;
+  grid-template-columns: 320px minmax(560px, 720px) 320px !important;
+  gap: 40px !important;
+  align-items: start !important;
+  justify-content: center !important;
+}
+
+body.admin-page .folder-sidebar {
+  grid-column: 1 !important;
+  width: 320px !important;
+  justify-self: start !important;
+}
+
+body.admin-page .folder-stats {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 10px 12px !important;
+  border-bottom: 1px solid var(--claude-line) !important;
+  color: var(--claude-text) !important;
+  font-size: 0.88rem !important;
+}
+
+body.admin-page .folder-stats span {
+  min-width: 0 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+body.admin-page .folder-stats small {
+  color: var(--claude-muted) !important;
+  white-space: nowrap !important;
+}
+
+body.admin-page .disk-content {
+  grid-column: 2 !important;
+  width: min(720px, 100%) !important;
+  justify-self: center !important;
+  display: grid !important;
+  justify-items: center !important;
+}
+
+body.admin-page .disk-content.is-list-view {
+  grid-column: 2 / 4 !important;
+  width: 100% !important;
+  justify-self: start !important;
+  justify-items: start !important;
+}
+
+body.admin-page .folder-breadcrumb,
+body.admin-page .empty-tip,
+body.admin-page .content {
+  box-sizing: border-box !important;
+}
+
+body.admin-page .folder-breadcrumb,
+body.admin-page .empty-tip {
+  width: min(560px, 100%) !important;
+  margin-inline: auto !important;
+}
+
+body.admin-page .disk-content.is-list-view .folder-breadcrumb {
+  margin-left: 0 !important;
+  margin-right: auto !important;
+}
+
+body.admin-page .disk-content.is-list-view .list-view-card {
+  box-sizing: border-box !important;
+  width: min(1180px, calc(100vw - 420px)) !important;
+  max-width: none !important;
+  justify-self: start !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  overflow-x: auto !important;
+}
+
+body.admin-page .list-view-card .el-table {
+  min-width: 1100px !important;
+}
+
+body.admin-page .content {
+  width: 100% !important;
+  min-height: clamp(360px, 48vh, 560px) !important;
+  display: grid !important;
+  align-content: center !important;
+  justify-items: center !important;
+  padding: 0 !important;
+}
+
+body.admin-page .empty-tip {
+  min-height: 136px !important;
+  display: grid !important;
+  place-items: center !important;
+  text-align: center !important;
+}
+
+@media (max-width: 1280px) {
+  body.admin-page .search-card {
+    display: none !important;
+  }
+
+  body.admin-page .disk-layout {
+    grid-template-columns: 300px minmax(0, 1fr) !important;
+  }
+
+  body.admin-page .folder-sidebar {
+    width: 300px !important;
+  }
+
+  body.admin-page .disk-content.is-list-view {
+    grid-column: 2 !important;
+    width: 100% !important;
+  }
+
+  body.admin-page .disk-content.is-list-view .list-view-card {
+    width: min(980px, calc(100vw - 380px)) !important;
+    margin-left: 0 !important;
+  }
+}
+
+@media (max-width: 900px) {
+  body.admin-page #app {
+    width: min(100% - 20px, 2048px) !important;
+  }
+
+  body.admin-page .header-content {
+    gap: 6px !important;
+    padding: 8px 10px !important;
+  }
+
+  body.admin-page .title {
+    font-size: 1rem !important;
+  }
+
+  body.admin-page .main-container {
+    padding: 86px 0 24px !important;
+  }
+
+  body.admin-page .disk-layout {
+    grid-template-columns: 1fr !important;
+    gap: 18px !important;
+  }
+
+  body.admin-page .folder-sidebar,
+  body.admin-page .disk-content {
+    grid-column: 1 !important;
+    width: 100% !important;
+  }
+
+  body.admin-page .disk-content.is-list-view {
+    grid-column: 1 !important;
+    justify-items: center !important;
+  }
+
+  body.admin-page .disk-content.is-list-view .folder-breadcrumb {
+    margin-inline: auto !important;
+  }
+
+  body.admin-page .disk-content.is-list-view .list-view-card {
+    width: 100% !important;
+    margin-left: 0 !important;
+  }
+}

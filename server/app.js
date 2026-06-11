@@ -2,7 +2,6 @@ const crypto = require('node:crypto');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { Hono } = require('hono');
-const { cors } = require('hono/cors');
 const { createContainer } = require('./lib/container');
 const { normalizeFolderPath } = require('./lib/repos/file-repo');
 const { toStorageErrorPayload } = require('./lib/utils/storage-error');
@@ -20,17 +19,52 @@ const {
   getFileLinkSecrets,
 } = require('./lib/utils/telegram-webhook');
 
+const CORS_ALLOW_METHODS = 'GET,POST,PUT,PATCH,DELETE,OPTIONS';
+const CORS_ALLOW_HEADERS = 'Content-Type, Authorization, Range, X-KVault-Client, Accept';
+const CORS_EXPOSE_HEADERS = 'Content-Length, Content-Range, Accept-Ranges, Content-Disposition';
+
+function createCorsMiddleware(env = {}) {
+  const allowedOrigins = parseCorsOrigins(env.CORS_ORIGINS);
+  return async (c, next) => {
+    const origin = c.req.header('origin') || '';
+    const allowOrigin = resolveAllowedOrigin(origin, c.req.url, allowedOrigins);
+    if (allowOrigin) applyCorsHeaders(c, allowOrigin);
+    if (c.req.method === 'OPTIONS') return preflightResponse(c, allowOrigin);
+    await next();
+    c.header('Vary', 'Origin', { append: true });
+  };
+}
+
+function parseCorsOrigins(value) {
+  return new Set(String(value || '').split(',').map((item) => item.trim()).filter(Boolean));
+}
+
+function resolveAllowedOrigin(origin, requestUrl, allowedOrigins) {
+  if (!origin) return '';
+  const sameOrigin = new URL(requestUrl).origin;
+  if (origin === sameOrigin) return origin;
+  if (allowedOrigins.has(origin)) return origin;
+  return '';
+}
+
+function applyCorsHeaders(c, origin) {
+  c.header('Access-Control-Allow-Origin', origin);
+  c.header('Access-Control-Allow-Credentials', 'true');
+  c.header('Access-Control-Expose-Headers', CORS_EXPOSE_HEADERS);
+}
+
+function preflightResponse(c, allowOrigin) {
+  if (!allowOrigin) return new Response(null, { status: 204 });
+  c.header('Access-Control-Allow-Methods', CORS_ALLOW_METHODS);
+  c.header('Access-Control-Allow-Headers', CORS_ALLOW_HEADERS);
+  return new Response(null, { headers: c.res.headers, status: 204 });
+}
+
 function createApp() {
   const app = new Hono();
   const container = createContainer(process.env);
 
-  app.use('*', cors({
-    origin: (origin) => origin || '*',
-    allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization', 'Range', 'X-KVault-Client', 'Accept'],
-    exposeHeaders: ['Content-Length', 'Content-Range', 'Accept-Ranges', 'Content-Disposition'],
-    credentials: true,
-  }));
+  app.use('*', createCorsMiddleware(process.env));
 
   app.use('*', async (c, next) => {
     const traceId = crypto.randomUUID();
@@ -109,6 +143,17 @@ function createApp() {
       traceId,
       ...extra,
     }, statusCode);
+  }
+
+  function methodNotAllowed(c, allow) {
+    c.header('Allow', allow);
+    return jsonError(
+      c,
+      405,
+      'METHOD_NOT_ALLOWED',
+      'Method not allowed.',
+      `Use ${allow} for this endpoint.`
+    );
   }
 
   function asString(value, fallback = '') {
@@ -1139,8 +1184,9 @@ function createApp() {
         maxBytes: Math.min(container.config.uploadSmallFileThreshold, container.config.uploadMaxSize),
       });
     } catch (error) {
-      const normalized = normalizeUploadError(c, error, 502);
-      return c.json({ ...normalized, traceId: getTraceId(c) }, 502);
+      const status = error?.status || 502;
+      const normalized = normalizeUploadError(c, error, status);
+      return c.json({ ...normalized, traceId: getTraceId(c) }, status);
     }
 
     if (!auth.authenticated) {
@@ -1774,7 +1820,8 @@ function createApp() {
     });
   });
 
-  app.get('/api/manage/toggleLike/:id', (c) => {
+  app.get('/api/manage/toggleLike/:id', (c) => methodNotAllowed(c, 'POST'));
+  app.post('/api/manage/toggleLike/:id', (c) => {
     const unauthorized = requireAuth(c);
     if (unauthorized) return unauthorized;
 
@@ -1787,50 +1834,53 @@ function createApp() {
     return c.json({ success: true, liked: Boolean(updated.liked) });
   });
 
-  app.get('/api/manage/editName/:id', (c) => {
+  app.get('/api/manage/editName/:id', (c) => methodNotAllowed(c, 'POST'));
+  app.post('/api/manage/editName/:id', async (c) => {
     const unauthorized = requireAuth(c);
     if (unauthorized) return unauthorized;
 
     const { fileRepo } = getServices(c);
     const id = decodeURIComponent(c.req.param('id'));
-    const newName = String(c.req.query('newName') || '').trim();
+    const body = await c.req.json().catch(() => ({}));
+    const newName = String(body.newName || '').trim();
 
-    if (!newName) return jsonError(c, 400, 'NEW_NAME_REQUIRED', 'newName is required.', 'Provide newName query parameter.');
+    if (!newName) return jsonError(c, 400, 'NEW_NAME_REQUIRED', 'newName is required.', 'Provide newName in the JSON body.');
     const updated = fileRepo.updateMetadata(id, { fileName: newName });
     if (!updated) return jsonError(c, 404, 'FILE_NOT_FOUND', 'File not found.', `File "${id}" does not exist.`);
 
     return c.json({ success: true, fileName: updated.file_name, key: updated.id });
   });
 
-  app.get('/api/manage/block/:id', (c) => {
+  app.get('/api/manage/block/:id', (c) => methodNotAllowed(c, 'POST'));
+  app.post('/api/manage/block/:id', (c) => {
     const unauthorized = requireAuth(c);
     if (unauthorized) return unauthorized;
 
     const { fileRepo } = getServices(c);
     const id = decodeURIComponent(c.req.param('id'));
-    const action = c.req.query('action');
-    const nextListType = isTruthy(action) ? 'Block' : 'White';
+    const nextListType = 'Block';
     const updated = fileRepo.updateMetadata(id, { listType: nextListType });
     if (!updated) return jsonError(c, 404, 'FILE_NOT_FOUND', 'File not found.', `File "${id}" does not exist.`);
 
     return c.json({ success: true, listType: nextListType, key: updated.id });
   });
 
-  app.get('/api/manage/white/:id', (c) => {
+  app.get('/api/manage/white/:id', (c) => methodNotAllowed(c, 'POST'));
+  app.post('/api/manage/white/:id', (c) => {
     const unauthorized = requireAuth(c);
     if (unauthorized) return unauthorized;
 
     const { fileRepo } = getServices(c);
     const id = decodeURIComponent(c.req.param('id'));
-    const action = c.req.query('action');
-    const nextListType = isTruthy(action) ? 'White' : 'None';
+    const nextListType = 'White';
     const updated = fileRepo.updateMetadata(id, { listType: nextListType });
     if (!updated) return jsonError(c, 404, 'FILE_NOT_FOUND', 'File not found.', `File "${id}" does not exist.`);
 
     return c.json({ success: true, listType: nextListType, key: updated.id });
   });
 
-  app.get('/api/manage/delete/:id', async (c) => {
+  app.get('/api/manage/delete/:id', (c) => methodNotAllowed(c, 'DELETE'));
+  app.delete('/api/manage/delete/:id', async (c) => {
     const unauthorized = requireAuth(c);
     if (unauthorized) return unauthorized;
 

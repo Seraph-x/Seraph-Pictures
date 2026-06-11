@@ -3,6 +3,7 @@ import { uploadToDiscord } from "../utils/discord.js";
 import { hasHuggingFaceConfig, uploadToHuggingFace } from "../utils/huggingface.js";
 import { hasWebDAVConfig, normalizeWebDAVPath, uploadToWebDAV } from "../utils/webdav.js";
 import { hasGitHubConfig, normalizeGitHubStoragePath, uploadToGitHub } from "../utils/github.js";
+import { assertAllowedRemoteHost, assertPublicRedirect, parseSafeRemoteUrl, RemoteUrlError } from "../utils/remote-url.js";
 import {
   buildTelegramDirectLink,
   buildTelegramBotApiUrl,
@@ -31,17 +32,14 @@ export async function onRequestPost(context) {
       return jsonResponse({ error: "URL is required" }, 400);
     }
 
-    let parsedUrl;
     try {
-      parsedUrl = new URL(url);
-      if (!["http:", "https:"].includes(parsedUrl.protocol)) {
-        return jsonResponse({ error: "Only HTTP/HTTPS URLs are supported" }, 400);
-      }
-    } catch {
-      return jsonResponse({ error: "Invalid URL" }, 400);
+      const parsedUrl = parseSafeRemoteUrl(url);
+      assertAllowedRemoteHost(parsedUrl, getUrlUploadAllowedHosts(env));
+    } catch (error) {
+      return jsonResponse({ error: error.message }, error.status || 400);
     }
 
-    const fetched = await fetchRemote(url);
+    const fetched = await fetchRemote(url, env);
     if (!fetched.ok) {
       return jsonResponse({ error: fetched.error }, fetched.status || 502);
     }
@@ -64,7 +62,7 @@ export async function onRequestPost(context) {
     }
 
     const contentType = fetched.contentType || "application/octet-stream";
-    const fileName = buildFileName(parsedUrl, contentType);
+    const fileName = buildFileName(fetched.finalUrl, contentType);
     const fileExtension = getFileExtension(fileName);
 
     if (storageMode === "r2") {
@@ -116,18 +114,41 @@ export async function onRequestPost(context) {
   }
 }
 
-async function fetchRemote(url) {
+async function fetchRemote(url, env = {}) {
+  const targetUrl = parseSafeRemoteUrl(url);
+  assertAllowedRemoteHost(targetUrl, getUrlUploadAllowedHosts(env));
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
 
   try {
-    const response = await fetch(url, {
+    const response = await fetch(targetUrl.toString(), {
       signal: controller.signal,
+      redirect: "manual",
       headers: {
         "User-Agent": "Mozilla/5.0 K-Vault URL Uploader",
         Accept: "image/*,video/*,audio/*,application/*,*/*",
       },
     });
+
+    if (isRedirectStatus(response.status)) {
+      let redirectUrl;
+      try {
+        redirectUrl = assertPublicRedirect(response, targetUrl.toString());
+        assertAllowedRemoteHost(redirectUrl, getUrlUploadAllowedHosts(env));
+      } catch (error) {
+        return {
+          ok: false,
+          status: error.status || 400,
+          error: error.message,
+        };
+      }
+
+      return {
+        ok: false,
+        status: 400,
+        error: `Remote URL redirects to ${redirectUrl.toString()}; follow the final URL explicitly.`,
+      };
+    }
 
     if (!response.ok) {
       return {
@@ -138,14 +159,23 @@ async function fetchRemote(url) {
     }
 
     const contentType = response.headers.get("content-type") || "application/octet-stream";
-    const arrayBuffer = await response.arrayBuffer();
+    const arrayBuffer = await readLimitedBody(response, MAX_FILE_SIZE);
 
     return {
       ok: true,
       contentType,
       arrayBuffer,
+      finalUrl: targetUrl,
     };
   } catch (error) {
+    if (error instanceof RemoteUrlError || error.status === 400) {
+      return {
+        ok: false,
+        status: error.status || 400,
+        error: error.message,
+      };
+    }
+
     if (error.name === "AbortError") {
       return {
         ok: false,
@@ -164,11 +194,66 @@ async function fetchRemote(url) {
   }
 }
 
+function getUrlUploadAllowedHosts(env = {}) {
+  return env.URL_UPLOAD_ALLOWED_HOSTS || env.REMOTE_URL_ALLOWED_HOSTS || "";
+}
+
 function jsonResponse(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+function isRedirectStatus(status) {
+  return [301, 302, 303, 307, 308].includes(Number(status));
+}
+
+async function readLimitedBody(response, maxBytes) {
+  const contentLength = parseContentLength(response.headers.get("content-length"));
+  if (contentLength > maxBytes) {
+    throw new Error(`Remote file exceeds size limit (${formatSize(maxBytes)}).`);
+  }
+
+  const reader = response.body?.getReader?.();
+  if (!reader) {
+    const arrayBuffer = await response.arrayBuffer();
+    assertBodySize(arrayBuffer.byteLength, maxBytes);
+    return arrayBuffer;
+  }
+
+  const chunks = [];
+  let totalBytes = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = value instanceof Uint8Array ? value : new Uint8Array(value);
+    totalBytes += chunk.byteLength;
+    assertBodySize(totalBytes, maxBytes);
+    chunks.push(chunk);
+  }
+  return joinChunks(chunks, totalBytes);
+}
+
+function parseContentLength(value) {
+  const parsed = Number.parseInt(String(value || ""), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function assertBodySize(size, maxBytes) {
+  if (size > maxBytes) {
+    throw new Error(`Remote file exceeds size limit (${formatSize(maxBytes)}).`);
+  }
+}
+
+function joinChunks(chunks, totalBytes) {
+  const output = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    output.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return output.buffer;
 }
 
 function validateStorageSize(storageMode, fileSize) {

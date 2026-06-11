@@ -1,0 +1,291 @@
+:root {
+  --claude-bg: #1f1f1d;
+  --claude-bg-2: #181817;
+  --claude-panel: #2b2b29;
+  --claude-panel-soft: #252523;
+  --claude-line: #3a3935;
+  --claude-text: #d8d4ca;
+  --claude-text-strong: #eee9dd;
+  --claude-muted: #a8a39a;
+  --claude-accent: #d97757;
+  --claude-accent-strong: #e58a68;
+  --claude-danger: #f08a7f;
+  --claude-ok: #9cc98b;
+  --primary-color: var(--claude-accent) !important;
+  --primary-light: var(--claude-accent-strong) !important;
+  --primary-dark: #b85f43 !important;
+  --primary: var(--claude-accent) !important;
+  --accent-color: var(--claude-accent-strong) !important;
+  --accent: var(--claude-accent) !important;
+  --bg-gradient: var(--claude-bg) !important;
+  --bg: var(--claude-bg) !important;
+  --card-bg: var(--claude-panel) !important;
+  --surface-1: var(--claude-panel) !important;
+  --surface-2: var(--claude-panel-soft) !important;
+  --surface-3: var(--claude-panel-soft) !important;
+  --surface-border: var(--claude-line) !important;
+  --input-border: var(--claude-line) !important;
+  --text-primary: var(--claude-text-strong) !important;
+  --text-secondary: var(--claude-text) !important;
+  --text-muted: var(--claude-muted) !important;
+  --shadow: none !important;
+  --shadow-hover: 0 16px 42px rgba(0, 0, 0, 0.28) !important;
+}
+
+html,
+body {
+  color-scheme: dark;
+  background: var(--claude-bg) !important;
+}
+
+body {
+  color: var(--claude-text) !important;
+  font-family: "Inter", "SF Pro Text", "Segoe UI", "PingFang SC", "Noto Sans SC", sans-serif !important;
+}
+
+a {
+  color: var(--claude-accent-strong) !important;
+}
+
+.header,
+.header-content,
+.card,
+.login-card,
+.upload-zone,
+.storage-switcher,
+.storage-target,
+.stats,
+.stats-bar,
+.result-item,
+.upload-item,
+.history-item,
+.image-card,
+.compress-control,
+.compress-confirm-card,
+.compress-stat,
+.preview-card,
+.el-dialog,
+.el-message-box,
+.guest-notice {
+  background: var(--claude-panel) !important;
+  border-color: var(--claude-line) !important;
+  box-shadow: none !important;
+  color: var(--claude-text) !important;
+}
+
+.header-title,
+.title,
+.card-title,
+.file-name,
+.file-title,
+.result-item-name,
+.upload-item-name,
+.image-card-name,
+.preview-filename,
+.el-dialog__title {
+  color: var(--claude-text-strong) !important;
+}
+
+.header-title,
+.login-card .title {
+  font-family: Georgia, "Times New Roman", "Noto Serif SC", serif !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+}
+
+.subtitle,
+.upload-hint,
+.file-size,
+.result-item-link,
+.upload-item-size,
+.stat-item,
+.footer,
+.footer a,
+.el-form-item__label,
+.form-group label,
+.remember-label,
+.footer-text,
+.footer-text a {
+  color: var(--claude-muted) !important;
+}
+
+input,
+select,
+textarea,
+.el-input__inner,
+.url-input-container input,
+.batch-links,
+.form-input {
+  background: var(--claude-panel-soft) !important;
+  border-color: var(--claude-line) !important;
+  color: var(--claude-text) !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+.form-input:focus,
+.el-input__inner:focus {
+  border-color: var(--claude-accent) !important;
+  box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.18) !important;
+  outline: none !important;
+}
+
+.el-button--primary,
+.login-btn,
+.submit-btn,
+.upload-btn,
+.copy-btn,
+.storage-btn.active,
+.method-btn.active,
+.format-tab.active,
+.compress-format-btn.active,
+.compress-mode-btn.active {
+  background: var(--claude-accent) !important;
+  border-color: transparent !important;
+  color: #1f1f1d !important;
+  box-shadow: none !important;
+}
+
+.el-button--primary:hover,
+.login-btn:hover,
+.submit-btn:hover,
+.upload-btn:hover,
+.copy-btn:hover {
+  background: var(--claude-accent-strong) !important;
+  box-shadow: none !important;
+}
+
+.nav-links a:hover,
+.theme-floating-toggle,
+.theme-auto-inline-toggle,
+.theme-admin-toggle,
+.header-theme-toggle,
+.gallery-theme-toggle {
+  background: var(--claude-panel-soft) !important;
+  border-color: var(--claude-line) !important;
+  color: var(--claude-text) !important;
+  box-shadow: none !important;
+}
+
+.theme-floating-toggle i,
+.theme-auto-inline-toggle i,
+.theme-admin-toggle i,
+.header-theme-toggle i,
+.gallery-theme-toggle i,
+.logo,
+.header-title i,
+.upload-zone:hover .upload-icon {
+  color: var(--claude-accent) !important;
+}
+
+.login-card {
+  width: min(760px, 100%) !important;
+  border-radius: 28px !important;
+  padding: 28px !important;
+}
+
+.login-card .logo i::before {
+  content: "*";
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.login-card .logo i {
+  font-family: Georgia, "Times New Roman", serif !important;
+}
+
+.login-card .title::before {
+  content: "Welcome, Seraph";
+  display: block;
+}
+
+.login-card .title {
+  font-size: clamp(40px, 6vw, 62px) !important;
+}
+
+.login-card .title,
+.login-card .subtitle {
+  font-size: 0 !important;
+}
+
+.login-card .title::before {
+  font-size: clamp(40px, 6vw, 62px);
+}
+
+.login-card .subtitle::before {
+  content: "K-Vault private workspace";
+  font-size: 15px;
+}
+
+.error-message {
+  background: rgba(240, 138, 127, 0.12) !important;
+  border-color: rgba(240, 138, 127, 0.32) !important;
+  color: var(--claude-danger) !important;
+}
+
+::selection {
+  background: rgba(217, 119, 87, 0.3);
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --primary-color: var(--claude-accent) !important;
+  --primary-light: var(--claude-accent-strong) !important;
+  --primary-dark: #b85f43 !important;
+  --primary: var(--claude-accent) !important;
+  --accent-color: var(--claude-accent-strong) !important;
+  --accent: var(--claude-accent) !important;
+  --bg-gradient: var(--claude-bg) !important;
+  --bg: var(--claude-bg) !important;
+  --card-bg: var(--claude-panel) !important;
+  --surface-1: var(--claude-panel) !important;
+  --surface-2: var(--claude-panel-soft) !important;
+  --surface-3: var(--claude-panel-soft) !important;
+  --surface-border: var(--claude-line) !important;
+  --input-border: var(--claude-line) !important;
+  --text-primary: var(--claude-text-strong) !important;
+  --text-secondary: var(--claude-text) !important;
+  --text-muted: var(--claude-muted) !important;
+  --ui-page-bg-dark: var(--claude-bg) !important;
+  --ui-surface-rgb: 43, 43, 41 !important;
+  --ui-border-rgb: 58, 57, 53 !important;
+}
+
+html[data-theme="dark"] body {
+  background: var(--claude-bg) !important;
+  background-color: var(--claude-bg) !important;
+  background-image: none !important;
+  color: var(--claude-text) !important;
+}
+
+html[data-theme="dark"] .header, html[data-theme="dark"] .header-content,
+html[data-theme="dark"] .card, html[data-theme="dark"] .login-card,
+html[data-theme="dark"] .preview-card, html[data-theme="dark"] .upload-zone,
+html[data-theme="dark"] .storage-switcher, html[data-theme="dark"] .storage-target,
+html[data-theme="dark"] .stats, html[data-theme="dark"] .stats-bar,
+html[data-theme="dark"] .result-item, html[data-theme="dark"] .upload-item,
+html[data-theme="dark"] .history-item, html[data-theme="dark"] .image-card,
+html[data-theme="dark"] .guest-notice, html[data-theme="dark"] .el-dialog,
+html[data-theme="dark"] .el-message-box {
+  background: var(--claude-panel) !important;
+  border-color: var(--claude-line) !important;
+  box-shadow: none !important;
+  color: var(--claude-text) !important;
+}
+
+html[data-theme="dark"] input, html[data-theme="dark"] select,
+html[data-theme="dark"] textarea, html[data-theme="dark"] .el-input__inner,
+html[data-theme="dark"] .url-input-container input, html[data-theme="dark"] .batch-links,
+html[data-theme="dark"] .form-input {
+  background: var(--claude-panel-soft) !important;
+  border-color: var(--claude-line) !important;
+  color: var(--claude-text) !important;
+}
+
+html[data-theme="dark"] .el-button--primary, html[data-theme="dark"] .login-btn,
+html[data-theme="dark"] .submit-btn, html[data-theme="dark"] .upload-btn,
+html[data-theme="dark"] .copy-btn {
+  background: var(--claude-accent) !important;
+  border-color: transparent !important;
+  color: var(--claude-bg) !important;
+}

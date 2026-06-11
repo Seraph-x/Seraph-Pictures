@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>登录 | K-Vault</title>
+  <title>登录 | Seraph's Pictures</title>
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <link rel="apple-touch-icon" href="/logo.png">
   <link rel="shortcut icon" href="/favicon.ico">
@@ -12,10 +12,10 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css">
   <style>
     :root {
-      --primary-color: #8a4bff;
-      --primary-light: #b39ddb;
-      --accent-color: #ffd7e4;
-      --bg-gradient: linear-gradient(135deg, #ffd7e4 0%, #c8f1ff 100%);
+      --primary-color: var(--claude-accent);
+      --primary-light: var(--claude-accent-strong);
+      --accent-color: var(--claude-accent-strong);
+      --bg-gradient: linear-gradient(135deg, var(--claude-accent-strong) 0%, var(--claude-panel-soft) 100%);
       --card-bg: rgba(255, 255, 255, 0.9);
       --shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     }
@@ -76,7 +76,7 @@
       -webkit-backdrop-filter: blur(10px);
       border-radius: 28px;
       padding: 48px 40px;
-      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1), 0 2px 16px rgba(138, 75, 255, 0.08);
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1), 0 2px 16px rgba(217, 119, 87, 0.08);
       text-align: center;
       border: 1px solid rgba(255, 255, 255, 0.5);
     }
@@ -145,7 +145,7 @@
     .form-input:focus {
       border-color: var(--primary-color);
       outline: none;
-      box-shadow: 0 0 0 3px rgba(138, 75, 255, 0.1);
+      box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.1);
     }
 
     .form-input::placeholder {
@@ -200,7 +200,7 @@
     .login-btn {
       width: 100%;
       padding: 16px;
-      background: linear-gradient(135deg, var(--primary-color) 0%, #9b6dff 100%);
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--claude-accent-strong) 100%);
       border: none;
       border-radius: 14px;
       color: white;
@@ -233,7 +233,7 @@
 
     .login-btn:hover {
       transform: translateY(-3px);
-      box-shadow: 0 10px 25px rgba(138, 75, 255, 0.4);
+      box-shadow: 0 10px 25px rgba(217, 119, 87, 0.4);
     }
 
     .login-btn:active {
@@ -274,21 +274,6 @@
       display: flex;
       align-items: center;
       gap: 8px;
-    }
-
-    .footer-text {
-      margin-top: 24px;
-      color: #999;
-      font-size: 0.85em;
-    }
-
-    .footer-text a {
-      color: var(--primary-color);
-      text-decoration: none;
-    }
-
-    .footer-text a:hover {
-      text-decoration: underline;
     }
 
     /* 动画 */
@@ -467,6 +452,8 @@
     /* 深色模式支持 */
   </style>
   <link rel="stylesheet" href="/mobile-refactor.css">
+  <link rel="stylesheet" href="/claude-theme.css">
+  <link rel="stylesheet" href="/claude-layout.css">
 </head>
 <body class="login-page">
   <!-- 背景图层 (通过JS动态控制) -->
@@ -478,7 +465,7 @@
       <div class="logo">
         <i class="fas fa-cloud-upload-alt"></i>
       </div>
-      <h1 class="title">K-Vault</h1>
+      <h1 class="title">Seraph's Pictures</h1>
       <p class="subtitle">请登录以继续使用文件托管服务</p>
 
       <div class="error-message" id="errorMessage">
@@ -519,9 +506,6 @@
         </button>
       </form>
 
-      <p class="footer-text">
-        Powered by <a href="https://github.com/katelya77/K-Vault" target="_blank">K-Vault</a>
-      </p>
     </div>
   </div>
 
@@ -588,15 +572,23 @@
 
     function redirectToTarget() {
       const params = new URLSearchParams(window.location.search);
-      let redirect = params.get('redirect') || '/';
-      
-      // 防止重定向到登录页本身，避免无限循环
-      if (redirect.includes('login.html') || redirect === '/login') {
-        redirect = '/';
-      }
+      const target = sanitizeRedirectTarget(params.get('redirect'));
       
       // 使用 replace 防止用户回退到登录页
-      window.location.replace(redirect);
+      window.location.replace(target);
+    }
+
+    function sanitizeRedirectTarget(value) {
+      const target = String(value || '/').trim();
+      if (!target.startsWith('/') || target.startsWith('//')) return '/';
+      if (/[\u0000-\u001F\u007F]/.test(target)) return '/';
+
+      const path = target.split(/[?#]/)[0].replace(/\/+$/, '') || '/';
+      if (path === '/login' || path === '/login.html' || path.endsWith('/login.html')) {
+        return '/';
+      }
+
+      return target;
     }
 
     function togglePassword() {

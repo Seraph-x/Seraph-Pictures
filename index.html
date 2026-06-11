@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>K-Vault | 免费文件托管服务</title>
+    <title>Seraph's Pictures | 文件托管</title>
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <link rel="apple-touch-icon" href="/logo.png">
     <link rel="shortcut icon" href="/favicon.ico">
@@ -19,18 +19,18 @@
     />
 <style>
       :root {
-        --primary-color: #8a4bff;
-        --primary-light: #b39ddb;
-        --primary-dark: #6c3ce0;
-        --accent-color: #ffd7e4;
+        --primary-color: var(--claude-accent);
+        --primary-light: var(--claude-accent-strong);
+        --primary-dark: #b85f43;
+        --accent-color: var(--claude-accent-strong);
         --success-color: #67c23a;
         --warning-color: #e6a23c;
         --danger-color: #f56c6c;
         --info-color: #909399;
-        --bg-gradient: linear-gradient(135deg, #ffd7e4 0%, #c8f1ff 100%);
+        --bg-gradient: linear-gradient(135deg, var(--claude-accent-strong) 0%, var(--claude-panel-soft) 100%);
         --card-bg: rgba(255, 255, 255, 0.92);
         --shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-        --shadow-hover: 0 8px 24px rgba(138, 75, 255, 0.15);
+        --shadow-hover: 0 8px 24px rgba(217, 119, 87, 0.15);
         --text-primary: #2f3243;
         --text-secondary: #555d72;
         --text-muted: #8b93aa;
@@ -45,9 +45,9 @@
       }
 
       html[data-theme="dark"] {
-        --primary-color: #9aa9ff;
-        --primary-light: #b5bdf8;
-        --primary-dark: #768cff;
+        --primary-color: var(--claude-accent-strong);
+        --primary-light: var(--claude-accent-strong);
+        --primary-dark: #b85f43;
         --bg-gradient: linear-gradient(
           140deg,
           #111a2d 0%,
@@ -240,7 +240,7 @@
         height: 30px;
         border-radius: 8px;
         object-fit: cover;
-        box-shadow: 0 4px 12px rgba(138, 75, 255, 0.2);
+        box-shadow: 0 4px 12px rgba(217, 119, 87, 0.2);
         background: rgba(255, 255, 255, 0.92);
       }
 
@@ -266,8 +266,8 @@
       .nav-links a:hover {
         background: linear-gradient(
           135deg,
-          rgba(138, 75, 255, 0.1),
-          rgba(255, 215, 228, 0.3)
+          rgba(217, 119, 87, 0.1),
+          rgba(229, 138, 104, 0.3)
         );
         color: var(--primary-color);
         transform: translateY(-2px);
@@ -286,11 +286,11 @@
 
       .nav-links .theme-toggle-btn,
       .header-theme-toggle {
-        border: 1.5px solid rgba(138, 75, 255, 0.25);
+        border: 1.5px solid rgba(217, 119, 87, 0.25);
         background: linear-gradient(
           135deg,
-          rgba(138, 75, 255, 0.16),
-          rgba(200, 241, 255, 0.42)
+          rgba(217, 119, 87, 0.16),
+          rgba(43, 43, 41, 0.42)
         );
         color: var(--text-primary);
         padding: 10px 14px;
@@ -320,7 +320,7 @@
       .header-theme-toggle:hover {
         transform: translateY(-2px);
         border-color: var(--primary-color);
-        box-shadow: 0 8px 20px rgba(138, 75, 255, 0.2);
+        box-shadow: 0 8px 20px rgba(217, 119, 87, 0.2);
       }
 
       html[data-theme="dark"] .nav-links .theme-toggle-btn,
@@ -395,8 +395,8 @@
         transition: var(--transition);
         background: linear-gradient(
           135deg,
-          rgba(138, 75, 255, 0.03) 0%,
-          rgba(255, 215, 228, 0.08) 100%
+          rgba(217, 119, 87, 0.03) 0%,
+          rgba(229, 138, 104, 0.08) 100%
         );
         position: relative;
         overflow: hidden;
@@ -411,8 +411,8 @@
         bottom: 0;
         background: linear-gradient(
           135deg,
-          rgba(138, 75, 255, 0.08) 0%,
-          rgba(255, 215, 228, 0.15) 100%
+          rgba(217, 119, 87, 0.08) 0%,
+          rgba(229, 138, 104, 0.15) 100%
         );
         opacity: 0;
         transition: var(--transition);
@@ -427,11 +427,11 @@
       .upload-zone.dragover {
         border-color: var(--primary-color);
         transform: scale(1.01);
-        box-shadow: 0 8px 30px rgba(138, 75, 255, 0.15);
+        box-shadow: 0 8px 30px rgba(217, 119, 87, 0.15);
       }
 
       .upload-zone.dragover {
-        box-shadow: 0 0 30px rgba(138, 75, 255, 0.25);
+        box-shadow: 0 0 30px rgba(217, 119, 87, 0.25);
       }
 
       .upload-icon {
@@ -472,12 +472,12 @@
         padding: 8px 16px;
         background: linear-gradient(
           135deg,
-          rgba(138, 75, 255, 0.1) 0%,
-          rgba(200, 241, 255, 0.3) 100%
+          rgba(217, 119, 87, 0.1) 0%,
+          rgba(43, 43, 41, 0.3) 100%
         );
         border-radius: 20px;
         font-size: 0.85em;
-        color: #8a4bff;
+        color: var(--claude-accent);
         font-weight: 500;
       }
 
@@ -496,10 +496,10 @@
         background: linear-gradient(
           135deg,
           rgba(255, 255, 255, 0.9) 0%,
-          rgba(255, 215, 228, 0.3) 100%
+          rgba(229, 138, 104, 0.3) 100%
         );
         border-radius: 16px;
-        border: 1px solid rgba(138, 75, 255, 0.1);
+        border: 1px solid rgba(217, 119, 87, 0.1);
       }
 
       .storage-label {
@@ -517,11 +517,11 @@
         margin-top: 16px;
         padding: 16px 18px;
         border-radius: 16px;
-        border: 1px solid rgba(138, 75, 255, 0.12);
+        border: 1px solid rgba(217, 119, 87, 0.12);
         background: linear-gradient(
           135deg,
           rgba(255, 255, 255, 0.9) 0%,
-          rgba(200, 241, 255, 0.18) 100%
+          rgba(43, 43, 41, 0.18) 100%
         );
         display: grid;
         gap: 10px;
@@ -549,7 +549,7 @@
         gap: 6px;
         padding: 6px 12px;
         border-radius: 999px;
-        background: rgba(138, 75, 255, 0.12);
+        background: rgba(217, 119, 87, 0.12);
         color: var(--primary-color);
         font-size: 0.84em;
         font-weight: 600;
@@ -576,11 +576,11 @@
       .folder-target-row input:focus {
         outline: none;
         border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px rgba(138, 75, 255, 0.12);
+        box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.12);
       }
 
       .folder-reset-btn {
-        border: 1px solid rgba(138, 75, 255, 0.18);
+        border: 1px solid rgba(217, 119, 87, 0.18);
         border-radius: 12px;
         background: var(--surface-1);
         color: var(--primary-color);
@@ -592,7 +592,7 @@
 
       .folder-reset-btn:hover {
         transform: translateY(-1px);
-        box-shadow: 0 6px 18px rgba(138, 75, 255, 0.12);
+        box-shadow: 0 6px 18px rgba(217, 119, 87, 0.12);
       }
 
       .folder-target-tip {
@@ -604,19 +604,19 @@
         margin-top: 16px;
         padding: 18px;
         border-radius: 18px;
-        border: 1.5px solid rgba(138, 75, 255, 0.18);
+        border: 1.5px solid rgba(217, 119, 87, 0.18);
         background: linear-gradient(
           135deg,
           rgba(255, 255, 255, 0.94) 0%,
-          rgba(255, 215, 228, 0.22) 48%,
-          rgba(200, 241, 255, 0.22) 100%
+          rgba(229, 138, 104, 0.22) 48%,
+          rgba(43, 43, 41, 0.22) 100%
         );
-        box-shadow: 0 10px 28px rgba(138, 75, 255, 0.08);
+        box-shadow: 0 10px 28px rgba(217, 119, 87, 0.08);
       }
 
       .image-compress-panel.is-enabled {
-        border-color: rgba(138, 75, 255, 0.48);
-        box-shadow: 0 12px 32px rgba(138, 75, 255, 0.14);
+        border-color: rgba(217, 119, 87, 0.48);
+        box-shadow: 0 12px 32px rgba(217, 119, 87, 0.14);
       }
 
       .image-compress-head {
@@ -673,7 +673,7 @@
         height: 30px;
         border-radius: 999px;
         background: #dfe5ef;
-        border: 1px solid rgba(138, 75, 255, 0.12);
+        border: 1px solid rgba(217, 119, 87, 0.12);
         transition: var(--transition);
       }
 
@@ -691,7 +691,7 @@
       }
 
       .compress-toggle input:checked + .compress-toggle-track {
-        background: linear-gradient(135deg, var(--primary-color), #b39ddb);
+        background: linear-gradient(135deg, var(--primary-color), var(--claude-accent-strong));
       }
 
       .compress-toggle input:checked + .compress-toggle-track::after {
@@ -728,7 +728,7 @@
       .image-upload-decision button.active {
         border-color: var(--primary-color);
         color: var(--primary-color);
-        box-shadow: 0 8px 20px rgba(138, 75, 255, 0.1);
+        box-shadow: 0 8px 20px rgba(217, 119, 87, 0.1);
       }
 
       .compress-controls {
@@ -767,7 +767,7 @@
       .compress-mode-btn:hover {
         border-color: var(--primary-light);
         transform: translateY(-1px);
-        box-shadow: 0 8px 20px rgba(138, 75, 255, 0.1);
+        box-shadow: 0 8px 20px rgba(217, 119, 87, 0.1);
       }
 
       .compress-format-btn.active,
@@ -776,7 +776,7 @@
         color: var(--primary-color);
         background: linear-gradient(
           135deg,
-          rgba(138, 75, 255, 0.1),
+          rgba(217, 119, 87, 0.1),
           rgba(179, 157, 219, 0.18)
         );
       }
@@ -794,7 +794,7 @@
 
       .compress-control {
         padding: 12px 14px;
-        border: 1px solid rgba(138, 75, 255, 0.12);
+        border: 1px solid rgba(217, 119, 87, 0.12);
         border-radius: 14px;
         background: rgba(255, 255, 255, 0.62);
       }
@@ -865,14 +865,14 @@
 
       .storage-btn:hover:not(.disabled) {
         border-color: var(--primary-light);
-        background: rgba(138, 75, 255, 0.05);
+        background: rgba(217, 119, 87, 0.05);
       }
 
       .storage-btn.active {
         border-color: var(--primary-color);
         background: linear-gradient(
           135deg,
-          rgba(138, 75, 255, 0.1) 0%,
+          rgba(217, 119, 87, 0.1) 0%,
           rgba(179, 157, 219, 0.2) 100%
         );
         color: var(--primary-color);
@@ -924,12 +924,12 @@
         border-color: var(--primary-color);
         background: linear-gradient(
           135deg,
-          rgba(138, 75, 255, 0.08),
-          rgba(255, 215, 228, 0.15)
+          rgba(217, 119, 87, 0.08),
+          rgba(229, 138, 104, 0.15)
         );
         color: var(--primary-color);
         transform: translateY(-3px);
-        box-shadow: 0 6px 20px rgba(138, 75, 255, 0.15);
+        box-shadow: 0 6px 20px rgba(217, 119, 87, 0.15);
       }
 
       .method-btn i {
@@ -1048,7 +1048,7 @@
 
       .result-item.selected {
         border: 2px solid var(--primary-color);
-        background: rgba(138, 75, 255, 0.05);
+        background: rgba(217, 119, 87, 0.05);
       }
 
       .result-item-checkbox {
@@ -1111,7 +1111,7 @@
         align-items: center;
         justify-content: center;
         transition: all 0.3s;
-        background: rgba(138, 75, 255, 0.1);
+        background: rgba(217, 119, 87, 0.1);
         color: var(--primary-color);
       }
 
@@ -1306,7 +1306,7 @@
       .history-item.selected .history-item-overlay {
         opacity: 1;
         pointer-events: auto;
-        background: rgba(138, 75, 255, 0.7);
+        background: rgba(217, 119, 87, 0.7);
       }
 
       /* 图片预览弹窗 - 原生图片 / iframe */
@@ -1465,7 +1465,7 @@
         height: 36px;
         border: none;
         border-radius: 10px;
-        background: rgba(138, 75, 255, 0.08);
+        background: rgba(217, 119, 87, 0.08);
         color: var(--primary-color);
         cursor: pointer;
         transition: var(--transition);
@@ -1487,7 +1487,7 @@
         padding: 12px;
         border-radius: 14px;
         background: var(--surface-2);
-        border: 1px solid rgba(138, 75, 255, 0.1);
+        border: 1px solid rgba(217, 119, 87, 0.1);
       }
 
       .compress-stat span {
@@ -1602,8 +1602,8 @@
         padding: 12px 16px;
         background: linear-gradient(
           135deg,
-          rgba(138, 75, 255, 0.1) 0%,
-          rgba(255, 215, 228, 0.2) 100%
+          rgba(217, 119, 87, 0.1) 0%,
+          rgba(229, 138, 104, 0.2) 100%
         );
         border-radius: 12px;
         margin-bottom: 16px;
@@ -2092,7 +2092,7 @@
         background: linear-gradient(
           135deg,
           rgba(230, 162, 60, 0.15) 0%,
-          rgba(255, 215, 228, 0.25) 100%
+          rgba(229, 138, 104, 0.25) 100%
         );
         border: 1.5px solid rgba(230, 162, 60, 0.4);
         border-radius: var(--border-radius);
@@ -2119,6 +2119,9 @@
       }
     </style>
     <link rel="stylesheet" href="/mobile-refactor.css">
+    <link rel="stylesheet" href="/claude-theme.css">
+    <link rel="stylesheet" href="/claude-layout.css">
+    <link rel="stylesheet" href="/seraph-ui-polish.css">
   </head>
   <body>
     <div id="app" v-cloak>
@@ -2127,27 +2130,29 @@
         <div class="header-title">
           <img
             src="/logo.png"
-            alt="K-Vault Logo"
+            alt="Seraph's Pictures Logo"
             class="brand-logo"
             loading="eager"
             onerror="this.onerror=null;this.src='/favicon.ico';"
           />
-          <span>K-Vault</span>
+          <span>Seraph's Pictures</span>
         </div>
-        <button type="button" class="theme-toggle-btn header-theme-toggle" data-theme-toggle aria-label="切换主题">
+        <button type="button" class="theme-toggle-btn header-theme-toggle theme-icon-only" data-theme-toggle aria-label="切换主题">
           <i class="fas fa-moon" data-theme-icon></i>
-          <span data-theme-label>夜间</span>
         </button>
         <div class="nav-links">
           <a href="./"><i class="fas fa-home"></i> 首页</a>
-          <a href="./gallery.html" v-if="!isGuest"
+          <a href="/gallery.html" v-if="!isGuest"
             ><i class="fas fa-images"></i> 图片浏览</a
           >
-          <a href="./admin.html" v-if="!isGuest"
+          <a href="/admin.html" v-if="!isGuest"
             ><i class="fas fa-cog"></i> 管理后台</a
           >
-          <a href="./webdav.html" v-if="!isGuest"
+          <a href="/webdav.html" v-if="!isGuest"
             ><i class="fas fa-hard-drive"></i> WebDAV</a
+          >
+          <a href="/app/storage" v-if="!isGuest"
+            ><i class="fas fa-server"></i> 存储配置</a
           >
           <a
             href="javascript:void(0)"

@@ -136,7 +136,7 @@ export const FALLBACK_UPLOAD_LIMITS = {
     maxBytes: 25 * 1024 * 1024,
     directThreshold: DEFAULT_DIRECT_UPLOAD_THRESHOLD,
     supportsChunkUpload: true,
-    message: 'Discord upload limit depends on server boost level; K-Vault uses a conservative 25MB default.',
+    message: 'Discord upload limit depends on server boost level; Seraph\'s Pictures uses a conservative 25MB default.',
   },
   huggingface: {
     maxBytes: 35 * 1024 * 1024,
@@ -159,7 +159,7 @@ export const STORAGE_GROUPS = [
   {
     value: 'direct',
     label: 'Direct Upload Backends',
-    description: 'These backends are uploaded directly by K-Vault.',
+    description: 'These backends are uploaded directly by Seraph\'s Pictures.',
   },
   {
     value: 'mounted',

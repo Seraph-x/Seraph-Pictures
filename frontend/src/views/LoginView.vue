@@ -1,25 +1,33 @@
 <template>
-  <div class="app-bg login-page">
-    <section class="card login-card">
-      <h1>Sign In</h1>
-      <p class="muted">Use BASIC_USER/BASIC_PASS configured on the backend.</p>
+  <div class="claude-login-page">
+    <section class="claude-login-shell" aria-labelledby="login-title">
+      <header class="claude-login-heading">
+        <span class="claude-mark" aria-hidden="true"></span>
+        <h1 id="login-title" class="claude-login-title">Welcome, Seraph</h1>
+      </header>
 
-      <form class="form-grid" @submit.prevent="submit">
-        <label>
-          Username
-          <input v-model.trim="username" autocomplete="username" required />
-        </label>
-        <label>
-          Password
-          <input v-model="password" type="password" autocomplete="current-password" required />
-        </label>
-        <button class="btn" :disabled="submitting">
-          {{ submitting ? 'Signing in...' : 'Sign In' }}
-        </button>
+      <form class="claude-login-box" @submit.prevent="submit">
+        <div class="claude-login-fields">
+          <label class="claude-login-field">
+            <span>Username</span>
+            <input v-model.trim="username" autocomplete="username" required />
+          </label>
+          <label class="claude-login-field">
+            <span>Password</span>
+            <input v-model="password" type="password" autocomplete="current-password" required />
+          </label>
+        </div>
+
+        <div class="claude-login-actions">
+          <p class="muted">Seraph's Pictures private workspace</p>
+          <button class="btn" :disabled="submitting">
+            {{ submitting ? 'Signing in...' : 'Sign In' }}
+          </button>
+        </div>
       </form>
 
       <p v-if="error" class="error">{{ error }}</p>
-      <p class="muted link-row">
+      <p class="muted claude-login-note">
         Need the old page?
         <a href="/login.html" target="_blank" rel="noopener">Open legacy login</a>
       </p>
@@ -47,7 +55,7 @@ onMounted(async () => {
   }
 
   if (!authStore.authRequired || authStore.authenticated) {
-    const target = typeof route.query.redirect === 'string' ? route.query.redirect : '/upload';
+    const target = typeof route.query.redirect === 'string' ? route.query.redirect : '/';
     router.replace(target);
   }
 });
@@ -57,7 +65,7 @@ async function submit() {
   error.value = '';
   try {
     await authStore.login(username.value, password.value);
-    const target = typeof route.query.redirect === 'string' ? route.query.redirect : '/upload';
+    const target = typeof route.query.redirect === 'string' ? route.query.redirect : '/';
     router.push(target);
   } catch (err) {
     error.value = err.message || 'Login failed';

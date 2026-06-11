@@ -1,11 +1,29 @@
 const { buildPublicFileId, normalizeStorageType } = require('../storage/common');
 const { normalizeFolderPath } = require('../repos/file-repo');
+const { defaultRequestRemote, defaultResolveHostname } = require('../utils/remote-fetch');
+const {
+  assertPublicHostname,
+  assertPublicRedirect,
+  parseSafeRemoteUrl,
+  RemoteUrlError,
+} = require('../utils/remote-url');
+
+const URL_FETCH_TIMEOUT_MS = 30000;
+const DEFAULT_URL_UPLOAD_LIMIT = 20 * 1024 * 1024;
 
 class UploadService {
-  constructor({ storageRepo, fileRepo, storageFactory }) {
+  constructor({
+    storageRepo,
+    fileRepo,
+    storageFactory,
+    resolveHostname = defaultResolveHostname,
+    requestRemote = defaultRequestRemote,
+  }) {
     this.storageRepo = storageRepo;
     this.fileRepo = fileRepo;
     this.storageFactory = storageFactory;
+    this.resolveHostname = resolveHostname;
+    this.requestRemote = requestRemote;
   }
 
   resolveStorage({ storageId, storageMode }) {
@@ -77,19 +95,16 @@ class UploadService {
     storageId,
     storageMode,
     folderPath,
-    maxBytes = 20 * 1024 * 1024,
+    maxBytes = DEFAULT_URL_UPLOAD_LIMIT,
   }) {
-    const parsedUrl = new URL(url);
-    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-      throw new Error('Only HTTP/HTTPS URL is supported.');
-    }
-
+    const parsedUrl = parseSafeRemoteUrl(url);
+    await this.assertPublicResolvedHost(parsedUrl);
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
+    const timeout = setTimeout(() => controller.abort(), URL_FETCH_TIMEOUT_MS);
     let response;
 
     try {
-      response = await fetch(url, {
+      response = await this.requestRemote(parsedUrl, {
         signal: controller.signal,
         headers: {
           'User-Agent': 'K-Vault/2.0 (+https://github.com/katelya77/K-Vault)',
@@ -100,12 +115,20 @@ class UploadService {
       clearTimeout(timeout);
     }
 
+    if (isRedirectStatus(response.status)) {
+      const redirectUrl = assertPublicRedirect(response, parsedUrl.toString());
+      await this.assertPublicResolvedHost(redirectUrl);
+      throw new RemoteUrlError(
+        `Target URL redirects to ${redirectUrl.toString()}; use the final URL explicitly.`
+      );
+    }
+
     if (!response.ok) {
       throw new Error(`Target URL responded with ${response.status}.`);
     }
 
     const contentType = response.headers.get('content-type') || 'application/octet-stream';
-    const arrayBuffer = await response.arrayBuffer();
+    const arrayBuffer = await readLimitedBody(response, maxBytes);
 
     if (arrayBuffer.byteLength === 0) {
       throw new Error('Target URL returned empty body.');
@@ -134,6 +157,16 @@ class UploadService {
       storageMode,
       folderPath,
     });
+  }
+
+  async assertPublicResolvedHost(parsedUrl) {
+    const records = await this.resolveHostname(parsedUrl.hostname);
+    if (!Array.isArray(records) || records.length === 0) {
+      throw new RemoteUrlError('Remote URL host did not resolve.');
+    }
+    for (const record of records) {
+      assertPublicHostname(record.address || record);
+    }
   }
 
   async getFileResponse(fileId, rangeHeader) {
@@ -177,6 +210,61 @@ class UploadService {
     this.fileRepo.delete(fileId);
     return { deleted: true };
   }
+}
+
+function isRedirectStatus(status) {
+  return [301, 302, 303, 307, 308].includes(Number(status));
+}
+
+async function readLimitedBody(response, maxBytes) {
+  const contentLength = parseContentLength(response.headers.get('content-length'));
+  if (contentLength > maxBytes) {
+    throw new Error(`Remote file exceeds size limit (${formatMb(maxBytes)}MB).`);
+  }
+
+  const reader = response.body?.getReader?.();
+  if (!reader) {
+    const arrayBuffer = await response.arrayBuffer();
+    assertBodySize(arrayBuffer.byteLength, maxBytes);
+    return arrayBuffer;
+  }
+
+  const chunks = [];
+  let totalBytes = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = value instanceof Uint8Array ? value : new Uint8Array(value);
+    totalBytes += chunk.byteLength;
+    assertBodySize(totalBytes, maxBytes);
+    chunks.push(chunk);
+  }
+  return joinChunks(chunks, totalBytes);
+}
+
+function parseContentLength(value) {
+  const parsed = Number.parseInt(String(value || ''), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function assertBodySize(size, maxBytes) {
+  if (size > maxBytes) {
+    throw new Error(`Remote file exceeds size limit (${formatMb(maxBytes)}MB).`);
+  }
+}
+
+function formatMb(bytes) {
+  return Math.floor(bytes / 1024 / 1024);
+}
+
+function joinChunks(chunks, totalBytes) {
+  const output = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    output.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return output.buffer;
 }
 
 module.exports = {

@@ -204,7 +204,9 @@ async function copyLink(id) {
 
 async function toggleLike(item) {
   try {
-    const data = await apiFetch(`/api/manage/toggleLike/${encodeURIComponent(item.name)}`);
+    const data = await apiFetch(`/api/manage/toggleLike/${encodeURIComponent(item.name)}`, {
+      method: 'POST',
+    });
     item.metadata = {
       ...(item.metadata || {}),
       liked: Boolean(data.liked),
@@ -216,7 +218,9 @@ async function toggleLike(item) {
 
 async function setBlock(name) {
   try {
-    const data = await apiFetch(`/api/manage/block/${encodeURIComponent(name)}?action=1`);
+    const data = await apiFetch(`/api/manage/block/${encodeURIComponent(name)}`, {
+      method: 'POST',
+    });
     updateListType(name, data.listType || 'Block');
   } catch (err) {
     error.value = err.message;
@@ -225,7 +229,9 @@ async function setBlock(name) {
 
 async function setWhite(name) {
   try {
-    const data = await apiFetch(`/api/manage/white/${encodeURIComponent(name)}?action=1`);
+    const data = await apiFetch(`/api/manage/white/${encodeURIComponent(name)}`, {
+      method: 'POST',
+    });
     updateListType(name, data.listType || 'White');
   } catch (err) {
     error.value = err.message;
@@ -245,7 +251,9 @@ async function remove(name) {
   if (!window.confirm(`Delete ${name}?`)) return;
 
   try {
-    await apiFetch(`/api/manage/delete/${encodeURIComponent(name)}`);
+    await apiFetch(`/api/manage/delete/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+    });
     files.value = files.value.filter((x) => x.name !== name);
   } catch (err) {
     error.value = err.message;

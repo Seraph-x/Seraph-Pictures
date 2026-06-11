@@ -8,6 +8,17 @@ import { buildTelegramBotApiUrl } from '../../../utils/telegram.js';
 const STORAGE_PREFIXES = ['img:', 'vid:', 'aud:', 'doc:', 'r2:', 's3:', 'discord:', 'hf:', 'webdav:', 'github:', ''];
 
 export async function onRequest(context) {
+  if (String(context.request.method || 'GET').toUpperCase() !== 'DELETE') {
+    return methodNotAllowed('DELETE');
+  }
+  return deleteFile(context);
+}
+
+export async function onRequestDelete(context) {
+  return deleteFile(context);
+}
+
+async function deleteFile(context) {
   const { request, env, params } = context;
   let fileId = params.id;
 
@@ -263,6 +274,16 @@ function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+function methodNotAllowed(allow) {
+  return new Response(JSON.stringify({ success: false, error: 'Method not allowed.' }), {
+    status: 405,
+    headers: {
+      'Allow': allow,
+      'Content-Type': 'application/json',
+    },
   });
 }
 

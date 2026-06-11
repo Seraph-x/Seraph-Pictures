@@ -18,15 +18,14 @@ const routes = [
     path: '/',
     component: AppShell,
     children: [
-      { path: '', redirect: '/upload' },
-      { path: 'upload', name: 'upload', component: UploadView },
+      { path: '', name: 'upload', component: UploadView },
       { path: 'drive', name: 'drive', component: DriveView, meta: { requiresAdmin: true } },
       { path: 'admin', redirect: '/drive' },
       { path: 'storage', name: 'storage', component: StorageView, meta: { requiresAdmin: true } },
       { path: 'status', name: 'status', component: StatusView },
     ],
   },
-  { path: '/:pathMatch(.*)*', redirect: '/upload' },
+  { path: '/:pathMatch(.*)*', redirect: '/' },
 ];
 
 const router = createRouter({
@@ -42,7 +41,7 @@ router.beforeEach(async (to) => {
 
   if (to.name === 'login') {
     if (!authStore.authRequired || authStore.authenticated) {
-      const target = typeof to.query.redirect === 'string' ? to.query.redirect : '/upload';
+      const target = typeof to.query.redirect === 'string' ? to.query.redirect : '/';
       return target;
     }
     return true;

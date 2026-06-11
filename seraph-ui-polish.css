@@ -1,0 +1,140 @@
+.theme-icon-only {
+  inline-size: 38px !important;
+  aspect-ratio: 1;
+  padding: 0 !important;
+  display: inline-grid !important;
+  place-items: center !important;
+}
+
+.theme-icon-only i {
+  width: auto !important;
+  font-size: 1rem !important;
+}
+
+.header {
+  gap: 14px !important;
+}
+
+.header-title {
+  min-width: 0 !important;
+}
+
+.header-title span {
+  white-space: nowrap !important;
+}
+
+.nav-links {
+  justify-content: center !important;
+}
+
+.nav-links a {
+  min-height: 38px !important;
+  justify-content: center !important;
+}
+
+.upload-section,
+.result-section {
+  align-self: stretch;
+}
+
+.upload-list {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+
+.upload-list .card-title {
+  grid-column: 1 / -1;
+}
+
+.upload-item,
+.result-item {
+  min-height: 96px;
+  box-sizing: border-box;
+  margin: 0 !important;
+}
+
+.upload-item {
+  display: grid !important;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  align-items: center !important;
+}
+
+.upload-item-preview,
+.result-item-preview {
+  width: 56px !important;
+  height: 56px !important;
+  min-width: 56px !important;
+}
+
+.result-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.result-list {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  max-height: none !important;
+  flex: 1 1 auto;
+}
+
+.result-item {
+  display: grid !important;
+  grid-template-columns: 22px 56px minmax(0, 1fr) auto;
+  align-items: center !important;
+}
+
+.result-item-actions {
+  justify-content: end;
+}
+
+.link-format-tabs,
+.result-actions {
+  justify-content: center;
+}
+
+.batch-links {
+  margin-top: 14px;
+}
+
+.empty-state {
+  flex: 1 1 auto;
+  min-height: 220px;
+  display: grid !important;
+  place-items: center;
+  align-content: center;
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  .header {
+    justify-content: center !important;
+  }
+
+  .header-title,
+  .nav-links {
+    width: 100%;
+    justify-content: center !important;
+  }
+
+  .header-theme-toggle {
+    margin-left: 0 !important;
+  }
+
+  .upload-item,
+  .result-item {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+
+  .result-item-checkbox {
+    grid-row: span 2;
+  }
+
+  .result-item-actions {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+}

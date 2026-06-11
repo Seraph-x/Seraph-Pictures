@@ -30,14 +30,25 @@ function jsonResponse(body, status = 200) {
 }
 
 export async function onRequest(context) {
+  if (String(context.request.method || 'GET').toUpperCase() !== 'POST') {
+    return methodNotAllowed('POST');
+  }
+  return editName(context);
+}
+
+export async function onRequestPost(context) {
+  return editName(context);
+}
+
+async function editName(context) {
   const { request, params, env } = context;
 
   if (!env.img_url) {
     return jsonResponse({ success: false, error: 'KV binding img_url is not configured.' }, 500);
   }
 
-  const url = new URL(request.url);
-  const requestedName = (url.searchParams.get('newName') || params.name || '').trim();
+  const payload = await readJsonBody(request);
+  const requestedName = String(payload.newName || '').trim();
 
   if (!requestedName) {
     return jsonResponse({ success: false, error: 'newName is required.' }, 400);
@@ -62,4 +73,23 @@ export async function onRequest(context) {
   await env.img_url.put(kvKey, '', { metadata });
 
   return jsonResponse({ success: true, fileName: metadata.fileName, key: kvKey });
+}
+
+async function readJsonBody(request) {
+  try {
+    const body = await request.json();
+    return body && typeof body === 'object' ? body : {};
+  } catch {
+    return {};
+  }
+}
+
+function methodNotAllowed(allow) {
+  return new Response(JSON.stringify({ success: false, error: 'Method not allowed.' }), {
+    status: 405,
+    headers: {
+      Allow: allow,
+      'Content-Type': 'application/json',
+    },
+  });
 }

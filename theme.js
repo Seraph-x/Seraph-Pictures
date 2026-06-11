@@ -91,10 +91,9 @@
   function createToggleButton(className) {
     var button = document.createElement("button");
     button.type = "button";
-    button.className = className;
+    button.className = className + " theme-icon-only";
     button.setAttribute("data-theme-toggle", "");
-    button.innerHTML =
-      '<i class="fas fa-moon" data-theme-icon></i><span data-theme-label>夜间</span>';
+    button.innerHTML = '<i class="fas fa-moon" data-theme-icon></i>';
     return button;
   }
 
@@ -109,7 +108,9 @@
       return;
     }
 
-    var adminActions = document.querySelector(".header-content .actions");
+    var adminActions =
+      document.querySelector(".admin-header-system") ||
+      document.querySelector(".header-content .actions");
     if (adminActions) {
       var adminBtn = createToggleButton("theme-admin-toggle");
       adminActions.insertBefore(adminBtn, adminActions.firstChild);

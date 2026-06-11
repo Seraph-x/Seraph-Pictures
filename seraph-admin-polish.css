@@ -1,0 +1,224 @@
+.admin-page .header-content {
+  display: grid !important;
+  grid-template-columns: minmax(300px, 0.85fr) minmax(520px, 1.45fr) minmax(160px, 0.45fr) !important;
+  align-items: center !important;
+  gap: 14px !important;
+  height: auto !important;
+  min-height: 64px !important;
+}
+
+.admin-header-primary,
+.admin-header-tools,
+.admin-header-system {
+  min-width: 0;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.admin-header-primary {
+  justify-content: start !important;
+}
+
+.admin-header-tools {
+  justify-content: center !important;
+  flex-wrap: nowrap !important;
+}
+
+.admin-header-system {
+  justify-content: end !important;
+  flex-wrap: nowrap !important;
+  gap: 12px !important;
+}
+
+.admin-header-primary .search-card {
+  flex: 1 1 220px !important;
+  max-width: 320px !important;
+  margin: 0 !important;
+}
+
+.admin-header-tools > .el-dropdown,
+.admin-header-system > .el-dropdown,
+.admin-header-system > .el-tooltip,
+.admin-header-system > i {
+  flex: 0 0 auto;
+}
+
+.admin-header-system > i,
+.admin-header-system > .el-tooltip > i,
+.admin-header-tools .el-dropdown-link,
+.admin-header-system .el-dropdown-link {
+  width: 34px !important;
+  height: 34px !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  margin: 0 !important;
+}
+
+.ui-design-panel {
+  text-align: center;
+  justify-items: center;
+}
+
+.ui-design-head,
+.ui-design-section,
+.ui-design-inline,
+.ui-design-range-wrap,
+.ui-design-foot {
+  width: 100%;
+}
+
+.ui-design-head,
+.ui-design-section-title,
+.ui-design-inline,
+.ui-design-range-head {
+  justify-content: center !important;
+}
+
+.ui-design-input {
+  text-align: center;
+}
+
+.ui-design-equal-options,
+.ui-effect-grid {
+  width: 100%;
+  display: grid !important;
+  gap: 8px !important;
+  border-radius: 14px !important;
+}
+
+.ui-design-equal-options {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ui-effect-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.ui-effect-grid .ui-segment {
+  height: 100%;
+}
+
+.ui-effect-grid .ui-segment span {
+  min-height: 42px;
+  padding-inline: 8px;
+  line-height: 1.15;
+}
+
+.ui-segment,
+.ui-segment span {
+  width: 100%;
+}
+
+.ui-design-action-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px !important;
+}
+
+.ui-design-login-grid {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 0.32fr) minmax(120px, 0.32fr);
+}
+
+.ui-upload-drop,
+.ui-design-action-grid .el-button,
+.ui-design-login-grid .el-button {
+  width: 100%;
+  min-height: 40px;
+  margin: 0 !important;
+}
+
+.ui-design-footer-actions .el-message-box__btns {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px !important;
+}
+
+.ui-design-footer-actions .el-message-box__btns .el-button {
+  width: 100%;
+  margin: 0 !important;
+}
+
+.storage-config-alert .el-message-box {
+  width: min(760px, 94vw) !important;
+}
+
+.storage-config-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.storage-config-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.storage-status-card {
+  border: 1px solid var(--claude-line);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--claude-panel-soft);
+}
+
+.storage-status-card-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 10px;
+  align-items: center;
+  gap: 8px;
+}
+
+.storage-status-card-head span {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.storage-status-card p {
+  margin: 8px 0 0;
+  color: var(--claude-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.storage-config-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.storage-config-actions .el-button {
+  margin: 0 !important;
+}
+
+@media (max-width: 1180px) {
+  .admin-page .header-content {
+    grid-template-columns: 1fr !important;
+  }
+
+  .admin-header-primary,
+  .admin-header-tools,
+  .admin-header-system {
+    justify-content: center !important;
+    flex-wrap: wrap !important;
+  }
+
+  .admin-header-primary .search-card {
+    max-width: 420px !important;
+  }
+}
+
+@media (max-width: 680px) {
+  .admin-header-primary .search-card {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .ui-effect-grid,
+  .ui-design-login-grid,
+  .storage-config-actions {
+    grid-template-columns: 1fr;
+  }
+}

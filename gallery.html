@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>图片浏览器 | K-Vault</title>
+  <title>图片浏览器 | Seraph's Pictures</title>
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <link rel="apple-touch-icon" href="/logo.png">
   <link rel="shortcut icon" href="/favicon.ico">
@@ -816,6 +816,8 @@
     }
   </style>
   <link rel="stylesheet" href="/mobile-refactor.css">
+  <link rel="stylesheet" href="/claude-theme.css">
+  <link rel="stylesheet" href="/claude-layout.css">
 </head>
 <body>
   <div id="app" v-cloak>
@@ -830,7 +832,7 @@
       </div>
       <div class="header-actions">
         <a href="./" class="nav-btn"><i class="fas fa-cloud-upload-alt"></i> 上传</a>
-        <a href="./admin.html" class="nav-btn"><i class="fas fa-th-large"></i> 管理</a>
+        <a href="/admin.html" class="nav-btn"><i class="fas fa-th-large"></i> 管理</a>
         <a href="./" class="nav-btn"><i class="fas fa-home"></i> 首页</a>
         <button type="button" class="nav-btn gallery-theme-toggle" data-theme-toggle aria-label="切换主题">
           <i class="fas fa-moon" data-theme-icon></i>
@@ -1080,13 +1082,13 @@
         async loadImages() {
           this.loading = true;
           try {
-            const response = await fetch('./api/manage/list?limit=100', {
+            const response = await fetch('/api/manage/list?limit=100', {
               method: 'GET',
               credentials: 'include'
             });
             
             if (response.status === 401) {
-              window.location.href = './api/manage/login';
+              window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
               return;
             }
 
@@ -1118,7 +1120,7 @@
           if (!this.nextCursor || this.loading) return;
           this.loading = true;
           try {
-            const response = await fetch(`./api/manage/list?limit=100&cursor=${encodeURIComponent(this.nextCursor)}`, {
+            const response = await fetch(`/api/manage/list?limit=100&cursor=${encodeURIComponent(this.nextCursor)}`, {
               method: 'GET',
               credentials: 'include'
             });
@@ -1209,8 +1211,8 @@
           let successCount = 0;
           for (const img of selected) {
             try {
-              const response = await fetch(`./api/manage/delete/${img.name}`, {
-                method: 'GET',
+              const response = await fetch(`/api/manage/delete/${img.name}`, {
+                method: 'DELETE',
                 credentials: 'include'
               });
               if (response.ok) {
@@ -1293,8 +1295,8 @@
         async deleteImage(img, index) {
           if (!confirm('确定要删除这个文件吗？')) return;
           try {
-            const response = await fetch(`./api/manage/delete/${img.name}`, {
-              method: 'GET',
+            const response = await fetch(`/api/manage/delete/${img.name}`, {
+              method: 'DELETE',
               credentials: 'include'
             });
             if (response.ok) {

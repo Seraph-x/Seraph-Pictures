@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>K-Vault | 管理后台</title>
+  <title>Seraph's Pictures | 管理后台</title>
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <link rel="apple-touch-icon" href="/logo.png">
   <link rel="shortcut icon" href="/favicon.ico">
@@ -13,7 +13,6 @@
   <link rel="stylesheet" href="./admin-imgtc.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-ui@2.15.3/lib/theme-chalk/index.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css">
-  <script src="https://js.sentry-cdn.com/219f636ac7bde5edab2c3e16885cb535.min.js" crossorigin="anonymous"></script>
   <style>
     /* 底部消息提示样式 */
     .el-message {
@@ -811,21 +810,22 @@
     }
   </style>
   <link rel="stylesheet" href="/mobile-refactor.css">
+  <link rel="stylesheet" href="/claude-theme.css">
+  <link rel="stylesheet" href="/claude-layout.css">
+  <link rel="stylesheet" href="/claude-admin-layout.css?v=20260611-detail-layout">
+  <link rel="stylesheet" href="/seraph-admin-polish.css?v=20260611-detail-layout">
 </head>
-<body>
+<body class="admin-page">
   <div id="app" v-cloak>
     <el-container>
       <el-header>
         <div class="header-content">
-          <span class="home-btn" @click="goHome"><i class="fas fa-home"></i></span>
-          <span class="title" @click="refreshDashboard">管理后台</span>
-          <div class="search-card"><el-input v-model="search" size="mini" placeholder="输入关键字搜索"></el-input></div>
-          <span class="stats" role="status" aria-live="polite">
-            <i class="fas fa-chart-line stats-icon"></i>
-            <span class="stats-text">总记录: {{ totalCount || Number }}</span>
-            <small class="stats-loaded">已加载 {{ Number }}</small>
-          </span>
-          <div class="actions">
+          <div class="admin-header-primary">
+            <span class="home-btn" @click="goHome"><i class="fas fa-home"></i></span>
+            <span class="title" @click="refreshDashboard">管理后台</span>
+            <div class="search-card"><el-input v-model="search" size="mini" placeholder="输入关键字搜索"></el-input></div>
+          </div>
+          <div class="actions admin-header-tools">
             <el-dropdown @command="switchFileType" :hide-on-click="false">
               <span class="el-dropdown-link"><i :class="fileTypeIcon"></i></span>
               <el-dropdown-menu slot="dropdown">
@@ -911,36 +911,8 @@
                 <el-dropdown-item command="checkStatus" divided><i class="fas fa-heartbeat"></i> 检查连接状态</el-dropdown-item>
               </el-dropdown-menu>
             </el-dropdown>
-            <div class="status-panel" @click="checkConnectionStatus">
-              <div class="status-item">
-                <i class="fas fa-circle" :style="{ color: systemStatus.telegram.connected ? '#67c23a' : '#f56c6c' }"></i>
-                <span>TG</span>
-              </div>
-              <div class="status-item">
-                <i class="fas fa-circle" :style="{ color: systemStatus.kv.connected ? '#67c23a' : '#f56c6c' }"></i>
-                <span>KV</span>
-              </div>
-              <div class="status-item">
-                <i class="fas fa-circle" :style="{ color: systemStatus.r2.connected ? '#67c23a' : (isUnconfiguredStatus(systemStatus.r2) ? '#909399' : '#f56c6c') }"></i>
-                <span>R2</span>
-              </div>
-              <div class="status-item">
-                <i class="fas fa-circle" :style="{ color: systemStatus.s3.connected ? '#67c23a' : (isUnconfiguredStatus(systemStatus.s3) ? '#909399' : '#f56c6c') }"></i>
-                <span>S3</span>
-              </div>
-              <div class="status-item">
-                <i class="fas fa-circle" :style="{ color: systemStatus.discord.connected ? '#67c23a' : (isUnconfiguredStatus(systemStatus.discord) ? '#909399' : '#f56c6c') }"></i>
-                <span>DC</span>
-              </div>
-              <div class="status-item">
-                <i class="fas fa-circle" :style="{ color: systemStatus.huggingface.connected ? '#67c23a' : (isUnconfiguredStatus(systemStatus.huggingface) ? '#909399' : '#f56c6c') }"></i>
-                <span>HF</span>
-              </div>
-              <div class="status-item">
-                <i class="fas fa-circle" :style="{ color: systemStatus.github.connected ? '#67c23a' : (isUnconfiguredStatus(systemStatus.github) ? '#909399' : '#f56c6c') }"></i>
-                <span>GH</span>
-              </div>
-            </div>
+          </div>
+          <div class="admin-header-system">
             <el-dropdown @command="handleLoadSettings" :hide-on-click="false">
               <span class="el-dropdown-link"><i class="fas fa-cog"></i></span>
               <el-dropdown-menu slot="dropdown">
@@ -951,6 +923,7 @@
                 <el-dropdown-item command="uiDesign" divided><i class="fas fa-sliders-h"></i> 前端 UI 设计</el-dropdown-item>
               </el-dropdown-menu>
             </el-dropdown>
+            <el-tooltip content="存储状态与配置" placement="bottom"><i class="fas fa-server" @click="showStorageConfigPanel"></i></el-tooltip>
             <el-tooltip content="前端 UI 设计" placement="bottom"><i class="fas fa-sliders-h" @click="showUiDesignSettingsPanel"></i></el-tooltip>
             <i class="fas fa-sign-out-alt" @click="handleLogout"></i>
           </div>
@@ -959,6 +932,11 @@
       <el-main class="main-container">
         <div class="disk-layout">
           <aside class="folder-sidebar">
+            <div class="folder-stats" role="status" aria-live="polite">
+              <i class="fas fa-chart-line"></i>
+              <span>总记录: {{ totalCount || Number }}</span>
+              <small>已加载 {{ Number }}</small>
+            </div>
             <div class="folder-head">
               <span class="folder-head-title"><i class="fas fa-folder-tree"></i><span>目录管理</span></span>
               <span class="folder-head-actions">
@@ -989,7 +967,7 @@
               </button>
             </div>
           </aside>
-          <section class="disk-content">
+          <section class="disk-content" :class="{ 'is-list-view': viewMode === 'list' }">
             <div class="folder-breadcrumb">
               <i class="fas fa-location-arrow"></i>
               <span class="folder-crumb" @click="selectFolder('')">根目录</span>
@@ -1239,12 +1217,6 @@
             </div>
           </section>
         </div>
-  <el-footer class="footer">
-          <div>Powered By K-Vault</div>
-          <a href="https://github.com/katelya77/K-Vault" target="_blank" rel="noopener noreferrer">
-            <div><i class="fa-brands fa-github"></i> K-Vault</div>
-          </a>
-        </el-footer>
       </el-main>
     </el-container>
     <el-dialog
@@ -1525,6 +1497,7 @@
         s3: { connected: false, message: '检查中...', enabled: false },
         discord: { connected: false, message: '检查中...', enabled: false },
         huggingface: { connected: false, message: '检查中...', enabled: false },
+        webdav: { connected: false, message: '检查中...', enabled: false },
         github: { connected: false, message: '检查中...', enabled: false },
         auth: { enabled: false, message: '检查中...' }
       },
@@ -1808,7 +1781,7 @@
       async loadApiTokens() {
         this.tokenLoading = true;
         try {
-          const response = await fetch('./api/admin/tokens', {
+          const response = await fetch('/api/admin/tokens', {
             method: 'GET',
             credentials: 'include',
           });
@@ -1841,7 +1814,7 @@
         }
         this.tokenCreateLoading = true;
         try {
-          const response = await fetch('./api/admin/tokens', {
+          const response = await fetch('/api/admin/tokens', {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
@@ -1887,7 +1860,7 @@
         const nextEnabled = Boolean(token.enabled);
         this.$set(this.tokenMutatingMap, tokenId, true);
         try {
-          const response = await fetch(`./api/admin/tokens/${encodeURIComponent(tokenId)}`, {
+          const response = await fetch(`/api/admin/tokens/${encodeURIComponent(tokenId)}`, {
             method: 'PATCH',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
@@ -1920,7 +1893,7 @@
 
         this.$set(this.tokenMutatingMap, tokenId, true);
         try {
-          const response = await fetch(`./api/admin/tokens/${encodeURIComponent(tokenId)}`, {
+          const response = await fetch(`/api/admin/tokens/${encodeURIComponent(tokenId)}`, {
             method: 'DELETE',
             credentials: 'include',
           });
@@ -2184,7 +2157,7 @@
             params.set('storage', this.storageFilter);
           }
           const query = params.toString();
-          const response = await fetch(`./api/manage/folders${query ? `?${query}` : ''}`, { method: 'GET', credentials: 'include' });
+          const response = await fetch(`/api/manage/folders${query ? `?${query}` : ''}`, { method: 'GET', credentials: 'include' });
           const data = await response.json();
           this.folders = Array.isArray(data?.folders) ? data.folders : [];
         } catch (error) {
@@ -2239,7 +2212,7 @@
           this.nextCursor = null;
 
           try {
-            const response = await fetch('./api/manage/folders', {
+            const response = await fetch('/api/manage/folders', {
               method: 'POST',
               credentials: 'include',
               headers: { 'Content-Type': 'application/json' },
@@ -2288,7 +2261,7 @@
           this.folderPath = targetPath;
 
           try {
-            const res = await fetch('./api/manage/folders', {
+            const res = await fetch('/api/manage/folders', {
               method: 'PUT',
               credentials: 'include',
               headers: { 'Content-Type': 'application/json' },
@@ -2335,7 +2308,7 @@
           this.nextCursor = null;
 
           try {
-            const response = await fetch(`./api/manage/folders?path=${encodeURIComponent(target)}&recursive=1`, {
+            const response = await fetch(`/api/manage/folders?path=${encodeURIComponent(target)}&recursive=1`, {
               method: 'DELETE',
               credentials: 'include',
             }).then((r) => r.json());
@@ -2433,7 +2406,7 @@
           this.sortFoldersLocal();
           this.updateStats();
 
-          const result = await fetch('./api/manage/files/move-folder', {
+          const result = await fetch('/api/manage/files/move-folder', {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
@@ -2634,7 +2607,7 @@
         this.updateStats();
 
         try {
-          const result = await fetch('./api/manage/files/move-folder', {
+          const result = await fetch('/api/manage/files/move-folder', {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
@@ -2654,7 +2627,7 @@
           this.handleFileDragEnd();
         }
       },
-      goHome() { window.location.href = './'; },  // 返回首页
+      goHome() { window.location.href = '/'; },  // 返回首页
       refreshDashboard() { location.reload(); },  // 刷新页面
       clearSelection() {  // 取消全部选择
         this.tableData.forEach(file => file.selected = false);
@@ -2826,7 +2799,7 @@
       
       async handleLogout() {  // 退出登录
         try {
-          const response = await fetch('./api/auth/logout', { method: 'POST', credentials: 'include' });
+          const response = await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
           // 清除本地存储的认证信息
           sessionStorage.clear();
           localStorage.removeItem('storageMode');
@@ -2834,7 +2807,7 @@
           // 尝试清除浏览器缓存的 Basic Auth 凭证
           // 通过发送一个带有错误凭证的请求来清除缓存
           try {
-            await fetch('./api/manage/list', {
+            await fetch('/api/manage/list', {
               method: 'GET',
               headers: { 'Authorization': 'Basic ' + btoa('logout:logout') },
               credentials: 'include'
@@ -2844,7 +2817,7 @@
           this.$message.success('已退出登录');
           // 跳转到登录页，禁止返回
           setTimeout(() => {
-            window.location.replace('./login.html');
+            window.location.replace('/login.html');
           }, 500);
         } catch (e) {
           this.$message.error('退出失败，请重试');
@@ -2914,7 +2887,7 @@
             limit: this.getListRequestLimit(true),
             includeStats: true,
           });
-          const result = await fetch(`./api/manage/list?${params.toString()}`, {
+          const result = await fetch(`/api/manage/list?${params.toString()}`, {
             method: 'GET',
             credentials: 'include',
           }).then((r) => r.json());
@@ -3160,7 +3133,7 @@
             limit: this.getListRequestLimit(false),
             includeStats: true,
           });
-          const result = await fetch(`./api/manage/list?${params.toString()}`, { method: 'GET', credentials: 'include' })
+          const result = await fetch(`/api/manage/list?${params.toString()}`, { method: 'GET', credentials: 'include' })
             .then(response => response.json());
           if (requestSeq !== this.listRequestSeq) return;
           const mapped = (result.keys || []).map((file) => this.normalizeListItem(file));
@@ -3192,8 +3165,8 @@
         // 乐观更新收藏状态
         this.tableData[fileIndex].metadata.liked = !(this.tableData[fileIndex].metadata.liked ?? false);
         // 发送请求更新服务器数据
-        var requestOptions = { method: 'GET', redirect: 'follow', credentials: 'include' };
-        fetch(`./api/manage/toggleLike/${name}`, requestOptions)
+        var requestOptions = { method: 'POST', redirect: 'follow', credentials: 'include' };
+        fetch(`/api/manage/toggleLike/${name}`, requestOptions)
           .then(response => response.json())
           .then(result => {
             if (!result.success) {  // 如果服务器更新失败，将状态还原
@@ -3217,7 +3190,7 @@
           type: 'warning'
         }).then(() => {
           const encodedKey = encodeURIComponent(key);
-          fetch(`./api/manage/delete/${encodedKey}`, { method: 'GET', credentials: 'include' })
+          fetch(`/api/manage/delete/${encodedKey}`, { method: 'DELETE', credentials: 'include' })
             .then(response => {
               if (!response.ok) throw new Error('删除失败');
               return response.json();
@@ -3303,7 +3276,7 @@
         }).then(() => {
           const promises = this.selectedFiles.map(file => {
             const encodedKey = encodeURIComponent(file.name);
-            return fetch(`./api/manage/delete/${encodedKey}`, { method: 'GET', credentials: 'include' })
+            return fetch(`/api/manage/delete/${encodedKey}`, { method: 'DELETE', credentials: 'include' })
               .then(r => r.json())
               .then(result => ({ name: file.name, success: result.success }))
               .catch(() => ({ name: file.name, success: false }));
@@ -3380,7 +3353,7 @@
           cancelButtonText: '取消',
           type: 'warning'
         }).then(() => {
-          const promises = this.selectedFiles.map(file => fetch(`./api/manage/${type.toLowerCase()}/${file.name}`, { method: 'GET', credentials: 'include' }));
+          const promises = this.selectedFiles.map(file => fetch(`/api/manage/${type.toLowerCase()}/${file.name}`, { method: 'POST', credentials: 'include' }));
 
           Promise.all(promises)
             .then(responses => {
@@ -3444,58 +3417,61 @@
           case 'checkStatus': this.checkConnectionStatus(); break;
         }
       },
+      getStatusColor(item) {
+        if (item?.connected) return '#67c23a';
+        if (this.isUnconfiguredStatus(item)) return '#909399';
+        return '#f56c6c';
+      },
+      getStatusMark(item) {
+        if (item?.connected) return '✓';
+        if (this.isUnconfiguredStatus(item)) return '○';
+        return '✗';
+      },
+      updateSystemStatus(status) {
+        this.systemStatus = {
+          ...this.systemStatus,
+          ...(status || {}),
+          github: status?.github || this.systemStatus.github,
+          webdav: status?.webdav || this.systemStatus.webdav,
+        };
+      },
+      renderStatusRow(label, iconClass, item, iconColor = '') {
+        const color = this.getStatusColor(item);
+        const iconStyle = iconColor ? `color: ${iconColor};` : '';
+        const message = item?.message || '未知';
+        return `
+          <p>
+            <i class="${iconClass}" style="width: 20px; ${iconStyle}"></i>
+            <b>${label}:</b>
+            <span style="color: ${color}">${this.getStatusMark(item)} ${message}</span>
+          </p>
+        `;
+      },
+      async fetchSystemStatus() {
+        const response = await fetch('/api/status', { credentials: 'include' });
+        const status = await response.json();
+        this.updateSystemStatus(status);
+        return status || {};
+      },
       // 检查连接状态
       async checkConnectionStatus() {
         const loading = this.$message({ message: '正在检查连接状态...', duration: 0 });
         try {
-          const response = await fetch('./api/status', { credentials: 'include' });
-          const status = await response.json();
-          this.systemStatus = {
-            ...this.systemStatus,
-            ...(status || {}),
-            github: status?.github || this.systemStatus.github,
-          };
+          const status = await this.fetchSystemStatus();
           loading.close();
           
           // 显示详细状态对话框
           const statusHtml = `
             <div style="line-height: 2;">
-              <p><i class="fas fa-robot" style="width: 20px;"></i> <b>Telegram:</b> 
-                <span style="color: ${status.telegram.connected ? '#67c23a' : '#f56c6c'}">
-                  ${status.telegram.connected ? '✓' : '✗'} ${status.telegram.message}
-                </span>
-              </p>
-              <p><i class="fas fa-database" style="width: 20px;"></i> <b>KV 存储:</b> 
-                <span style="color: ${status.kv.connected ? '#67c23a' : '#f56c6c'}">
-                  ${status.kv.connected ? '✓' : '✗'} ${status.kv.message}
-                </span>
-              </p>
-              <p><i class="fas fa-cloud" style="width: 20px;"></i> <b>R2 存储:</b>
-                <span style="color: ${status.r2.connected ? '#67c23a' : (this.isUnconfiguredStatus(status.r2) ? '#909399' : '#f56c6c')}">
-                  ${status.r2.connected ? '✓' : (this.isUnconfiguredStatus(status.r2) ? '○' : '✗')} ${status.r2.message}
-                </span>
-              </p>
-              <p><i class="fas fa-database" style="width: 20px; color: #e6a23c;"></i> <b>S3 存储:</b>
-                <span style="color: ${status.s3?.connected ? '#67c23a' : (this.isUnconfiguredStatus(status.s3) ? '#909399' : '#f56c6c')}">
-                  ${status.s3?.connected ? '✓' : (this.isUnconfiguredStatus(status.s3) ? '○' : '✗')} ${status.s3?.message || '未知'}
-                </span>
-              </p>
-              <p><i class="fab fa-discord" style="width: 20px; color: #7289da;"></i> <b>Discord:</b>
-                <span style="color: ${status.discord?.connected ? '#67c23a' : (this.isUnconfiguredStatus(status.discord) ? '#909399' : '#f56c6c')}">
-                  ${status.discord?.connected ? '✓' : (this.isUnconfiguredStatus(status.discord) ? '○' : '✗')} ${status.discord?.message || '未知'}
-                </span>
-              </p>
-              <p><i class="fas fa-robot" style="width: 20px; color: #ff9d00;"></i> <b>HuggingFace:</b>
-                <span style="color: ${status.huggingface?.connected ? '#67c23a' : (this.isUnconfiguredStatus(status.huggingface) ? '#909399' : '#f56c6c')}">
-                  ${status.huggingface?.connected ? '✓' : (this.isUnconfiguredStatus(status.huggingface) ? '○' : '✗')} ${status.huggingface?.message || '未知'}
-                </span>
-              </p>
-              <p><i class="fab fa-github" style="width: 20px; color: #24292f;"></i> <b>GitHub:</b>
-                <span style="color: ${status.github?.connected ? '#67c23a' : (this.isUnconfiguredStatus(status.github) ? '#909399' : '#f56c6c')}">
-                  ${status.github?.connected ? '✓' : (this.isUnconfiguredStatus(status.github) ? '○' : '✗')} ${status.github?.message || '未知'}
-                </span>
-              </p>
-              <p><i class="fas fa-lock" style="width: 20px;"></i> <b>身份验证:</b> 
+              ${this.renderStatusRow('Telegram', 'fas fa-robot', status.telegram)}
+              ${this.renderStatusRow('KV 存储', 'fas fa-database', status.kv)}
+              ${this.renderStatusRow('R2 存储', 'fas fa-cloud', status.r2)}
+              ${this.renderStatusRow('S3 存储', 'fas fa-database', status.s3, '#e6a23c')}
+              ${this.renderStatusRow('Discord', 'fab fa-discord', status.discord, '#7289da')}
+              ${this.renderStatusRow('HuggingFace', 'fas fa-robot', status.huggingface, '#ff9d00')}
+              ${this.renderStatusRow('WebDAV', 'fas fa-hard-drive', status.webdav, '#8f65ff')}
+              ${this.renderStatusRow('GitHub', 'fab fa-github', status.github, '#24292f')}
+              <p><i class="fas fa-lock" style="width: 20px;"></i> <b>身份验证:</b>
                 <span style="color: ${status.auth.enabled ? '#67c23a' : '#909399'}">
                   ${status.auth.enabled ? '✓' : '○'} ${status.auth.message}
                 </span>
@@ -3510,6 +3486,49 @@
         } catch (error) {
           loading.close();
           this.$message.error('检查状态失败: ' + error.message);
+        }
+      },
+      async showStorageConfigPanel() {
+        const loading = this.$message({ message: '正在读取存储状态...', duration: 0 });
+        try {
+          const status = await this.fetchSystemStatus();
+          loading.close();
+          const rows = [
+            ['Telegram', 'fab fa-telegram', status.telegram],
+            ['R2', 'fas fa-cloud', status.r2],
+            ['S3', 'fas fa-database', status.s3],
+            ['Discord', 'fab fa-discord', status.discord],
+            ['HuggingFace', 'fas fa-robot', status.huggingface],
+            ['WebDAV', 'fas fa-hard-drive', status.webdav],
+            ['GitHub', 'fab fa-github', status.github],
+            ['KV', 'fas fa-key', status.kv],
+          ].map(([label, icon, item]) => `
+            <div class="storage-status-card">
+              <div class="storage-status-card-head">
+                <i class="${icon}"></i>
+                <strong>${label}</strong>
+                <span style="background:${this.getStatusColor(item)}"></span>
+              </div>
+              <p>${this.getStatusMark(item)} ${item?.message || '未知'}</p>
+            </div>
+          `).join('');
+          const html = `
+            <div class="storage-config-panel">
+              <div class="storage-config-grid">${rows}</div>
+              <div class="storage-config-actions">
+                <a class="el-button el-button--primary" href="/app/storage">打开配置界面</a>
+                <a class="el-button" href="/app/status">打开诊断界面</a>
+              </div>
+            </div>
+          `;
+          this.$alert(html, '存储状态与配置', {
+            customClass: 'storage-config-alert',
+            dangerouslyUseHTMLString: true,
+            confirmButtonText: '关闭'
+          });
+        } catch (error) {
+          loading.close();
+          this.$message.error('读取存储状态失败: ' + error.message);
         }
       },
       openUploader() {  // 打开上传中心
@@ -3675,9 +3694,11 @@
             return true;
           }
         }).then(({ value }) => {
-          fetch(`./api/manage/editName/${item.name}?newName=${encodeURIComponent(value)}`, {
-            method: 'GET',
-            credentials: 'include'
+          fetch(`/api/manage/editName/${item.name}`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ newName: value })
           })
           .then(response => response.json())
           .then(result => {
@@ -3914,7 +3935,7 @@
               <div class="ui-design-inline">
                 <input id="uiGlobalBgUrl" class="ui-design-input" type="text" value="${escapeAttr(snapshot.globalBackgroundUrl)}" placeholder="请输入图片链接（https://example.com/background.jpg）">
               </div>
-              <div class="ui-design-inline">
+              <div class="ui-design-inline ui-design-action-grid">
                 <button type="button" id="uiUploadGlobalBtn" class="ui-upload-drop"><i class="fas fa-cloud-upload-alt"></i><span>上传图片</span></button>
                 <input id="uiUploadGlobalInput" type="file" accept="image/*" style="display:none;">
                 <button type="button" id="uiClearGlobalBg" class="el-button el-button--small">清除</button>
@@ -3924,11 +3945,11 @@
 
             <section class="ui-design-section">
               <div class="ui-design-section-title"><i class="fas fa-sign-in-alt"></i> 登录页背景图</div>
-              <div class="ui-segmented">
+              <div class="ui-segmented ui-design-equal-options">
                 <label class="ui-segment"><input type="radio" name="uiLoginMode" value="follow-global" ${checked(snapshot.loginBackgroundMode !== 'custom')}><span>与全站一致</span></label>
                 <label class="ui-segment"><input type="radio" name="uiLoginMode" value="custom" ${checked(snapshot.loginBackgroundMode === 'custom')}><span>仅登录页单独设置</span></label>
               </div>
-              <div class="ui-design-inline" id="uiLoginCustomRow">
+              <div class="ui-design-inline ui-design-login-grid" id="uiLoginCustomRow">
                 <input id="uiLoginBgUrl" class="ui-design-input" type="text" value="${escapeAttr(snapshot.loginBackgroundUrl)}" placeholder="请输入登录页背景图链接">
                 <button type="button" id="uiUploadLoginBtn" class="ui-upload-drop"><i class="fas fa-cloud-upload-alt"></i><span>上传图片</span></button>
                 <input id="uiUploadLoginInput" type="file" accept="image/*" style="display:none;">
@@ -3956,7 +3977,7 @@
 
             <section class="ui-design-section">
               <div class="ui-design-section-title"><i class="fas fa-wave-square"></i> 动态背景特效</div>
-              <div class="ui-segmented">
+              <div class="ui-segmented ui-effect-grid">
                 <label class="ui-segment"><input type="radio" name="uiEffectStyle" value="none" ${checked(snapshot.effectStyle === 'none')}><span>无特效</span></label>
                 <label class="ui-segment"><input type="radio" name="uiEffectStyle" value="math" ${checked(snapshot.effectStyle === 'math')}><span>数学符号</span></label>
                 <label class="ui-segment"><input type="radio" name="uiEffectStyle" value="particle" ${checked(snapshot.effectStyle === 'particle')}><span>粒子网格</span></label>
@@ -4094,7 +4115,7 @@
         };
 
         this.$alert(html, '前端 UI 设计', {
-          customClass: 'ui-design-alert',
+          customClass: 'ui-design-alert ui-design-footer-actions',
           dangerouslyUseHTMLString: true,
           showCancelButton: true,
           closeOnClickModal: false,
@@ -4217,11 +4238,11 @@
     async mounted() {
       // 先检查认证状态
       try {
-        const authResponse = await fetch('./api/auth/check', { method: 'GET', credentials: 'include' });
+        const authResponse = await fetch('/api/auth/check', { method: 'GET', credentials: 'include' });
         const authData = await authResponse.json();
         
         if (authData.authRequired && !authData.authenticated) {
-          window.location.href = './login.html?redirect=' + encodeURIComponent(window.location.pathname);
+          window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
           return;
         }
         this.showLogoutButton = authData.authRequired && authData.authenticated;
@@ -4273,7 +4294,7 @@
       }
 
       // 检查系统连接状态
-      fetch('./api/status', { credentials: 'include' })
+      fetch('/api/status', { credentials: 'include' })
         .then(response => response.json())
         .then(status => {
           this.systemStatus = {

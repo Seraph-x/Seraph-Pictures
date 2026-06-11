@@ -2,8 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const rootDir = path.resolve(process.cwd(), '..');
-const frontendDir = path.resolve(process.cwd());
 const distDir = path.resolve(process.cwd(), 'dist');
+const appDistDir = path.resolve(distDir, 'app');
 
 const legacyFiles = [
   'index.html',
@@ -13,9 +13,15 @@ const legacyFiles = [
   'admin-waterfall.html',
   'gallery.html',
   'preview.html',
+  'webdav.html',
   'block-img.html',
   'whitelist-on.html',
   'theme.css',
+  'claude-theme.css',
+  'claude-layout.css',
+  'claude-admin-layout.css',
+  'seraph-ui-polish.css',
+  'seraph-admin-polish.css',
   'theme.js',
   'mobile-refactor.css',
   'admin-imgtc.css',
@@ -27,15 +33,11 @@ const legacyFiles = [
 ];
 
 const legacyDirs = ['_nuxt'];
+const SPA_REWRITE_STATUS = 200;
+const appDeepLinkRoutes = ['login', 'drive', 'admin', 'storage', 'status'];
 
 function ensureDir(target) {
   fs.mkdirSync(path.dirname(target), { recursive: true });
-}
-
-function copyFile(from, to) {
-  if (!fs.existsSync(from)) return;
-  ensureDir(to);
-  fs.copyFileSync(from, to);
 }
 
 function copyEntry(relativePath, targetBase = '') {
@@ -52,13 +54,51 @@ function copyEntry(relativePath, targetBase = '') {
   fs.copyFileSync(from, to);
 }
 
-fs.mkdirSync(distDir, { recursive: true });
-
-// Keep legacy pages at root for backward compatibility, but reserve /index.html for new landing.
-for (const file of legacyFiles) {
-  if (file !== 'index.html') {
-    copyEntry(file);
+function preserveViteApp() {
+  const viteIndex = path.resolve(distDir, 'index.html');
+  const viteAssets = path.resolve(distDir, 'assets');
+  if (!fs.existsSync(viteIndex)) {
+    throw new Error('Vite build output is missing dist/index.html.');
   }
+
+  fs.mkdirSync(appDistDir, { recursive: true });
+  fs.copyFileSync(viteIndex, path.resolve(appDistDir, 'index.html'));
+
+  if (fs.existsSync(viteAssets)) {
+    fs.cpSync(viteAssets, path.resolve(appDistDir, 'assets'), { recursive: true, force: true });
+  }
+}
+
+function writeAppDeepLinkEntrypoints() {
+  const appIndex = path.resolve(appDistDir, 'index.html');
+  const appIndexHtml = fs.readFileSync(appIndex);
+
+  for (const route of appDeepLinkRoutes) {
+    const directoryEntry = path.resolve(appDistDir, route, 'index.html');
+    const htmlEntry = path.resolve(appDistDir, `${route}.html`);
+    ensureDir(directoryEntry);
+    ensureDir(htmlEntry);
+    fs.writeFileSync(directoryEntry, appIndexHtml);
+    fs.writeFileSync(htmlEntry, appIndexHtml);
+  }
+}
+
+function writeRedirects() {
+  const redirects = [
+    `/app /app/index.html ${SPA_REWRITE_STATUS}`,
+    `/app/* /app/index.html ${SPA_REWRITE_STATUS}`,
+    '',
+  ];
+  fs.writeFileSync(path.resolve(distDir, '_redirects'), redirects.join('\n'), 'utf8');
+}
+
+fs.mkdirSync(distDir, { recursive: true });
+preserveViteApp();
+writeAppDeepLinkEntrypoints();
+
+// Keep legacy pages at root as the default UI, while preserving the Vite app under /app/.
+for (const file of legacyFiles) {
+  copyEntry(file);
   copyEntry(file, 'legacy');
 }
 for (const dir of legacyDirs) {
@@ -66,14 +106,6 @@ for (const dir of legacyDirs) {
   copyEntry(dir, 'legacy');
 }
 
-// Product landing page for "/".
-copyFile(
-  path.resolve(frontendDir, 'landing', 'index.html'),
-  path.resolve(distDir, 'index.html')
-);
-copyFile(
-  path.resolve(frontendDir, 'landing', '_redirects'),
-  path.resolve(distDir, '_redirects')
-);
+writeRedirects();
 
-console.log('[frontend] landing + legacy assets copied to dist root');
+console.log('[frontend] legacy root + optional /app Vue assets copied to dist');

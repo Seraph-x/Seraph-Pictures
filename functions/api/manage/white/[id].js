@@ -30,6 +30,17 @@ function jsonResponse(body, status = 200) {
 }
 
 export async function onRequest(context) {
+  if (String(context.request.method || 'GET').toUpperCase() !== 'POST') {
+    return methodNotAllowed('POST');
+  }
+  return whiteFile(context);
+}
+
+export async function onRequestPost(context) {
+  return whiteFile(context);
+}
+
+async function whiteFile(context) {
   const { params, env } = context;
 
   if (!env.img_url) {
@@ -51,4 +62,14 @@ export async function onRequest(context) {
   await env.img_url.put(kvKey, '', { metadata });
 
   return jsonResponse({ success: true, listType: metadata.ListType, key: kvKey });
+}
+
+function methodNotAllowed(allow) {
+  return new Response(JSON.stringify({ success: false, error: 'Method not allowed.' }), {
+    status: 405,
+    headers: {
+      Allow: allow,
+      'Content-Type': 'application/json',
+    },
+  });
 }

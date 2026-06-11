@@ -119,6 +119,7 @@ Recommended architecture for multi-cloud mounts:
 | `TG_CHAT_ID` | Telegram channel ID (Docker/self-host naming) | Optional |
 | `BASIC_USER` | Admin username | Optional |
 | `BASIC_PASS` | Admin password | Optional |
+| `URL_UPLOAD_ALLOWED_HOSTS` | Remote host allowlist for Cloudflare URL upload, comma-separated; supports `*.example.com` | Optional |
 
 **Redeploy** - Changes to environment variables require redeployment to take effect
 
@@ -488,6 +489,7 @@ Allows non-logged-in users to upload files. Site owners can configure whether it
 | `MINIMIZE_KV_WRITES` | Reduce KV writes and enable signed direct links | Optional |
 | `TELEGRAM_METADATA_MODE` | Telegram metadata write mode (`off` disables admin index writes) | Optional |
 | `TG_UPLOAD_NOTIFY` | Send "direct link + File ID" notification after web upload succeeds | Optional |
+| `URL_UPLOAD_ALLOWED_HOSTS` | Allowed remote hosts for Cloudflare `/api/upload-from-url`, comma-separated; supports `*.example.com` | Optional |
 | `FILE_URL_SECRET` | Signed direct-link secret | Optional |
 | `TG_FILE_URL_SECRET` | Same as above (compatible variable name) | Optional |
 | `BASIC_USER` | Admin username | Optional |
@@ -556,4 +558,3 @@ MIT License
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=katelya77/K-Vault&type=Date)](https://star-history.com/#katelya77/K-Vault&Date)
-

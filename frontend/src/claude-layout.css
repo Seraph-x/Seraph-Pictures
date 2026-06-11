@@ -1,0 +1,79 @@
+.app-bg {
+  width: min(1180px, calc(100% - 32px)) !important;
+  margin: 16px auto 40px !important;
+}
+
+.topbar,
+.guest-note,
+.page-wrap {
+  width: 100%;
+  margin-inline: auto;
+}
+
+.page-wrap {
+  display: grid;
+  justify-items: stretch;
+}
+
+.panel,
+.dropzone,
+.target-directory,
+.image-upload-behavior,
+.url-row,
+.list-wrap {
+  width: min(960px, 100%);
+  margin-inline: auto;
+}
+
+.panel-head {
+  align-items: center;
+}
+
+.storage-group {
+  width: min(680px, 100%);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.storage-group .chip {
+  width: 100%;
+  text-align: center;
+}
+
+.url-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.claude-login-page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.claude-login-shell {
+  width: min(960px, 100%);
+  margin: auto;
+}
+
+.claude-login-box {
+  width: min(760px, 100%);
+  margin-inline: auto;
+}
+
+@media (max-width: 720px) {
+  .app-bg {
+    width: min(100% - 20px, 1180px) !important;
+    margin-top: 10px !important;
+  }
+
+  .url-row {
+    grid-template-columns: 1fr;
+  }
+
+  .storage-group {
+    width: 100%;
+  }
+}

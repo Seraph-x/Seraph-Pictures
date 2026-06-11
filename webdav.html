@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WebDAV 上传中心 | K-Vault</title>
+    <title>WebDAV 上传中心 | Seraph's Pictures</title>
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" href="/logo.png" />
     <link rel="shortcut icon" href="/favicon.ico" />
@@ -730,6 +730,8 @@
       }
     </style>
     <link rel="stylesheet" href="/mobile-refactor.css" />
+  <link rel="stylesheet" href="/claude-theme.css">
+  <link rel="stylesheet" href="/claude-layout.css">
   </head>
   <body>
     <main class="page">
@@ -737,7 +739,7 @@
         <h1 class="header-title">
           <img
             src="/logo.png"
-            alt="K-Vault Logo"
+            alt="Seraph's Pictures Logo"
             class="header-logo"
             loading="eager"
             onerror="this.onerror=null;this.src='/favicon.ico';"
@@ -746,9 +748,9 @@
         </h1>
         <div class="header-actions">
           <a class="action-link" href="./"><i class="fas fa-home"></i><span>首页</span></a>
-          <a class="action-link" href="./gallery.html"><i class="fas fa-images"></i><span>图片浏览</span></a>
-          <a class="action-link" href="./admin.html"><i class="fas fa-folder-tree"></i><span>管理后台</span></a>
-          <a class="action-link active" href="./webdav.html"><i class="fas fa-hard-drive"></i><span>WebDAV</span></a>
+          <a class="action-link" href="/gallery.html"><i class="fas fa-images"></i><span>图片浏览</span></a>
+          <a class="action-link" href="/admin.html"><i class="fas fa-folder-tree"></i><span>管理后台</span></a>
+          <a class="action-link active" href="/webdav.html"><i class="fas fa-hard-drive"></i><span>WebDAV</span></a>
           <button type="button" class="action-btn" data-theme-toggle aria-label="切换主题">
             <i class="fas fa-moon" data-theme-icon></i>
             <span data-theme-label>夜间</span>
@@ -1115,7 +1117,7 @@
 
         async function checkStatus() {
           setStatus("正在检测 WebDAV 状态...", null);
-          var data = await request("./api/status");
+          var data = await request("/api/status");
           var webdav = data.webdav || {};
           var ok = Boolean(webdav.connected && webdav.enabled);
           if (ok) {
@@ -1142,7 +1144,7 @@
               form.append("file", files[i]);
               form.append("storageMode", "webdav");
               form.append("folderPath", folderPath);
-              var payload = await request("./upload", { method: "POST", body: form });
+              var payload = await request("/upload", { method: "POST", body: form });
               var first = Array.isArray(payload) ? payload[0] : payload;
               var src = first && first.src ? String(first.src) : "";
               if (src) {
@@ -1169,7 +1171,7 @@
           try {
             var folderPath = normalizeFolderPath(folderPathInput.value);
             setStatus("正在拉取远程地址并上传...", null);
-            var payload = await request("./api/upload-from-url", {
+            var payload = await request("/api/upload-from-url", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -1191,10 +1193,10 @@
         }
 
         async function ensureAuth() {
-          var auth = await request("./api/auth/check");
+          var auth = await request("/api/auth/check");
           if (auth.authRequired && !auth.authenticated) {
             var redirect = encodeURIComponent(window.location.pathname + window.location.search);
-            window.location.href = "./login.html?redirect=" + redirect;
+            window.location.href = "/login.html?redirect=" + redirect;
             return false;
           }
           return true;

@@ -114,6 +114,7 @@
 | `TG_Chat_ID` | Telegram 频道 ID | ✅ |
 | `BASIC_USER` | 管理后台用户名 | 可选 |
 | `BASIC_PASS` | 管理后台密码 | 可选 |
+| `URL_UPLOAD_ALLOWED_HOSTS` | Cloudflare URL 拉取上传允许的远程域名，逗号分隔；支持 `*.example.com` | 可选 |
 
 5. **重新部署**
    - 修改环境变量或绑定后必须重新部署，运行中的部署不会自动读取新配置。
@@ -642,6 +643,7 @@ curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getWebhookInfo"
 | `MINIMIZE_KV_WRITES` | 降低 KV 写入并启用签名直链 | 可选 |
 | `TELEGRAM_METADATA_MODE` | Telegram 元数据写入策略（`off` 关闭后台索引写入） | 可选 |
 | `TG_UPLOAD_NOTIFY` | 网页上传成功后发送“直链+File ID”通知消息 | 可选 |
+| `URL_UPLOAD_ALLOWED_HOSTS` | Cloudflare `/api/upload-from-url` 允许拉取的远程域名，逗号分隔；支持 `*.example.com` | 可选 |
 | `FILE_URL_SECRET` | 签名直链密钥 | 可选 |
 | `TG_FILE_URL_SECRET` | 同上（兼容变量名） | 可选 |
 | `BASIC_USER` | 管理后台用户名 | 可选 |

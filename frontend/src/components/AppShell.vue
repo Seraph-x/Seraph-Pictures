@@ -4,16 +4,16 @@
       <div class="brand-group">
         <span class="brand-dot"></span>
         <div>
-          <h1>K-Vault</h1>
-          <p>Docker + Cloudflare dual-mode runtime</p>
+          <h1>Seraph's Pictures</h1>
+          <p>Private media workspace</p>
         </div>
       </div>
       <nav class="nav-row">
-        <router-link class="nav-link" to="/upload">Upload</router-link>
+        <router-link class="nav-link" to="/">Upload</router-link>
         <router-link class="nav-link" to="/drive">Drive</router-link>
         <router-link class="nav-link" to="/storage">Storage</router-link>
         <router-link class="nav-link" to="/status">Status</router-link>
-        <a class="nav-link" href="/legacy/index.html" target="_blank" rel="noopener">Legacy</a>
+        <a class="nav-link" href="/">Legacy</a>
       </nav>
       <div class="toolbar">
         <router-link
