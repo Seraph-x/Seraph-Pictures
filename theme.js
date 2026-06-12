@@ -857,8 +857,8 @@
       root.removeAttribute("data-ui-transparent-cards");
     }
 
-    root.style.setProperty("--ui-page-bg", next.baseColor);
-    root.style.setProperty("--ui-page-bg-dark", "#1c1b19");
+    root.style.setProperty("--ui-page-bg", transparentCards ? "transparent" : next.baseColor);
+    root.style.setProperty("--ui-page-bg-dark", transparentCards ? "transparent" : "#1c1b19");
     root.style.setProperty("--ui-card-opacity", surfaceAlpha.toFixed(2));
     root.style.setProperty("--ui-card-blur", blur + "px");
     root.style.setProperty(
@@ -871,6 +871,7 @@
     root.style.setProperty("--bg-gradient", "none");
     root.style.setProperty("--bg", darkMode ? "var(--ui-page-bg-dark)" : "var(--ui-page-bg)");
     root.style.setProperty("--card-bg", cardBg);
+    root.style.setProperty("--claude-panel", cardBg);
     root.style.setProperty("--surface-1", surface1);
     root.style.setProperty("--surface-2", surface2);
     root.style.setProperty("--surface-3", surface3);
