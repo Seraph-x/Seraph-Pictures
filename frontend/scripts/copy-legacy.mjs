@@ -21,6 +21,7 @@ const legacyFiles = [
   'seraph-ui-polish.css',
   'seraph-admin-polish.css',
   'theme.js',
+  'i18n.js',
   'mobile-refactor.css',
   'admin-imgtc.css',
   'favicon.ico',
