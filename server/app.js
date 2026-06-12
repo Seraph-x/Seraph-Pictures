@@ -6,6 +6,7 @@ const { createContainer } = require('./lib/container');
 const { normalizeFolderPath } = require('./lib/repos/file-repo');
 const { toStorageErrorPayload } = require('./lib/utils/storage-error');
 const { createShareSignature, verifyShareSignature } = require('./lib/utils/share-link');
+const { timingSafeStringEqual } = require('./lib/utils/auth');
 const {
   getTelegramFileFromMessage,
   createSignedTelegramFileId,
@@ -625,7 +626,8 @@ function createApp() {
       );
     }
 
-    if (username !== container.config.basicUser || password !== container.config.basicPass) {
+    if (!timingSafeStringEqual(username, container.config.basicUser)
+      || !timingSafeStringEqual(password, container.config.basicPass)) {
       return jsonError(
         c,
         401,

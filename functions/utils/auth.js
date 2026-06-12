@@ -17,6 +17,21 @@ export function generateSessionToken() {
 }
 
 /**
+ * 时间安全的字符串比较
+ */
+export function timingSafeEqual(a, b) {
+  const strA = String(a ?? '');
+  const strB = String(b ?? '');
+  let mismatch = strA.length === strB.length ? 0 : 1;
+  const len = Math.max(strA.length, strB.length, 1);
+  for (let i = 0; i < len; i += 1) {
+    // charCodeAt out of range is NaN; NaN | 0 === 0
+    mismatch |= (strA.charCodeAt(i) | 0) ^ (strB.charCodeAt(i) | 0);
+  }
+  return mismatch === 0;
+}
+
+/**
  * 验证 Basic Auth 凭据
  */
 export function verifyBasicAuth(request, env) {
@@ -30,13 +45,15 @@ export function verifyBasicAuth(request, env) {
     const buffer = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
     const decoded = new TextDecoder().decode(buffer).normalize();
     const index = decoded.indexOf(':');
-    
+
     if (index === -1 || /[\0-\x1F\x7F]/.test(decoded)) return null;
 
     const user = decoded.substring(0, index);
     const pass = decoded.substring(index + 1);
 
-    if (env.BASIC_USER === user && env.BASIC_PASS === pass) {
+    const userOk = timingSafeEqual(env.BASIC_USER, user);
+    const passOk = timingSafeEqual(env.BASIC_PASS, pass);
+    if (userOk && passOk) {
       return { user, authenticated: true };
     }
   } catch (e) {
@@ -116,19 +133,19 @@ export async function deleteSession(sessionToken, env) {
  * 创建带会话 Cookie 的响应
  */
 export function createSessionCookieHeader(token, maxAge = SESSION_DURATION / 1000) {
-  return `${SESSION_COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}`;
+  return `${SESSION_COOKIE_NAME}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAge}`;
 }
 
 /**
  * 创建清除会话 Cookie 的响应头
  */
 export function createClearSessionCookieHeader() {
-  return `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`;
+  return `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`;
 }
 
 export function createLegacyClearSessionCookieHeaders() {
   return LEGACY_SESSION_COOKIE_NAMES.map((name) => (
-    `${name}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`
+    `${name}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`
   ));
 }
 

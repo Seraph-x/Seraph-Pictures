@@ -66,6 +66,7 @@ function loadConfig(env = process.env) {
     basicPass: normalizeEnvString(env.BASIC_PASS),
     sessionCookieName: normalizeEnvString(env.SESSION_COOKIE_NAME, 'seraph_pictures_session'),
     sessionDurationMs: toInt(env.SESSION_DURATION_MS, 24 * 60 * 60 * 1000),
+    sessionCookieSecure: toBool(env.SESSION_COOKIE_SECURE, normalizeEnvString(env.NODE_ENV, 'development') === 'production'),
 
     guestUploadEnabled: toBool(env.GUEST_UPLOAD, false),
     guestMaxFileSize: toInt(env.GUEST_MAX_FILE_SIZE, 5 * 1024 * 1024),

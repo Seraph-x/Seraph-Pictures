@@ -2,11 +2,53 @@
  * 登录 API
  * POST /api/auth/login
  */
-import { 
-  createSession, 
+import {
+  createSession,
   createSessionCookieHeader,
-  isAuthRequired 
+  isAuthRequired,
+  timingSafeEqual
 } from '../../utils/auth.js';
+
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_WINDOW_SECONDS = 15 * 60;
+
+function getClientIp(request) {
+  return request.headers.get('CF-Connecting-IP')
+    || request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim()
+    || 'unknown';
+}
+
+async function getFailedAttempts(env, ip) {
+  if (!env.img_url) return 0;
+  try {
+    const data = await env.img_url.get(`login_fail:${ip}`, { type: 'json' });
+    return Number(data?.count) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function recordFailedAttempt(env, ip, currentCount) {
+  if (!env.img_url) return;
+  try {
+    await env.img_url.put(
+      `login_fail:${ip}`,
+      JSON.stringify({ count: currentCount + 1 }),
+      { expirationTtl: LOCKOUT_WINDOW_SECONDS }
+    );
+  } catch (e) {
+    console.error('Failed to record login attempt:', e);
+  }
+}
+
+async function clearFailedAttempts(env, ip) {
+  if (!env.img_url) return;
+  try {
+    await env.img_url.delete(`login_fail:${ip}`);
+  } catch {
+    // best-effort cleanup
+  }
+}
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -14,12 +56,27 @@ export async function onRequestPost(context) {
   try {
     // 如果没有配置认证，返回成功
     if (!isAuthRequired(env)) {
-      return new Response(JSON.stringify({ 
-        success: true, 
+      return new Response(JSON.stringify({
+        success: true,
         message: '无需登录',
-        authRequired: false 
+        authRequired: false
       }), {
         headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const clientIp = getClientIp(request);
+    const failedAttempts = await getFailedAttempts(env, clientIp);
+    if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
+      return new Response(JSON.stringify({
+        success: false,
+        message: '尝试次数过多，请稍后再试'
+      }), {
+        status: 429,
+        headers: {
+          'Content-Type': 'application/json',
+          'Retry-After': String(LOCKOUT_WINDOW_SECONDS)
+        }
       });
     }
 
@@ -38,24 +95,29 @@ export async function onRequestPost(context) {
     }
 
     // 验证凭据
-    if (username === env.BASIC_USER && password === env.BASIC_PASS) {
+    const userOk = timingSafeEqual(username, env.BASIC_USER);
+    const passOk = timingSafeEqual(password, env.BASIC_PASS);
+    if (userOk && passOk) {
       // 创建会话
       const sessionToken = await createSession(username, env);
-      
-      return new Response(JSON.stringify({ 
-        success: true, 
-        message: '登录成功' 
+      await clearFailedAttempts(env, clientIp);
+
+      return new Response(JSON.stringify({
+        success: true,
+        message: '登录成功'
       }), {
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Set-Cookie': createSessionCookieHeader(sessionToken)
         }
       });
     }
 
-    return new Response(JSON.stringify({ 
-      success: false, 
-      message: '用户名或密码错误' 
+    await recordFailedAttempt(env, clientIp, failedAttempts);
+
+    return new Response(JSON.stringify({
+      success: false,
+      message: '用户名或密码错误'
     }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' }
@@ -63,9 +125,9 @@ export async function onRequestPost(context) {
 
   } catch (error) {
     console.error('Login error:', error);
-    return new Response(JSON.stringify({ 
-      success: false, 
-      message: '登录失败：' + error.message 
+    return new Response(JSON.stringify({
+      success: false,
+      message: '登录失败'
     }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }

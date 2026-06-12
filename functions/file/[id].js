@@ -442,6 +442,9 @@ async function handleR2File(context, r2Key, record = null) {
 
   const rangeHeader = request.headers.get('Range');
   let object;
+  let rangeStart = null;
+  let rangeEnd = null;
+  let totalSize = null;
 
   if (rangeHeader) {
     const range = parseSimpleRange(rangeHeader);
@@ -449,22 +452,31 @@ async function handleR2File(context, r2Key, record = null) {
       const head = await env.R2_BUCKET.head(r2Key);
       if (!head) return errorResponse('File not found in R2', 404);
 
-      const start = range.start ?? 0;
-      const end = range.end ?? (head.size - 1);
-      if (start >= head.size) {
+      totalSize = head.size;
+      if (range.start == null) {
+        // Suffix range: bytes=-N means the last N bytes
+        rangeStart = Math.max(totalSize - range.end, 0);
+        rangeEnd = totalSize - 1;
+      } else {
+        rangeStart = range.start;
+        rangeEnd = Math.min(range.end ?? (totalSize - 1), totalSize - 1);
+      }
+
+      if (rangeStart >= totalSize || rangeStart > rangeEnd) {
         const headers = new Headers();
         addCorsHeaders(headers);
-        headers.set('Content-Range', `bytes */${head.size}`);
+        headers.set('Content-Range', `bytes */${totalSize}`);
         return new Response('Range Not Satisfiable', { status: 416, headers });
       }
 
       object = await env.R2_BUCKET.get(r2Key, {
-        range: { offset: start, length: Math.min(end, head.size - 1) - start + 1 },
+        range: { offset: rangeStart, length: rangeEnd - rangeStart + 1 },
       });
     }
   }
 
   if (!object) {
+    rangeStart = null;
     object = await env.R2_BUCKET.get(r2Key);
   }
 
@@ -474,8 +486,14 @@ async function handleR2File(context, r2Key, record = null) {
 
   const headers = new Headers();
   addResponseHeaders(headers, fileName, mimeType);
-  headers.set('Content-Length', String(object.size));
 
+  if (rangeStart != null) {
+    headers.set('Content-Range', `bytes ${rangeStart}-${rangeEnd}/${totalSize}`);
+    headers.set('Content-Length', String(rangeEnd - rangeStart + 1));
+    return new Response(object.body, { status: 206, headers });
+  }
+
+  headers.set('Content-Length', String(object.size));
   return new Response(object.body, {
     status: 200,
     headers,

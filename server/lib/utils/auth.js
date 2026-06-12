@@ -17,6 +17,12 @@ function parseCookies(cookieHeader = '') {
   return result;
 }
 
+function timingSafeStringEqual(a, b) {
+  const hashA = crypto.createHash('sha256').update(String(a ?? '')).digest();
+  const hashB = crypto.createHash('sha256').update(String(b ?? '')).digest();
+  return crypto.timingSafeEqual(hashA, hashB);
+}
+
 class AuthService {
   constructor(db, config) {
     this.db = db;
@@ -42,7 +48,7 @@ class AuthService {
       const user = decoded.slice(0, separator);
       const pass = decoded.slice(separator + 1);
 
-      if (user === this.config.basicUser && pass === this.config.basicPass) {
+      if (timingSafeStringEqual(user, this.config.basicUser) && timingSafeStringEqual(pass, this.config.basicPass)) {
         return { authenticated: true, user, reason: 'basic-auth' };
       }
     } catch (error) {
@@ -91,14 +97,19 @@ class AuthService {
     return null;
   }
 
+  cookieAttributes() {
+    const secure = this.config.sessionCookieSecure ? ' Secure;' : '';
+    return `Path=/; HttpOnly;${secure} SameSite=Strict`;
+  }
+
   createSessionCookie(token) {
     const maxAge = Math.floor(this.config.sessionDurationMs / 1000);
-    return `${this.config.sessionCookieName}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}`;
+    return `${this.config.sessionCookieName}=${encodeURIComponent(token)}; ${this.cookieAttributes()}; Max-Age=${maxAge}`;
   }
 
   createClearSessionCookies() {
     return [...new Set([this.config.sessionCookieName, ...LEGACY_COOKIE_NAMES])].map((cookieName) => (
-      `${cookieName}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`
+      `${cookieName}=; ${this.cookieAttributes()}; Max-Age=0`
     ));
   }
 
@@ -128,4 +139,5 @@ class AuthService {
 module.exports = {
   AuthService,
   parseCookies,
+  timingSafeStringEqual,
 };

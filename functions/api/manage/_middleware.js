@@ -7,39 +7,15 @@ async function errorHandling(context) {
     try {
       return await context.next();
     } catch (err) {
-      return new Response(`${err.message}\n${err.stack}`, { status: 500 });
+      console.error('Unhandled error in manage API:', err);
+      return new Response('Internal Server Error', { status: 500 });
     }
   }
 
-  function UnauthorizedException(reason) {
-    return new Response(reason, {
-        status: 401,
-        statusText: 'Unauthorized',
-        headers: {
-          'Content-Type': 'text/plain;charset=UTF-8',
-          'Cache-Control': 'no-store',
-          'Content-Length': reason.length,
-        },
-      });
-  }
-  
-  function BadRequestException(reason) {
-    return new Response(reason, {
-        status: 400,
-        statusText: 'Bad Request',
-        headers: {
-          'Content-Type': 'text/plain;charset=UTF-8',
-          'Cache-Control': 'no-store',
-          'Content-Length': reason.length,
-        },
-      });
-  }
-  
-  
   async function authentication(context) {
     // 检查 KV 是否绑定
     if (typeof context.env.img_url == "undefined" || context.env.img_url == null || context.env.img_url == "") {
-        return new Response('Dashboard is disabled. Please bind a KV namespace to use this feature.', { status: 200 });
+        return new Response('Dashboard is disabled. Please bind a KV namespace to use this feature.', { status: 503 });
     }
 
     // 如果没有配置认证，直接放行
