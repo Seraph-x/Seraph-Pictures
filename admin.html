@@ -814,6 +814,28 @@
         width: 100%;
       }
     }
+
+    /* 主题切换按钮样式 */
+    .admin-theme-btn {
+      background: none;
+      border: none;
+      padding: 0;
+      margin: 0 6px;
+      cursor: pointer;
+      color: inherit;
+      font-size: 16px;
+      transition: all 0.3s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .admin-theme-btn:hover {
+      color: var(--el-color-primary);
+      transform: scale(1.1);
+    }
+    .admin-theme-btn i {
+      pointer-events: none;
+    }
   </style>
   <link rel="stylesheet" href="/mobile-refactor.css">
   <link rel="stylesheet" href="/claude-theme.css">
@@ -929,7 +951,9 @@
             </el-dropdown>
             <el-tooltip :content="t('admin.tooltipStorage')" placement="bottom"><i class="fas fa-server" @click="showStorageConfigPanel"></i></el-tooltip>
             <el-tooltip :content="t('admin.tooltipUiDesign')" placement="bottom"><i class="fas fa-sliders-h" @click="showUiDesignSettingsPanel"></i></el-tooltip>
-            <i class="fas fa-moon admin-theme-toggle" data-theme-toggle @click="toggleTheme" :title="t('admin.tooltipTheme')"></i>
+            <button type="button" class="admin-theme-btn" data-theme-toggle :title="t('admin.tooltipTheme')">
+              <i class="fas fa-moon" data-theme-icon></i>
+            </button>
             <i class="fas fa-sign-out-alt" @click="handleLogout"></i>
           </div>
         </div>
@@ -3423,19 +3447,6 @@
         a.click();
       },
       
-      toggleTheme() {
-        const html = document.documentElement;
-        const currentTheme = html.getAttribute('data-theme');
-        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        html.setAttribute('data-theme', newTheme);
-        localStorage.setItem('theme', newTheme);
-
-        // 更新图标
-        const themeIcon = document.querySelector('.admin-theme-toggle');
-        if (themeIcon) {
-          themeIcon.className = newTheme === 'dark' ? 'fas fa-sun admin-theme-toggle' : 'fas fa-moon admin-theme-toggle';
-        }
-      },
       async handleLogout() {  // 退出登录
         try {
           const response = await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
@@ -4908,11 +4919,6 @@
 
       localStorage.removeItem('quickWebsites');
 
-      // Remove theme toggle button
-      this.$nextTick(() => {
-        const themeToggle = document.querySelector('[data-theme-toggle]');
-        if (themeToggle) themeToggle.remove();
-      });
     }
     ,
     beforeDestroy() {
