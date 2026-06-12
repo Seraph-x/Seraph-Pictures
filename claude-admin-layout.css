@@ -204,12 +204,33 @@ body.admin-page .pagination-container {
   align-items: center !important;
   margin: 0 !important;
   padding: 8px 14px !important;
-  border: 1px solid rgba(120, 145, 192, 0.24) !important;
+  border: 1px solid var(--claude-line) !important;
   border-radius: 999px !important;
-  background: rgba(18, 25, 41, 0.78) !important;
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.28) !important;
+  background: var(--claude-panel) !important;
+  box-shadow: var(--shadow-hover) !important;
   backdrop-filter: blur(16px) !important;
   -webkit-backdrop-filter: blur(16px) !important;
+}
+
+/* Element UI pagination re-themed to the warm accent */
+body.admin-page .pagination-container .el-pagination,
+body.admin-page .pagination-container .el-pagination__total,
+body.admin-page .pagination-container .el-pagination__jump {
+  color: var(--claude-text) !important;
+}
+body.admin-page .pagination-container .el-pager li,
+body.admin-page .pagination-container .btn-prev,
+body.admin-page .pagination-container .btn-next {
+  background: transparent !important;
+  color: var(--claude-text) !important;
+}
+body.admin-page .pagination-container .el-pager li:hover {
+  color: var(--claude-accent) !important;
+}
+body.admin-page .pagination-container .el-pager li.active {
+  background: var(--claude-accent) !important;
+  color: #fff !important;
+  border-radius: 8px !important;
 }
 
 body.admin-page .load-more-container {

@@ -1,24 +1,47 @@
-/* Claude-inspired global tokens shared by all legacy pages. */
+/* Claude-inspired global tokens shared by all legacy pages.
+   Warm "Klimt" palette, theme-aware: :root = light, [data-theme=dark] = dark.
+   All surface/text/accent colors derive from the --claude-* tokens, so any
+   rule referencing them follows the active theme automatically. */
 :root {
-  --claude-bg: #1f1f1d;
-  --claude-bg-2: #181817;
-  --claude-panel: #2b2b29;
-  --claude-panel-soft: #252523;
-  --claude-line: #3a3935;
-  --claude-text: #d8d4ca;
-  --claude-text-strong: #eee9dd;
-  --claude-muted: #a8a39a;
-  --claude-accent: #d97757;
-  --claude-accent-strong: #e58a68;
+  /* Light (default) — warm cream surfaces, ink text, muted terracotta accent */
+  --claude-bg: #f6f2ec;
+  --claude-bg-2: #efe9df;
+  --claude-panel: #fdfbf7;
+  --claude-panel-soft: #f1ece3;
+  --claude-line: #e5ddcf;
+  --claude-text: #423d35;
+  --claude-text-strong: #26221c;
+  --claude-muted: #8c8478;
+  --claude-accent: #c2643f;
+  --claude-accent-strong: #ad5634;
+  --claude-danger: #c2533f;
+  --claude-ok: #6f8f5a;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-pill: 999px;
+  --shadow-sm: 0 1px 2px rgba(38, 34, 28, 0.05);
+  --shadow: 0 6px 20px rgba(38, 34, 28, 0.08);
+  --shadow-hover: 0 12px 30px rgba(38, 34, 28, 0.12);
+
   --primary-color: var(--claude-accent);
   --primary-light: var(--claude-accent-strong);
-  --primary-dark: #b85f43;
+  --primary-dark: var(--claude-accent-strong);
   --primary: var(--claude-accent);
-  --accent-color: var(--claude-accent-strong);
+  --accent-color: var(--claude-accent);
   --accent: var(--claude-accent);
   --bg-gradient: var(--claude-bg);
   --bg: var(--claude-bg);
   --card-bg: var(--claude-panel);
+  --surface-1: var(--claude-panel);
+  --surface-2: var(--claude-panel-soft);
+  --surface-3: var(--claude-panel-soft);
+  --surface-border: var(--claude-line);
+  --input-border: var(--claude-line);
+  --text-primary: var(--claude-text-strong);
+  --text-secondary: var(--claude-text);
+  --text-muted: var(--claude-muted);
 }
 
 html[data-theme="light"] {
@@ -31,28 +54,52 @@ html[data-theme="light"] {
 
 html[data-theme="dark"] {
   color-scheme: dark;
-  --primary-color: var(--claude-accent-strong);
+  /* Dark — warm charcoal surfaces (NOT navy), warm off-white text */
+  --claude-bg: #1c1b19;
+  --claude-bg-2: #151412;
+  --claude-panel: #262320;
+  --claude-panel-soft: #201e1b;
+  --claude-line: #38342e;
+  --claude-text: #d9d3c8;
+  --claude-text-strong: #efe9dd;
+  --claude-muted: #9c9488;
+  --claude-accent: #d9805c;
+  --claude-accent-strong: #e6936f;
+  --claude-danger: #e88a7c;
+  --claude-ok: #9cc98b;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+  --shadow-hover: 0 14px 34px rgba(0, 0, 0, 0.5);
+
+  --primary-color: var(--claude-accent);
   --primary-light: var(--claude-accent-strong);
-  --primary-dark: #b85f43;
-  --primary: var(--claude-accent-strong);
+  --primary-dark: var(--claude-accent-strong);
+  --primary: var(--claude-accent);
   --accent-color: var(--claude-accent);
   --accent: var(--claude-accent);
-  --bg-gradient: linear-gradient(140deg, #111a2d 0%, #0b1120 55%, #070b16 100%);
-  --bg: var(--bg-gradient);
-  --card-bg: rgba(15, 23, 39, 0.9);
-  --shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
-  --shadow-hover: 0 14px 32px rgba(0, 0, 0, 0.45);
+  --bg-gradient: var(--claude-bg);
+  --bg: var(--claude-bg);
+  --card-bg: var(--claude-panel);
+  --surface-1: var(--claude-panel);
+  --surface-2: var(--claude-panel-soft);
+  --surface-3: var(--claude-panel-soft);
+  --surface-border: var(--claude-line);
+  --input-border: var(--claude-line);
+  --text-primary: var(--claude-text-strong);
+  --text-secondary: var(--claude-text);
+  --text-muted: var(--claude-muted);
 }
 
 html[data-theme="dark"] body {
   background: var(--bg-gradient) !important;
-  color: #e8eeff !important;
+  color: var(--claude-text) !important;
 }
 
 html[data-theme="dark"] #app,
 html[data-theme="dark"] .container,
 html[data-theme="dark"] .main-container {
-  color: #e8eeff;
+  color: var(--claude-text);
 }
 
 html[data-theme="dark"] .header,
@@ -83,20 +130,16 @@ html[data-theme="dark"] .search-card .el-input__inner,
 html[data-theme="dark"] .el-input__inner,
 html[data-theme="dark"] .url-input-container input,
 html[data-theme="dark"] .batch-links {
-  background: rgba(15, 23, 39, 0.9) !important;
-  color: #e8eeff !important;
-  border-color: rgba(130, 152, 196, 0.35) !important;
+  background: var(--claude-panel) !important;
+  color: var(--claude-text) !important;
+  border-color: var(--claude-line) !important;
 }
 
 html[data-theme="dark"] .storage-switcher,
 html[data-theme="dark"] .stats-bar,
 html[data-theme="dark"] .guest-notice {
-  background: linear-gradient(
-    135deg,
-    rgba(20, 29, 49, 0.9) 0%,
-    rgba(25, 35, 58, 0.85) 100%
-  ) !important;
-  border-color: rgba(130, 152, 196, 0.35) !important;
+  background: var(--claude-panel-soft) !important;
+  border-color: var(--claude-line) !important;
 }
 
 html[data-theme="dark"] .header-title,
@@ -112,7 +155,7 @@ html[data-theme="dark"] .image-card-name,
 html[data-theme="dark"] .preview-filename,
 html[data-theme="dark"] .el-dropdown-link,
 html[data-theme="dark"] .el-dialog__title {
-  color: #e8eeff !important;
+  color: var(--claude-text) !important;
 }
 
 html[data-theme="dark"] .upload-hint,
@@ -126,11 +169,11 @@ html[data-theme="dark"] .footer a,
 html[data-theme="dark"] .el-form-item__label,
 html[data-theme="dark"] .el-dialog__body,
 html[data-theme="dark"] .el-message-box__message p {
-  color: #c4cde3 !important;
+  color: var(--claude-muted) !important;
 }
 
 html[data-theme="dark"] a {
-  color: #c4d4ff;
+  color: var(--claude-accent-strong);
 }
 
 html[data-theme="dark"] .upload-zone,
@@ -138,22 +181,22 @@ html[data-theme="dark"] .container,
 html[data-theme="dark"] .image-card,
 html[data-theme="dark"] .el-main,
 html[data-theme="dark"] .el-header {
-  border-color: rgba(130, 152, 196, 0.35) !important;
+  border-color: var(--claude-line) !important;
 }
 
 html[data-theme="dark"] .el-button:not(.el-button--primary):not(.el-button--danger) {
-  background: rgba(33, 45, 72, 0.85) !important;
-  color: #e8eeff !important;
-  border-color: rgba(130, 152, 196, 0.4) !important;
+  background: var(--claude-panel-soft) !important;
+  color: var(--claude-text) !important;
+  border-color: var(--claude-line) !important;
 }
 
 html[data-theme="dark"] .el-button--primary {
-  background: linear-gradient(135deg, #6f84ff 0%, #8ea4ff 100%) !important;
+  background: var(--claude-accent) !important;
   border-color: transparent !important;
 }
 
 html[data-theme="dark"] .el-button--danger {
-  background: linear-gradient(135deg, #d0617d 0%, #eb839f 100%) !important;
+  background: var(--claude-danger) !important;
   border-color: transparent !important;
 }
 
@@ -163,7 +206,7 @@ html[data-theme="dark"] .preview-modal .preview-btn-default {
 
 html[data-theme="dark"] input::placeholder,
 html[data-theme="dark"] textarea::placeholder {
-  color: #90a0bf !important;
+  color: var(--claude-muted) !important;
 }
 
 .theme-floating-toggle {
@@ -271,11 +314,11 @@ html[data-theme="dark"] .theme-floating-toggle {
     rgba(154, 169, 255, 0.2),
     rgba(84, 106, 156, 0.35)
   );
-  color: #e8eeff;
+  color: var(--claude-text);
 }
 
 html[data-theme="dark"] .theme-floating-toggle i {
-  color: #c4d4ff;
+  color: var(--claude-accent-strong);
 }
 
 html[data-theme="dark"] .theme-auto-inline-toggle,
@@ -286,12 +329,12 @@ html[data-theme="dark"] .theme-admin-toggle {
     rgba(154, 169, 255, 0.2),
     rgba(84, 106, 156, 0.35)
   );
-  color: #e8eeff;
+  color: var(--claude-text);
 }
 
 html[data-theme="dark"] .theme-auto-inline-toggle i,
 html[data-theme="dark"] .theme-admin-toggle i {
-  color: #c4d4ff;
+  color: var(--claude-accent-strong);
 }
 
 @media (max-width: 768px) {
@@ -481,7 +524,7 @@ html[data-theme="dark"] .theme-floating-toggle,
 html[data-theme="dark"] .theme-auto-inline-toggle,
 html[data-theme="dark"] .theme-admin-toggle,
 html[data-theme="dark"] .gallery-theme-toggle {
-  color: #e8eeff !important;
+  color: var(--claude-text) !important;
 }
 
 html[data-theme="dark"] .theme-floating-toggle i,
@@ -498,12 +541,12 @@ html[data-theme="dark"] .guest-notice {
 }
 
 html[data-theme="dark"] .el-button--primary {
-  background: #6f84ff !important;
+  background: var(--claude-accent) !important;
   border-color: transparent !important;
 }
 
 html[data-theme="dark"] .el-button--danger {
-  background: #d0617d !important;
+  background: var(--claude-danger) !important;
   border-color: transparent !important;
 }
 

@@ -807,46 +807,46 @@
         ? Math.max(0.36, surfaceAlpha - 0.1)
         : Math.max(0.34, surfaceAlpha - 0.17);
     var inputBorder = darkMode
-      ? "rgba(122, 140, 168, 0.5)"
-      : "rgba(214, 220, 228, 0.9)";
+      ? "rgba(56, 52, 46, 0.72)"
+      : "rgba(229, 221, 207, 0.9)";
     var border = darkMode
-      ? "rgba(92, 105, 126, 0.46)"
-      : "rgba(198, 206, 218, 0.52)";
+      ? "rgba(56, 52, 46, 0.6)"
+      : "rgba(229, 221, 207, 0.7)";
     var cardBg = darkMode
-      ? "rgba(19, 24, 33, " + surfaceAlpha.toFixed(2) + ")"
+      ? "rgba(38, 35, 32, " + surfaceAlpha.toFixed(2) + ")"
       : "rgba(255, 255, 255, " + surfaceAlpha.toFixed(2) + ")";
     var surface1 = darkMode
-      ? "rgba(24, 31, 42, " + surface1Alpha.toFixed(2) + ")"
+      ? "rgba(32, 30, 27, " + surface1Alpha.toFixed(2) + ")"
       : "rgba(255, 255, 255, " + surface1Alpha.toFixed(2) + ")";
     var surface2 = darkMode
-      ? "rgba(24, 31, 42, " + surface2Alpha.toFixed(2) + ")"
+      ? "rgba(32, 30, 27, " + surface2Alpha.toFixed(2) + ")"
       : "rgba(255, 255, 255, " + surface2Alpha.toFixed(2) + ")";
     var surface3 = darkMode
-      ? "rgba(30, 38, 51, " + surface3Alpha.toFixed(2) + ")"
-      : "rgba(245, 246, 248, " + surface3Alpha.toFixed(2) + ")";
+      ? "rgba(38, 35, 32, " + surface3Alpha.toFixed(2) + ")"
+      : "rgba(241, 236, 227, " + surface3Alpha.toFixed(2) + ")";
     var shadow = transparentCards
       ? "none"
       : darkMode
         ? "0 12px 32px rgba(0, 0, 0, 0.34)"
-        : "0 10px 30px rgba(15, 23, 42, 0.09)";
+        : "0 10px 30px rgba(38, 34, 28, 0.09)";
     var shadowHover = transparentCards
       ? "none"
       : darkMode
         ? "0 18px 38px rgba(0, 0, 0, 0.42)"
-        : "0 16px 34px rgba(15, 23, 42, 0.14)";
+        : "0 16px 34px rgba(38, 34, 28, 0.14)";
     var wfShadow = transparentCards
       ? "none"
       : darkMode
         ? "0 14px 34px rgba(0, 0, 0, 0.38)"
-        : "0 10px 28px rgba(20, 32, 55, 0.12)";
+        : "0 10px 28px rgba(38, 34, 28, 0.12)";
     var wfShadowSoft = transparentCards
       ? "none"
       : darkMode
         ? "0 10px 24px rgba(0, 0, 0, 0.3)"
-        : "0 6px 18px rgba(20, 32, 55, 0.1)";
+        : "0 6px 18px rgba(38, 34, 28, 0.1)";
     var uiShadowSoft = transparentCards
       ? "none"
-      : "0 10px 30px rgba(15, 23, 42, 0.09)";
+      : "0 10px 30px rgba(38, 34, 28, 0.09)";
     var uiShadowSoftDark = transparentCards
       ? "none"
       : "0 14px 32px rgba(0, 0, 0, 0.34)";
@@ -858,7 +858,7 @@
     }
 
     root.style.setProperty("--ui-page-bg", next.baseColor);
-    root.style.setProperty("--ui-page-bg-dark", "#101318");
+    root.style.setProperty("--ui-page-bg-dark", "#1c1b19");
     root.style.setProperty("--ui-card-opacity", surfaceAlpha.toFixed(2));
     root.style.setProperty("--ui-card-blur", blur + "px");
     root.style.setProperty(
