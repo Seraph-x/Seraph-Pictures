@@ -313,3 +313,40 @@ body.admin-page .empty-tip {
     margin-left: 0 !important;
   }
 }
+
+/* Visual hierarchy improvements */
+body.admin-page .folder-sidebar {
+  background: var(--claude-panel-soft) !important;
+  border-right: 1px solid var(--claude-line) !important;
+}
+
+body.admin-page .folder-item.active {
+  background: rgba(194, 100, 63, 0.12) !important;
+  color: var(--claude-accent) !important;
+  font-weight: 600 !important;
+  border-left: 3px solid var(--claude-accent) !important;
+}
+
+body.admin-page .empty-tip {
+  background: var(--claude-panel) !important;
+  border: 1.5px dashed var(--claude-line) !important;
+  padding: 48px 32px !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+body.admin-page .folder-breadcrumb {
+  background: var(--claude-panel) !important;
+  border: 1px solid var(--claude-line) !important;
+  box-shadow: var(--shadow-sm) !important;
+  margin-bottom: 20px !important;
+}
+
+/* Toolbar icon spacing */
+body.admin-page .disk-toolbar .toolbar-right {
+  gap: 12px !important;
+}
+
+body.admin-page .disk-toolbar .toolbar-right > * {
+  margin-left: 4px !important;
+}
