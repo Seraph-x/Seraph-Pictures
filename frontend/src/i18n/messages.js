@@ -9,7 +9,7 @@ export const messages = {
     'nav.drive': '文件',
     'nav.storage': '存储',
     'nav.status': '状态',
-    'nav.legacy': '旧版',
+    'nav.legacy': '首页',
 
     'shell.tagline': '私人媒体工作台',
     'shell.login': '登录',
@@ -331,7 +331,7 @@ export const messages = {
     'nav.drive': 'Drive',
     'nav.storage': 'Storage',
     'nav.status': 'Status',
-    'nav.legacy': 'Legacy',
+    'nav.legacy': 'Home',
 
     'shell.tagline': 'Private media workspace',
     'shell.login': 'Login',
