@@ -387,16 +387,12 @@
       /* 上传区域 */
       .upload-zone {
         border: 2.5px dashed var(--primary-light);
-        border-radius: 20px;
+        border-radius: var(--radius-lg);
         padding: 50px 40px;
         text-align: center;
         cursor: pointer;
-        transition: var(--transition);
-        background: linear-gradient(
-          135deg,
-          rgba(217, 119, 87, 0.03) 0%,
-          rgba(229, 138, 104, 0.08) 100%
-        );
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        background: rgba(194, 100, 63, 0.04);
         position: relative;
         overflow: hidden;
       }
@@ -515,7 +511,7 @@
       .folder-target-panel {
         margin-top: 16px;
         padding: 16px 18px;
-        border-radius: 16px;
+        border-radius: var(--radius-lg);
         border: 1px solid rgba(217, 119, 87, 0.12);
         background: linear-gradient(
           135deg,
@@ -602,7 +598,7 @@
       .image-compress-panel {
         margin-top: 16px;
         padding: 18px;
-        border-radius: 18px;
+        border-radius: var(--radius-lg);
         border: 1.5px solid rgba(217, 119, 87, 0.18);
         background: linear-gradient(
           135deg,
@@ -745,11 +741,11 @@
       .compress-format-btn,
       .compress-mode-btn {
         border: 1.5px solid var(--input-border);
-        border-radius: 14px;
+        border-radius: var(--radius-md);
         background: var(--surface-1);
         color: var(--text-secondary);
         cursor: pointer;
-        transition: var(--transition);
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       }
 
       .compress-format-btn {
@@ -759,25 +755,22 @@
         align-items: center;
         justify-content: center;
         gap: 8px;
-        font-weight: 700;
+        font-weight: 600;
       }
 
       .compress-format-btn:hover:not(:disabled),
       .compress-mode-btn:hover {
         border-color: var(--primary-light);
         transform: translateY(-1px);
-        box-shadow: 0 8px 20px rgba(217, 119, 87, 0.1);
+        box-shadow: var(--shadow-sm);
       }
 
       .compress-format-btn.active,
       .compress-mode-btn.active {
         border-color: var(--primary-color);
         color: var(--primary-color);
-        background: linear-gradient(
-          135deg,
-          rgba(217, 119, 87, 0.1),
-          rgba(179, 157, 219, 0.18)
-        );
+        background: rgba(194, 100, 63, 0.1);
+        font-weight: 600;
       }
 
       .compress-format-btn:disabled {
@@ -854,26 +847,24 @@
         gap: 8px;
         padding: 10px 20px;
         border: 2px solid var(--input-border);
-        border-radius: 12px;
+        border-radius: var(--radius-md);
         background: var(--surface-1);
         cursor: pointer;
-        transition: all 0.3s;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         font-size: 0.9em;
         color: var(--text-secondary);
       }
 
       .storage-btn:hover:not(.disabled) {
         border-color: var(--primary-light);
-        background: rgba(217, 119, 87, 0.05);
+        background: rgba(194, 100, 63, 0.08);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
       }
 
       .storage-btn.active {
         border-color: var(--primary-color);
-        background: linear-gradient(
-          135deg,
-          rgba(217, 119, 87, 0.1) 0%,
-          rgba(179, 157, 219, 0.2) 100%
-        );
+        background: rgba(194, 100, 63, 0.12);
         color: var(--primary-color);
         font-weight: 600;
       }
@@ -907,28 +898,24 @@
       .method-btn {
         padding: 14px 24px;
         border: 2px solid var(--primary-light);
-        border-radius: 14px;
+        border-radius: var(--radius-md);
         background: var(--surface-1);
         cursor: pointer;
-        transition: var(--transition);
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         display: flex;
         align-items: center;
         gap: 10px;
         font-size: 0.95em;
-        font-weight: 500;
+        font-weight: 600;
         color: var(--text-secondary);
       }
 
       .method-btn:hover {
         border-color: var(--primary-color);
-        background: linear-gradient(
-          135deg,
-          rgba(217, 119, 87, 0.08),
-          rgba(229, 138, 104, 0.15)
-        );
+        background: rgba(194, 100, 63, 0.12);
         color: var(--primary-color);
-        transform: translateY(-3px);
-        box-shadow: 0 6px 20px rgba(217, 119, 87, 0.15);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow);
       }
 
       .method-btn i {
