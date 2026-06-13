@@ -20,7 +20,7 @@
   justify-content: start !important;
 }
 
-.admin-header-tools {
+body.admin-page .header-content .actions.admin-header-tools {
   justify-content: center !important;
   flex-wrap: nowrap !important;
 }
