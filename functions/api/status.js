@@ -32,6 +32,8 @@ function storageCapability(type, label, layer = 'direct') {
 export async function onRequestGet(context) {
   const { env } = context;
 
+  const guestUpload = await getGuestConfig(env);
+
   const status = {
     telegram: defaultStatusItem({ layer: 'direct' }),
     kv: { connected: false, enabled: false, configured: false, layer: 'direct', message: 'Not configured' },
@@ -42,7 +44,7 @@ export async function onRequestGet(context) {
     webdav: defaultStatusItem({ layer: 'mounted' }),
     github: defaultStatusItem({ layer: 'direct' }),
     auth: { enabled: false, message: 'Disabled' },
-    guestUpload: getGuestConfig(env),
+    guestUpload,
     uploadLimits: getUploadLimits(),
     capabilities: [
       storageCapability('telegram', 'Telegram', 'direct'),
