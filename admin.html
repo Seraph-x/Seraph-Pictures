@@ -4622,6 +4622,22 @@
             </div>
 
             <section class="ui-design-section">
+              <div class="ui-design-section-title"><i class="fas fa-bookmark"></i> 品牌</div>
+              <div class="ui-design-inline">
+                <input id="uiBrandName" class="ui-design-input" type="text" value="${escapeAttr(snapshot.brandName)}" placeholder="品牌名（留空使用 Seraph's Pictures）">
+              </div>
+              <div class="ui-design-inline">
+                <input id="uiBrandLogoUrl" class="ui-design-input" type="text" value="${escapeAttr(snapshot.brandLogoUrl)}" placeholder="品牌图标链接（https://... 或 /file/...）">
+              </div>
+              <div class="ui-design-inline ui-design-action-grid">
+                <button type="button" id="uiUploadBrandBtn" class="ui-upload-drop"><i class="fas fa-cloud-upload-alt"></i><span>上传图标</span></button>
+                <input id="uiUploadBrandInput" type="file" accept="image/*" style="display:none;">
+                <button type="button" id="uiClearBrandLogo" class="el-button el-button--small">清除</button>
+              </div>
+              <div class="ui-design-tip">品牌名用于首页标题与浏览器标签页；品牌图标替换各页 header 的 logo，点击 logo 可回到首页。留空则使用默认 Seraph's Pictures。</div>
+            </section>
+
+            <section class="ui-design-section">
               <div class="ui-design-section-title"><i class="fas fa-image"></i> 背景图设置（全站）</div>
               <div class="ui-design-inline">
                 <input id="uiGlobalBgUrl" class="ui-design-input" type="text" value="${escapeAttr(snapshot.globalBackgroundUrl)}" placeholder="请输入图片链接（https://example.com/background.jpg）">
@@ -4704,6 +4720,8 @@
             'none';
           return {
             baseColor: '#fafaf8',
+            brandName: document.getElementById('uiBrandName')?.value?.trim() || '',
+            brandLogoUrl: document.getElementById('uiBrandLogoUrl')?.value?.trim() || '',
             globalBackgroundUrl: document.getElementById('uiGlobalBgUrl')?.value?.trim() || '',
             loginBackgroundMode: loginMode,
             loginBackgroundUrl: document.getElementById('uiLoginBgUrl')?.value?.trim() || '',
@@ -4762,6 +4780,10 @@
 
         const applyValuesToForm = (values) => {
           const state = Object.assign({}, defaults, values || {});
+          const brandNameEl = document.getElementById('uiBrandName');
+          const brandLogoEl = document.getElementById('uiBrandLogoUrl');
+          if (brandNameEl) brandNameEl.value = state.brandName || '';
+          if (brandLogoEl) brandLogoEl.value = state.brandLogoUrl || '';
           const globalUrl = document.getElementById('uiGlobalBgUrl');
           const loginUrl = document.getElementById('uiLoginBgUrl');
           const cardOpacity = document.getElementById('uiCardOpacity');
@@ -4863,6 +4885,8 @@
           applyPreview();
 
           const listenIds = [
+            'uiBrandName',
+            'uiBrandLogoUrl',
             'uiGlobalBgUrl',
             'uiLoginBgUrl',
             'uiCardOpacity',
@@ -4910,6 +4934,16 @@
 
           bindUpload('uiUploadGlobalBtn', 'uiUploadGlobalInput', 'uiGlobalBgUrl');
           bindUpload('uiUploadLoginBtn', 'uiUploadLoginInput', 'uiLoginBgUrl');
+          bindUpload('uiUploadBrandBtn', 'uiUploadBrandInput', 'uiBrandLogoUrl');
+
+          const clearBrandBtn = document.getElementById('uiClearBrandLogo');
+          if (clearBrandBtn) {
+            clearBrandBtn.addEventListener('click', () => {
+              const input = document.getElementById('uiBrandLogoUrl');
+              if (input) input.value = '';
+              applyPreview();
+            });
+          }
         });
       },
       async showGuestSettingsPanel() {

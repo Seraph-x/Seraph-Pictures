@@ -184,6 +184,8 @@
     effectStyle: "math",
     effectIntensity: 22,
     optimizeMobile: true,
+    brandName: "",
+    brandLogoUrl: "",
   };
 
   var root = document.documentElement;
@@ -254,6 +256,11 @@
       : DEFAULTS.effectStyle;
     next.effectIntensity = Math.round(clampNumber(next.effectIntensity, 0, 100));
     next.optimizeMobile = next.optimizeMobile !== false;
+    next.brandName = String(next.brandName == null ? "" : next.brandName)
+      .replace(/[\r\n\t]+/g, " ")
+      .trim()
+      .slice(0, 60);
+    next.brandLogoUrl = sanitizeUrl(next.brandLogoUrl);
     return next;
   }
 
@@ -951,12 +958,39 @@
     } catch (e) {}
   }
 
+  // Brand name applies only where a .brand-name element exists (home page);
+  // the brand logo replaces every header logo image and links back home.
+  function applyBrand(next) {
+    var name = (next.brandName && next.brandName.trim()) || "Seraph's Pictures";
+    var logoUrl = sanitizeUrl(next.brandLogoUrl);
+    try {
+      document.title = name;
+    } catch (e) {}
+    var nameEls = document.querySelectorAll(".brand-name");
+    for (var i = 0; i < nameEls.length; i++) {
+      nameEls[i].textContent = name;
+    }
+    var logoEls = document.querySelectorAll(".brand-logo, .header-logo");
+    for (var j = 0; j < logoEls.length; j++) {
+      var img = logoEls[j];
+      if (logoUrl) img.setAttribute("src", logoUrl);
+      img.style.cursor = "pointer";
+      if (!img.getAttribute("data-brand-home")) {
+        img.setAttribute("data-brand-home", "1");
+        img.addEventListener("click", function () {
+          window.location.href = "/";
+        });
+      }
+    }
+  }
+
   function applySettings(next, options) {
     var opts = options || {};
     var normalized = normalizeSettings(next || settings || DEFAULTS);
     var darkMode = root.getAttribute("data-theme") === "dark";
     settings = normalized;
     applyCompatibilityVars(settings, darkMode);
+    applyBrand(settings);
 
     if (document.body) {
       if (isLoginPage()) document.body.classList.add("login-page");

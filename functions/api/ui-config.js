@@ -16,6 +16,8 @@ const DEFAULT_UI_CONFIG = {
   effectStyle: 'math',
   effectIntensity: 22,
   optimizeMobile: true,
+  brandName: '',
+  brandLogoUrl: '',
 };
 
 function clampNumber(value, min, max) {
@@ -62,6 +64,11 @@ function normalizeUiConfig(raw) {
   next.effectStyle = EFFECT_STYLES.has(next.effectStyle) ? next.effectStyle : DEFAULT_UI_CONFIG.effectStyle;
   next.effectIntensity = Math.round(clampNumber(next.effectIntensity, 0, 100));
   next.optimizeMobile = next.optimizeMobile !== false;
+  next.brandName = String(next.brandName == null ? '' : next.brandName)
+    .replace(/[\r\n\t]+/g, ' ')
+    .trim()
+    .slice(0, 60);
+  next.brandLogoUrl = sanitizeUrl(next.brandLogoUrl);
   return next;
 }
 

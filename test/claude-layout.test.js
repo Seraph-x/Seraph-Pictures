@@ -109,7 +109,7 @@ describe('Claude layout balance contract', function () {
 
     assert.match(indexHtml, /<title>Seraph's Pictures<\/title>/);
     assert.match(indexHtml, /alt="Seraph's Pictures Logo"/);
-    assert.match(indexHtml, /<span>Seraph's Pictures<\/span>/);
+    assert.match(indexHtml, /<span class="brand-name">Seraph's Pictures<\/span>/);
     assert.match(indexHtml, /class="theme-toggle-btn header-theme-toggle theme-icon-only"/);
     assert.match(indexHtml, /class="nav-link is-active" aria-current="page"><i class="fas fa-home"><\/i> 首页/);
     assert.doesNotMatch(indexHtml, /class="logout-link"/);
