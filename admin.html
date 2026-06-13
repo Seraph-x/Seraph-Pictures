@@ -1827,6 +1827,33 @@
         'admin.uiSaveFailed': '保存失败：{msg}',
         'admin.uiResetPreviewHint': '已恢复默认预览，点击保存后全站生效。',
         'admin.uiKvBinding': '（KV: {binding}）',
+        'admin.uiBrandSectionTitle': '品牌',
+        'admin.uiBrandNamePlaceholder': "品牌名（留空使用 Seraph's Pictures）",
+        'admin.uiBrandLogoPlaceholder': '品牌图标链接（https://... 或 /file/...）',
+        'admin.uiUploadIcon': '上传图标',
+        'admin.uiBrandTip': "品牌名用于首页标题与浏览器标签页；品牌图标替换各页 header 的 logo，点击 logo 可回到首页。留空则使用默认 Seraph's Pictures。",
+        'admin.uiUploadingBg': '正在上传背景图...',
+        'admin.uiBgUploadSuccess': '背景图上传成功。',
+        'admin.uiUploadFailed': '上传失败：{msg}',
+        'admin.guestPanelTitle': '访客上传设置',
+        'admin.guestSubtitle': '未登录访客的上传策略，存于 KV，保存后立即生效。',
+        'admin.guestEnableLabel': '允许未登录访客上传',
+        'admin.guestEnableTip': '关闭后，访客上传与访客 URL 上传都会被拒绝（401）。',
+        'admin.guestRetentionTitle': '文件保留天数',
+        'admin.guestRetentionUnit': '天（1–3，到期后链接自动失效）',
+        'admin.guestDailyLimitTitle': '单 IP 每日上传次数',
+        'admin.guestDailyLimitUnit': '次/天（0 表示不限）',
+        'admin.guestMaxFileSizeTitle': '单文件大小上限',
+        'admin.guestMaxFileSizeUnit': 'MB（上限 20，即 Telegram 原生限制；0 表示不额外限制）',
+        'admin.guestSaveSettings': '保存设置',
+        'admin.guestSaving': '保存中...',
+        'admin.guestSaved': '✓ 已保存',
+        'admin.guestVerifyFailed': '保存后回读校验失败，请检查 KV 绑定与 Functions 日志。',
+        'admin.guestSavedSyncedBinding': '已保存并同步到服务端{binding}。',
+        'admin.guestSavedMsg': '访客上传设置已保存{binding}',
+        'admin.guestNeedLogin': '需要管理员登录后才能保存。',
+        'admin.guestSaveFailed': '保存失败：{msg}',
+        'admin.guestReadConfigFailed': '读取访客上传配置失败：{msg}',
         'admin.filterValidNoMatch': '检测到筛选条件无匹配，已自动恢复默认视图',
         'admin.syncDataError': '同步数据时出错，请检查网络连接',
         'admin.refreshListFailed': '刷新文件列表失败，请检查网络连接',
@@ -2138,6 +2165,33 @@
         'admin.uiSaveFailed': 'Save failed: {msg}',
         'admin.uiResetPreviewHint': 'Default preview restored. Save to apply site-wide.',
         'admin.uiKvBinding': ' (KV: {binding})',
+        'admin.uiBrandSectionTitle': 'Brand',
+        'admin.uiBrandNamePlaceholder': "Brand name (leave empty to use Seraph's Pictures)",
+        'admin.uiBrandLogoPlaceholder': 'Brand logo URL (https://... or /file/...)',
+        'admin.uiUploadIcon': 'Upload Icon',
+        'admin.uiBrandTip': "The brand name is used for the home page title and browser tab; the brand logo replaces the header logo on each page, and clicking the logo returns to the home page. Leave empty to use the default Seraph's Pictures.",
+        'admin.uiUploadingBg': 'Uploading background image...',
+        'admin.uiBgUploadSuccess': 'Background image uploaded.',
+        'admin.uiUploadFailed': 'Upload failed: {msg}',
+        'admin.guestPanelTitle': 'Guest Upload Settings',
+        'admin.guestSubtitle': 'Upload policy for guests who are not logged in, stored in KV and effective immediately after saving.',
+        'admin.guestEnableLabel': 'Allow guest (not-logged-in) uploads',
+        'admin.guestEnableTip': 'When disabled, both guest uploads and guest URL uploads are rejected (401).',
+        'admin.guestRetentionTitle': 'File retention (days)',
+        'admin.guestRetentionUnit': 'days (1-3; links expire automatically after this period)',
+        'admin.guestDailyLimitTitle': 'Daily uploads per IP',
+        'admin.guestDailyLimitUnit': 'per day (0 means unlimited)',
+        'admin.guestMaxFileSizeTitle': 'Max file size',
+        'admin.guestMaxFileSizeUnit': 'MB (max 20, the Telegram native limit; 0 means no extra limit)',
+        'admin.guestSaveSettings': 'Save',
+        'admin.guestSaving': 'Saving...',
+        'admin.guestSaved': '✓ Saved',
+        'admin.guestVerifyFailed': 'Read-back verification failed after saving. Check the KV binding and Functions logs.',
+        'admin.guestSavedSyncedBinding': 'Saved and synced to server{binding}.',
+        'admin.guestSavedMsg': 'Guest upload settings saved{binding}',
+        'admin.guestNeedLogin': 'Admin login is required to save.',
+        'admin.guestSaveFailed': 'Save failed: {msg}',
+        'admin.guestReadConfigFailed': 'Failed to read guest upload config: {msg}',
         'admin.filterValidNoMatch': 'No matches for the current filters; default view restored',
         'admin.syncDataError': 'Error syncing data, please check your connection',
         'admin.refreshListFailed': 'Failed to refresh file list, please check your connection',
@@ -4497,7 +4551,7 @@
       async showUiDesignSettingsPanel() {
         const manager = window.UIDesignManager;
         if (!manager || typeof manager.getSettings !== 'function') {
-          this.$message.error('当前版本暂不支持前端 UI 设置。');
+          this.$message.error(this.t('admin.uiNotSupported'));
           return;
         }
 
@@ -4520,7 +4574,7 @@
           const response = await fetch(url, init);
           const payload = await response.json().catch(() => ({}));
           if (!response.ok || payload?.success === false) {
-            const detail = payload?.error?.message || payload?.error || `请求失败 (${response.status})`;
+            const detail = payload?.error?.message || payload?.error || this.t('admin.uiRequestFailed', { status: response.status });
             throw new Error(detail);
           }
           return payload;
@@ -4561,7 +4615,7 @@
             const verifiedConfig = verifyPayload?.config || verifyPayload?.settings || {};
             const isMatch = JSON.stringify(verifiedConfig) === JSON.stringify(config);
             if (!isMatch) {
-              throw new Error('保存后回读校验失败，请检查 KV 绑定与 Functions 日志。');
+              throw new Error(this.t('admin.uiVerifyFailed'));
             }
             if (typeof manager.setSettings === 'function') {
               manager.setSettings(verifiedConfig, { persist: true, silent: true });
@@ -4589,12 +4643,12 @@
             applyLocalOnFailure: true
           });
           if (syncResult && syncResult.success === false && syncResult.error) {
-            this.$message.warning(`读取服务端配置失败，已使用本地缓存：${syncResult.error}`);
+            this.$message.warning(this.t('admin.uiReadFailedLocal', { error: syncResult.error }));
           }
         } else {
           const syncResult = await syncFromServerFallback();
           if (syncResult && syncResult.success === false && syncResult.error) {
-            this.$message.warning(`读取服务端配置失败，已使用本地缓存：${syncResult.error}`);
+            this.$message.warning(this.t('admin.uiReadFailedLocal', { error: syncResult.error }));
           }
         }
 
@@ -4620,66 +4674,66 @@
           <div class="ui-design-panel" id="uiDesignPanel">
             <div class="ui-design-head">
               <div>
-                <div class="ui-design-title"><i class="fas fa-palette"></i><span>前端 UI 设计</span></div>
-                <div class="ui-design-subtitle">当前改动实时预览，点击保存后同步到所有设备。</div>
+                <div class="ui-design-title"><i class="fas fa-palette"></i><span>${this.t('admin.uiTitle')}</span></div>
+                <div class="ui-design-subtitle">${this.t('admin.uiSubtitle')}</div>
               </div>
             </div>
 
             <section class="ui-design-section">
-              <div class="ui-design-section-title"><i class="fas fa-bookmark"></i> 品牌</div>
+              <div class="ui-design-section-title"><i class="fas fa-bookmark"></i> ${this.t('admin.uiBrandSectionTitle')}</div>
               <div class="ui-design-inline">
-                <input id="uiBrandName" class="ui-design-input" type="text" value="${escapeAttr(snapshot.brandName)}" placeholder="品牌名（留空使用 Seraph's Pictures）">
+                <input id="uiBrandName" class="ui-design-input" type="text" value="${escapeAttr(snapshot.brandName)}" placeholder="${escapeAttr(this.t('admin.uiBrandNamePlaceholder'))}">
               </div>
               <div class="ui-design-inline">
-                <input id="uiBrandLogoUrl" class="ui-design-input" type="text" value="${escapeAttr(snapshot.brandLogoUrl)}" placeholder="品牌图标链接（https://... 或 /file/...）">
+                <input id="uiBrandLogoUrl" class="ui-design-input" type="text" value="${escapeAttr(snapshot.brandLogoUrl)}" placeholder="${escapeAttr(this.t('admin.uiBrandLogoPlaceholder'))}">
               </div>
               <div class="ui-design-inline ui-design-action-grid">
-                <button type="button" id="uiUploadBrandBtn" class="ui-upload-drop"><i class="fas fa-cloud-upload-alt"></i><span>上传图标</span></button>
+                <button type="button" id="uiUploadBrandBtn" class="ui-upload-drop"><i class="fas fa-cloud-upload-alt"></i><span>${this.t('admin.uiUploadIcon')}</span></button>
                 <input id="uiUploadBrandInput" type="file" accept="image/*" style="display:none;">
-                <button type="button" id="uiClearBrandLogo" class="el-button el-button--small">清除</button>
+                <button type="button" id="uiClearBrandLogo" class="el-button el-button--small">${this.t('admin.uiClear')}</button>
               </div>
-              <div class="ui-design-tip">品牌名用于首页标题与浏览器标签页；品牌图标替换各页 header 的 logo，点击 logo 可回到首页。留空则使用默认 Seraph's Pictures。</div>
+              <div class="ui-design-tip">${this.t('admin.uiBrandTip')}</div>
             </section>
 
             <section class="ui-design-section">
-              <div class="ui-design-section-title"><i class="fas fa-image"></i> 背景图设置（全站）</div>
+              <div class="ui-design-section-title"><i class="fas fa-image"></i> ${this.t('admin.uiBgSectionTitle')}</div>
               <div class="ui-design-inline">
-                <input id="uiGlobalBgUrl" class="ui-design-input" type="text" value="${escapeAttr(snapshot.globalBackgroundUrl)}" placeholder="请输入图片链接（https://example.com/background.jpg）">
+                <input id="uiGlobalBgUrl" class="ui-design-input" type="text" value="${escapeAttr(snapshot.globalBackgroundUrl)}" placeholder="${escapeAttr(this.t('admin.uiBgUrlPlaceholder'))}">
               </div>
               <div class="ui-design-inline ui-design-action-grid">
-                <button type="button" id="uiUploadGlobalBtn" class="ui-upload-drop"><i class="fas fa-cloud-upload-alt"></i><span>上传图片</span></button>
+                <button type="button" id="uiUploadGlobalBtn" class="ui-upload-drop"><i class="fas fa-cloud-upload-alt"></i><span>${this.t('admin.uiUploadImage')}</span></button>
                 <input id="uiUploadGlobalInput" type="file" accept="image/*" style="display:none;">
-                <button type="button" id="uiClearGlobalBg" class="el-button el-button--small">清除</button>
+                <button type="button" id="uiClearGlobalBg" class="el-button el-button--small">${this.t('admin.uiClear')}</button>
               </div>
-              <div class="ui-design-tip">将应用到首页、图片浏览、后台、WebDAV 及其他所有可见页面。</div>
+              <div class="ui-design-tip">${this.t('admin.uiBgTip')}</div>
             </section>
 
             <section class="ui-design-section">
-              <div class="ui-design-section-title"><i class="fas fa-sign-in-alt"></i> 登录页背景图</div>
+              <div class="ui-design-section-title"><i class="fas fa-sign-in-alt"></i> ${this.t('admin.uiLoginSectionTitle')}</div>
               <div class="ui-segmented ui-design-equal-options">
-                <label class="ui-segment"><input type="radio" name="uiLoginMode" value="follow-global" ${checked(snapshot.loginBackgroundMode !== 'custom')}><span>与全站一致</span></label>
-                <label class="ui-segment"><input type="radio" name="uiLoginMode" value="custom" ${checked(snapshot.loginBackgroundMode === 'custom')}><span>仅登录页单独设置</span></label>
+                <label class="ui-segment"><input type="radio" name="uiLoginMode" value="follow-global" ${checked(snapshot.loginBackgroundMode !== 'custom')}><span>${this.t('admin.uiLoginFollowGlobal')}</span></label>
+                <label class="ui-segment"><input type="radio" name="uiLoginMode" value="custom" ${checked(snapshot.loginBackgroundMode === 'custom')}><span>${this.t('admin.uiLoginCustom')}</span></label>
               </div>
               <div class="ui-design-inline ui-design-login-grid" id="uiLoginCustomRow">
-                <input id="uiLoginBgUrl" class="ui-design-input" type="text" value="${escapeAttr(snapshot.loginBackgroundUrl)}" placeholder="请输入登录页背景图链接">
-                <button type="button" id="uiUploadLoginBtn" class="ui-upload-drop"><i class="fas fa-cloud-upload-alt"></i><span>上传图片</span></button>
+                <input id="uiLoginBgUrl" class="ui-design-input" type="text" value="${escapeAttr(snapshot.loginBackgroundUrl)}" placeholder="${escapeAttr(this.t('admin.uiLoginUrlPlaceholder'))}">
+                <button type="button" id="uiUploadLoginBtn" class="ui-upload-drop"><i class="fas fa-cloud-upload-alt"></i><span>${this.t('admin.uiUploadImage')}</span></button>
                 <input id="uiUploadLoginInput" type="file" accept="image/*" style="display:none;">
-                <button type="button" id="uiClearLoginBg" class="el-button el-button--small">清除</button>
+                <button type="button" id="uiClearLoginBg" class="el-button el-button--small">${this.t('admin.uiClear')}</button>
               </div>
             </section>
 
             <section class="ui-design-section">
-              <div class="ui-design-section-title"><i class="fas fa-clone"></i> 界面透明度</div>
+              <div class="ui-design-section-title"><i class="fas fa-clone"></i> ${this.t('admin.uiOpacitySectionTitle')}</div>
               <div class="ui-design-range-wrap">
                 <div class="ui-design-range-head">
-                  <span>卡片透明度</span>
+                  <span>${this.t('admin.uiCardOpacity')}</span>
                   <span class="ui-design-value" id="uiCardOpacityValue"></span>
                 </div>
                 <input id="uiCardOpacity" class="ui-design-range" type="range" min="0" max="100" value="${clamp(snapshot.cardOpacity, 0, 100)}">
               </div>
               <div class="ui-design-range-wrap">
                 <div class="ui-design-range-head">
-                  <span>模糊强度</span>
+                  <span>${this.t('admin.uiCardBlur')}</span>
                   <span class="ui-design-value" id="uiCardBlurValue"></span>
                 </div>
                 <input id="uiCardBlur" class="ui-design-range" type="range" min="0" max="32" value="${clamp(snapshot.cardBlur, 0, 32)}">
@@ -4687,29 +4741,29 @@
             </section>
 
             <section class="ui-design-section">
-              <div class="ui-design-section-title"><i class="fas fa-wave-square"></i> 动态背景特效</div>
+              <div class="ui-design-section-title"><i class="fas fa-wave-square"></i> ${this.t('admin.uiEffectSectionTitle')}</div>
               <div class="ui-segmented ui-effect-grid">
-                <label class="ui-segment"><input type="radio" name="uiEffectStyle" value="none" ${checked(snapshot.effectStyle === 'none')}><span>无特效</span></label>
-                <label class="ui-segment"><input type="radio" name="uiEffectStyle" value="math" ${checked(snapshot.effectStyle === 'math')}><span>数学符号</span></label>
-                <label class="ui-segment"><input type="radio" name="uiEffectStyle" value="particle" ${checked(snapshot.effectStyle === 'particle')}><span>粒子网格</span></label>
-                <label class="ui-segment"><input type="radio" name="uiEffectStyle" value="texture" ${checked(snapshot.effectStyle === 'texture')}><span>纸纹叠加</span></label>
+                <label class="ui-segment"><input type="radio" name="uiEffectStyle" value="none" ${checked(snapshot.effectStyle === 'none')}><span>${this.t('admin.uiEffectNone')}</span></label>
+                <label class="ui-segment"><input type="radio" name="uiEffectStyle" value="math" ${checked(snapshot.effectStyle === 'math')}><span>${this.t('admin.uiEffectMath')}</span></label>
+                <label class="ui-segment"><input type="radio" name="uiEffectStyle" value="particle" ${checked(snapshot.effectStyle === 'particle')}><span>${this.t('admin.uiEffectParticle')}</span></label>
+                <label class="ui-segment"><input type="radio" name="uiEffectStyle" value="texture" ${checked(snapshot.effectStyle === 'texture')}><span>${this.t('admin.uiEffectTexture')}</span></label>
               </div>
               <div class="ui-design-range-wrap">
                 <div class="ui-design-range-head">
-                  <span>特效强度</span>
+                  <span>${this.t('admin.uiEffectIntensity')}</span>
                   <span class="ui-design-value" id="uiEffectIntensityValue"></span>
                 </div>
                 <input id="uiEffectIntensity" class="ui-design-range" type="range" min="0" max="100" value="${clamp(snapshot.effectIntensity, 0, 100)}">
               </div>
               <label class="ui-design-inline">
                 <input id="uiOptimizeMobile" type="checkbox" ${checked(snapshot.optimizeMobile !== false)}>
-                <span>移动端自动优化特效性能</span>
+                <span>${this.t('admin.uiOptimizeMobile')}</span>
               </label>
-              <div class="ui-design-tip">移动端会自动降低特效密度，减少 CPU 占用。</div>
+              <div class="ui-design-tip">${this.t('admin.uiOptimizeTip')}</div>
             </section>
 
             <div class="ui-design-foot">
-              <button type="button" id="uiResetDefaults" class="el-button el-button--small">恢复默认</button>
+              <button type="button" id="uiResetDefaults" class="el-button el-button--small">${this.t('admin.uiResetDefaults')}</button>
               <span id="uiSaveStatus" class="ui-design-save-status"></span>
             </div>
           </div>
@@ -4779,7 +4833,7 @@
           } else if (typeof manager.setSettings === 'function') {
             manager.setSettings(values, { persist: false, silent: true });
           }
-          setSaveStatus('', '预览中：当前改动仅在本地生效，保存后全站同步。');
+          setSaveStatus('', this.t('admin.uiPreviewHint'));
         };
 
         const applyValuesToForm = (values) => {
@@ -4816,14 +4870,14 @@
           fileInput.addEventListener('change', async () => {
             const file = fileInput.files?.[0];
             if (!file) return;
-            const loading = this.$message({ message: '正在上传背景图...', duration: 0 });
+            const loading = this.$message({ message: this.t('admin.uiUploadingBg'), duration: 0 });
             try {
               const url = await this.uploadUiDesignBackgroundFile(file);
               targetInput.value = url;
               applyPreview();
-              this.$message.success('背景图上传成功。');
+              this.$message.success(this.t('admin.uiBgUploadSuccess'));
             } catch (error) {
-              this.$message.error(`上传失败：${error.message || error}`);
+              this.$message.error(this.t('admin.uiUploadFailed', { msg: error.message || error }));
             } finally {
               loading.close();
               fileInput.value = '';
@@ -4831,13 +4885,13 @@
           });
         };
 
-        this.$alert(html, '前端 UI 设计', {
+        this.$alert(html, this.t('admin.uiTitle'), {
           customClass: 'ui-design-alert ui-design-footer-actions',
           dangerouslyUseHTMLString: true,
           showCancelButton: true,
           closeOnClickModal: false,
-          confirmButtonText: '保存设置',
-          cancelButtonText: '取消',
+          confirmButtonText: this.t('admin.uiSaveSettings'),
+          cancelButtonText: this.t('admin.cancel'),
           beforeClose: (action, instance, done) => {
             if (action !== 'confirm') {
               if (typeof manager.restorePersisted === 'function') {
@@ -4849,8 +4903,8 @@
 
             const values = readValues();
             instance.confirmButtonLoading = true;
-            instance.confirmButtonText = '保存中...';
-            setSaveStatus('saving', '保存中...');
+            instance.confirmButtonText = this.t('admin.uiSaving');
+            setSaveStatus('saving', this.t('admin.uiSaving'));
 
             const saveRequest = typeof manager.saveToServer === 'function'
               ? manager.saveToServer(values)
@@ -4860,24 +4914,24 @@
               .then((result) => {
                 instance.confirmButtonLoading = false;
                 if (result?.success) {
-                  instance.confirmButtonText = '✓ 已保存';
-                  const bindingName = result?.binding ? `（KV: ${result.binding}）` : '';
-                  setSaveStatus('success', `已保存并同步到服务端${bindingName}。`);
-                  this.$message.success(`前端 UI 设置已保存并同步${bindingName}`);
+                  instance.confirmButtonText = this.t('admin.uiSaved');
+                  const bindingName = result?.binding ? this.t('admin.uiKvBinding', { binding: result.binding }) : '';
+                  setSaveStatus('success', this.t('admin.uiSavedSyncedBinding', { binding: bindingName }));
+                  this.$message.success(this.t('admin.uiSavedSyncedMsg', { binding: bindingName }));
                 } else {
-                  instance.confirmButtonText = '已本地保存';
-                  setSaveStatus('warning', '服务端不可用，已保存到本地缓存。');
+                  instance.confirmButtonText = this.t('admin.uiSavedLocal');
+                  setSaveStatus('warning', this.t('admin.uiServerUnavailable'));
                   this.$message.warning(result?.error
-                    ? `已本地保存，服务端同步失败：${result.error}`
-                    : '已本地保存，服务端同步失败。');
+                    ? this.t('admin.uiSavedLocalSyncFailed', { error: result.error })
+                    : this.t('admin.uiSavedLocalSyncFailedShort'));
                 }
                 window.setTimeout(() => done(), 260);
               })
               .catch((error) => {
                 instance.confirmButtonLoading = false;
-                instance.confirmButtonText = '保存设置';
-                setSaveStatus('warning', '保存失败，请重试。');
-                this.$message.error(`保存失败：${error.message || error}`);
+                instance.confirmButtonText = this.t('admin.uiSaveSettings');
+                setSaveStatus('warning', this.t('admin.uiSaveFailedRetry'));
+                this.$message.error(this.t('admin.uiSaveFailed', { msg: error.message || error }));
               });
           }
         });
@@ -4932,7 +4986,7 @@
             resetBtn.addEventListener('click', () => {
               applyValuesToForm(defaults);
               applyPreview();
-              setSaveStatus('', '已恢复默认预览，点击保存后全站生效。');
+              setSaveStatus('', this.t('admin.uiResetPreviewHint'));
             });
           }
 
@@ -4973,7 +5027,7 @@
           const response = await fetch(url, init);
           const payload = await response.json().catch(() => ({}));
           if (!response.ok || payload?.success === false) {
-            const detail = payload?.error?.message || payload?.error || `请求失败 (${response.status})`;
+            const detail = payload?.error?.message || payload?.error || this.t('admin.uiRequestFailed', { status: response.status });
             const err = new Error(detail);
             err.status = response.status;
             throw err;
@@ -4987,7 +5041,7 @@
           const payload = await requestGuestConfig('GET');
           current = Object.assign({}, DEFAULTS, payload?.config || {});
         } catch (error) {
-          this.$message.warning(`读取访客上传配置失败：${error.message || error}`);
+          this.$message.warning(this.t('admin.guestReadConfigFailed', { msg: error.message || error }));
         }
 
         const checked = (cond) => (cond ? 'checked' : '');
@@ -4997,40 +5051,40 @@
           <div class="ui-design-panel" id="guestSettingsPanel">
             <div class="ui-design-head">
               <div>
-                <div class="ui-design-title"><i class="fas fa-user-shield"></i><span>访客上传设置</span></div>
-                <div class="ui-design-subtitle">未登录访客的上传策略，存于 KV，保存后立即生效。</div>
+                <div class="ui-design-title"><i class="fas fa-user-shield"></i><span>${this.t('admin.guestPanelTitle')}</span></div>
+                <div class="ui-design-subtitle">${this.t('admin.guestSubtitle')}</div>
               </div>
             </div>
 
             <section class="ui-design-section">
               <label class="ui-design-inline">
                 <input id="guestEnabled" type="checkbox" ${checked(current.enabled)}>
-                <span>允许未登录访客上传</span>
+                <span>${this.t('admin.guestEnableLabel')}</span>
               </label>
-              <div class="ui-design-tip">关闭后，访客上传与访客 URL 上传都会被拒绝（401）。</div>
+              <div class="ui-design-tip">${this.t('admin.guestEnableTip')}</div>
             </section>
 
             <section class="ui-design-section">
-              <div class="ui-design-section-title"><i class="fas fa-calendar-day"></i> 文件保留天数</div>
+              <div class="ui-design-section-title"><i class="fas fa-calendar-day"></i> ${this.t('admin.guestRetentionTitle')}</div>
               <div class="ui-design-inline">
                 <input id="guestRetentionDays" class="ui-design-input" type="number" min="1" max="3" step="1" value="${clamp(current.retentionDays, 1, 3)}">
-                <span>天（1–3，到期后链接自动失效）</span>
+                <span>${this.t('admin.guestRetentionUnit')}</span>
               </div>
             </section>
 
             <section class="ui-design-section">
-              <div class="ui-design-section-title"><i class="fas fa-hashtag"></i> 单 IP 每日上传次数</div>
+              <div class="ui-design-section-title"><i class="fas fa-hashtag"></i> ${this.t('admin.guestDailyLimitTitle')}</div>
               <div class="ui-design-inline">
                 <input id="guestDailyLimit" class="ui-design-input" type="number" min="0" max="1000" step="1" value="${clamp(current.dailyLimit, 0, 1000)}">
-                <span>次/天（0 表示不限）</span>
+                <span>${this.t('admin.guestDailyLimitUnit')}</span>
               </div>
             </section>
 
             <section class="ui-design-section">
-              <div class="ui-design-section-title"><i class="fas fa-file"></i> 单文件大小上限</div>
+              <div class="ui-design-section-title"><i class="fas fa-file"></i> ${this.t('admin.guestMaxFileSizeTitle')}</div>
               <div class="ui-design-inline">
                 <input id="guestMaxFileSize" class="ui-design-input" type="number" min="0" max="20" step="0.5" value="${maxMB}">
-                <span>MB（上限 20，即 Telegram 原生限制；0 表示不额外限制）</span>
+                <span>${this.t('admin.guestMaxFileSizeUnit')}</span>
               </div>
             </section>
 
@@ -5054,13 +5108,13 @@
           status.textContent = text || '';
         };
 
-        this.$alert(html, '访客上传设置', {
+        this.$alert(html, this.t('admin.guestPanelTitle'), {
           customClass: 'ui-design-alert ui-design-footer-actions',
           dangerouslyUseHTMLString: true,
           showCancelButton: true,
           closeOnClickModal: false,
-          confirmButtonText: '保存设置',
-          cancelButtonText: '取消',
+          confirmButtonText: this.t('admin.guestSaveSettings'),
+          cancelButtonText: this.t('admin.cancel'),
           beforeClose: (action, instance, done) => {
             if (action !== 'confirm') {
               done();
@@ -5069,8 +5123,8 @@
 
             const values = readValues();
             instance.confirmButtonLoading = true;
-            instance.confirmButtonText = '保存中...';
-            setSaveStatus('saving', '保存中...');
+            instance.confirmButtonText = this.t('admin.guestSaving');
+            setSaveStatus('saving', this.t('admin.guestSaving'));
 
             requestGuestConfig('POST', values)
               .then(async (payload) => {
@@ -5078,21 +5132,21 @@
                 const verifyPayload = await requestGuestConfig('GET');
                 const verified = verifyPayload?.config || saved;
                 if (JSON.stringify(verified) !== JSON.stringify(saved)) {
-                  throw new Error('保存后回读校验失败，请检查 KV 绑定与 Functions 日志。');
+                  throw new Error(this.t('admin.guestVerifyFailed'));
                 }
                 instance.confirmButtonLoading = false;
-                instance.confirmButtonText = '✓ 已保存';
-                const bindingName = payload?.binding ? `（KV: ${payload.binding}）` : '';
-                setSaveStatus('success', `已保存并同步到服务端${bindingName}。`);
-                this.$message.success(`访客上传设置已保存${bindingName}`);
+                instance.confirmButtonText = this.t('admin.guestSaved');
+                const bindingName = payload?.binding ? this.t('admin.uiKvBinding', { binding: payload.binding }) : '';
+                setSaveStatus('success', this.t('admin.guestSavedSyncedBinding', { binding: bindingName }));
+                this.$message.success(this.t('admin.guestSavedMsg', { binding: bindingName }));
                 window.setTimeout(() => done(), 260);
               })
               .catch((error) => {
                 instance.confirmButtonLoading = false;
-                instance.confirmButtonText = '保存设置';
-                const msg = error?.status === 401 ? '需要管理员登录后才能保存。' : (error.message || error);
-                setSaveStatus('warning', `保存失败：${msg}`);
-                this.$message.error(`保存失败：${msg}`);
+                instance.confirmButtonText = this.t('admin.guestSaveSettings');
+                const msg = error?.status === 401 ? this.t('admin.guestNeedLogin') : (error.message || error);
+                setSaveStatus('warning', this.t('admin.guestSaveFailed', { msg }));
+                this.$message.error(this.t('admin.guestSaveFailed', { msg }));
               });
           }
         });
