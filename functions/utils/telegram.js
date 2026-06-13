@@ -44,16 +44,42 @@ export function getTelegramApiBase(env) {
   return normalizeTelegramApiBase(env?.CUSTOM_BOT_API_URL);
 }
 
-export function buildTelegramBotApiUrl(env, method) {
-  const base = getTelegramApiBase(env);
-  const normalizedMethod = String(method || "").replace(/^\/+/, "");
-  return `${base}/bot${env.TG_Bot_Token}/${normalizedMethod}`;
+/**
+ * Resolve the Telegram bot credentials to use for a request.
+ * Guest uploads use a separate bot/channel (TG_GUEST_BOT_TOKEN / TG_GUEST_CHAT_ID)
+ * so guest abuse cannot get the main bot banned. Falls back to the main bot when
+ * guest credentials are not configured (handy for local verification).
+ */
+export function getTelegramCreds(env = {}, { guest = false } = {}) {
+  const apiBase = getTelegramApiBase(env);
+  if (guest && env?.TG_GUEST_BOT_TOKEN && env?.TG_GUEST_CHAT_ID) {
+    return {
+      token: env.TG_GUEST_BOT_TOKEN,
+      chatId: env.TG_GUEST_CHAT_ID,
+      apiBase,
+      usedGuestChannel: true,
+    };
+  }
+  return {
+    token: env?.TG_Bot_Token,
+    chatId: env?.TG_Chat_ID,
+    apiBase,
+    usedGuestChannel: false,
+  };
 }
 
-export function buildTelegramFileUrl(env, filePath) {
-  const base = getTelegramApiBase(env);
+export function buildTelegramBotApiUrl(env, method, creds = null) {
+  const base = creds?.apiBase || getTelegramApiBase(env);
+  const token = creds?.token || env.TG_Bot_Token;
+  const normalizedMethod = String(method || "").replace(/^\/+/, "");
+  return `${base}/bot${token}/${normalizedMethod}`;
+}
+
+export function buildTelegramFileUrl(env, filePath, creds = null) {
+  const base = creds?.apiBase || getTelegramApiBase(env);
+  const token = creds?.token || env.TG_Bot_Token;
   const normalizedPath = String(filePath || "").replace(/^\/+/, "");
-  return `${base}/file/bot${env.TG_Bot_Token}/${normalizedPath}`;
+  return `${base}/file/bot${token}/${normalizedPath}`;
 }
 
 export function getTelegramUploadMethodAndField(contentType = "") {
