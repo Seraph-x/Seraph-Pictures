@@ -6,6 +6,7 @@ import { getGitHubFile } from '../utils/github.js';
 import {
   buildTelegramBotApiUrl,
   buildTelegramFileUrl,
+  getTelegramCreds,
   parseSignedTelegramFileId,
   shouldWriteTelegramMetadata,
 } from '../utils/telegram.js';
@@ -328,8 +329,13 @@ async function handleTelegramFile(context, fileId, record = null) {
   const fileName = metadata.fileName || fileId;
   const mimeType = getMimeType(fileName);
 
+  // Guest files live in the separate guest channel and must be fetched with the
+  // guest bot credentials (falls back to the main bot when guest creds absent).
+  const guestSource = metadata.tgBot === 'guest';
+  const creds = getTelegramCreds(env, { guest: guestSource });
+
   const telegramFileId = String(fileId).split('.')[0];
-  const filePath = await getTelegramFilePath(env, telegramFileId);
+  const filePath = await getTelegramFilePath(env, telegramFileId, creds);
   if (!filePath) {
     return errorResponse('Failed to get file path from Telegram', 500);
   }
@@ -338,7 +344,7 @@ async function handleTelegramFile(context, fileId, record = null) {
   const fetchHeaders = new Headers();
   if (rangeHeader) fetchHeaders.set('Range', rangeHeader);
 
-  const upstream = await fetch(buildTelegramFileUrl(env, filePath), {
+  const upstream = await fetch(buildTelegramFileUrl(env, filePath, creds), {
     method: request.method === 'HEAD' ? 'HEAD' : 'GET',
     headers: fetchHeaders,
     cf: { cacheTtl: 0, cacheEverything: false },
@@ -741,9 +747,9 @@ async function findRecordByPrefixes(env, fileId, prefixes = []) {
   return null;
 }
 
-async function getTelegramFilePath(env, fileId) {
+async function getTelegramFilePath(env, fileId, creds = null) {
   try {
-    const url = `${buildTelegramBotApiUrl(env, 'getFile')}?file_id=${encodeURIComponent(fileId)}`;
+    const url = `${buildTelegramBotApiUrl(env, 'getFile', creds)}?file_id=${encodeURIComponent(fileId)}`;
     const response = await fetch(url, { method: 'GET' });
     if (!response.ok) return null;
 
