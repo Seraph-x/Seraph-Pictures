@@ -76,7 +76,9 @@
     } else if (el.children.length === 0) {
       el.textContent = TOGGLE_LABEL[current];
     }
-    el.setAttribute('aria-label', current === 'zh' ? 'Switch to English' : '切换到中文');
+    var hint = current === 'zh' ? '切换到英文' : 'Switch to Chinese';
+    el.setAttribute('aria-label', hint);
+    el.setAttribute('title', hint);
     el.setAttribute('data-current-lang', current);
   }
 

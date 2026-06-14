@@ -1019,6 +1019,25 @@
       box-shadow: var(--shadow) !important;
     }
 
+    /* el-tooltip popups (system header buttons) follow UI transparency */
+    .el-tooltip__popper.is-dark,
+    .el-tooltip__popper.is-light {
+      background: var(--card-bg) !important;
+      color: var(--claude-text) !important;
+      backdrop-filter: var(--ui-card-backdrop-filter) !important;
+      -webkit-backdrop-filter: var(--ui-card-backdrop-filter) !important;
+      border: 1px solid var(--claude-line) !important;
+      box-shadow: var(--shadow) !important;
+    }
+    .el-tooltip__popper[x-placement^="top"] .popper__arrow { border-top-color: var(--claude-line) !important; }
+    .el-tooltip__popper[x-placement^="top"] .popper__arrow::after { border-top-color: var(--card-bg) !important; }
+    .el-tooltip__popper[x-placement^="bottom"] .popper__arrow { border-bottom-color: var(--claude-line) !important; }
+    .el-tooltip__popper[x-placement^="bottom"] .popper__arrow::after { border-bottom-color: var(--card-bg) !important; }
+    .el-tooltip__popper[x-placement^="left"] .popper__arrow { border-left-color: var(--claude-line) !important; }
+    .el-tooltip__popper[x-placement^="left"] .popper__arrow::after { border-left-color: var(--card-bg) !important; }
+    .el-tooltip__popper[x-placement^="right"] .popper__arrow { border-right-color: var(--claude-line) !important; }
+    .el-tooltip__popper[x-placement^="right"] .popper__arrow::after { border-right-color: var(--card-bg) !important; }
+
     .el-dropdown-menu__item {
       background: transparent !important;
       color: var(--claude-text) !important;
