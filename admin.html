@@ -1143,8 +1143,6 @@
                 <el-dropdown-item command="checkStatus" divided><i class="fas fa-heartbeat"></i> {{ t('admin.toolkitCheckStatus') }}</el-dropdown-item>
               </el-dropdown-menu>
             </el-dropdown>
-          </div>
-          <div class="admin-header-system">
             <el-dropdown @command="handleLoadSettings" :hide-on-click="false">
               <span class="el-dropdown-link"><i class="fas fa-cog"></i></span>
               <el-dropdown-menu slot="dropdown">
@@ -1154,6 +1152,8 @@
                 <el-dropdown-item command="safeMode" divided :class="{ 'el-dropdown-menu__item--selected': safeMode }"><i class="fas fa-shield-alt"></i> {{ safeMode ? '✓' : '' }} {{ t('admin.safeModeMenu') }}</el-dropdown-item>
               </el-dropdown-menu>
             </el-dropdown>
+          </div>
+          <div class="admin-header-system">
             <el-tooltip :content="t('admin.tooltipStorage')" placement="bottom"><i class="fas fa-server" @click="showStorageConfigPanel"></i></el-tooltip>
             <el-tooltip :content="t('admin.tooltipUiDesign')" placement="bottom"><i class="fas fa-sliders-h" @click="showUiDesignSettingsPanel"></i></el-tooltip>
             <el-tooltip :content="t('admin.tooltipGuestUpload')" placement="bottom"><i class="fas fa-user-shield" @click="showGuestSettingsPanel"></i></el-tooltip>
