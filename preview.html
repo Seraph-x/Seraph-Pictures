@@ -15,14 +15,14 @@
   <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
   <style>
     :root {
-      --primary-color: #8a4bff;
-      --primary-light: #b39ddb;
-      --primary-dark: #6c3ce0;
-      --accent-color: #ffd7e4;
-      --bg-gradient: linear-gradient(135deg, #ffd7e4 0%, #c8f1ff 100%);
-      --card-bg: rgba(255, 255, 255, 0.92);
-      --shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-      --shadow-hover: 0 8px 24px rgba(138, 75, 255, 0.12);
+      --primary-color: #c2643f;
+      --primary-light: #e3a98c;
+      --primary-dark: #a64f2f;
+      --accent-color: #f3ddd0;
+      --bg-gradient: transparent;
+      --card-bg: rgba(var(--ui-surface-rgb, 255, 255, 255), var(--ui-card-opacity, 0.86));
+      --shadow: var(--ui-shadow-soft, 0 10px 30px rgba(38, 34, 28, 0.09));
+      --shadow-hover: 0 8px 24px rgba(194, 100, 63, 0.18);
       --transition: all 0.2s ease;
     }
 
@@ -101,24 +101,26 @@
     }
 
     .btn-primary {
-      background: linear-gradient(135deg, var(--primary-color), #9b6dff);
+      background: linear-gradient(135deg, var(--primary-color), #d98a68);
       color: white;
     }
 
     .btn-primary:hover {
       background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
       transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(138, 75, 255, 0.3);
+      box-shadow: 0 6px 20px rgba(194, 100, 63, 0.3);
     }
 
     .btn-secondary {
-      background: white;
-      color: #555;
-      border: 1.5px solid #e0e0e0;
+      background: rgba(var(--ui-surface-rgb, 255, 255, 255), var(--ui-card-opacity, 0.86));
+      color: var(--claude-text, #555);
+      border: 1.5px solid rgba(var(--ui-border-rgb, 198, 206, 218), 0.5);
+      backdrop-filter: var(--ui-card-backdrop-filter, blur(10px));
+      -webkit-backdrop-filter: var(--ui-card-backdrop-filter, blur(10px));
     }
 
     .btn-secondary:hover {
-      background: linear-gradient(135deg, rgba(255, 215, 228, 0.5), rgba(200, 241, 255, 0.5));
+      background: rgba(194, 100, 63, 0.12);
       border-color: var(--primary-light);
       color: var(--primary-color);
       transform: translateY(-2px);
@@ -178,7 +180,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #f5f5f5;
+      background: var(--surface-2, #f5f5f5);
       border-radius: 12px;
       overflow: hidden;
       position: relative;
@@ -312,6 +314,11 @@
       color: #333;
     }
 
+    /* 居中“下载”按钮(.btn 为 flex 块级,靠父级 text-align 无法居中) */
+    .preview-unsupported .btn {
+      display: inline-flex;
+    }
+
     /* 加载状态 */
     .loading {
       display: flex;
@@ -379,7 +386,7 @@
     .settings-panel {
       margin-top: 20px;
       padding: 16px;
-      background: rgba(255, 255, 255, 0.6);
+      background: var(--surface-2, rgba(255, 255, 255, 0.6));
       border-radius: 12px;
     }
 
@@ -704,12 +711,26 @@
         transform: translateX(18px);
       }
     }
+
+    /* 仅本页:语言切换按钮置于主题切换按钮正下方(默认全局是左右并排) */
+    body.preview-page .theme-floating-toggle[data-theme-toggle] {
+      top: 18px;
+      right: 18px;
+    }
+    body.preview-page .theme-floating-toggle[data-i18n-toggle] {
+      top: 64px;
+      right: 18px;
+      left: auto;
+    }
   </style>
   <link rel="stylesheet" href="/mobile-refactor.css">
   <link rel="stylesheet" href="/claude-theme.css">
   <link rel="stylesheet" href="/claude-layout.css">
 </head>
-<body>
+<body class="preview-page">
+  <button type="button" class="theme-floating-toggle" data-i18n-toggle aria-label="切换语言">
+    <span data-lang-label>EN</span>
+  </button>
   <div class="container" id="app" v-cloak>
     <!-- 头部 -->
     <div class="header">
@@ -718,9 +739,6 @@
         <span>{{ t('preview.title') }}</span>
       </div>
       <div class="header-actions">
-        <button type="button" class="theme-floating-toggle" data-i18n-toggle aria-label="切换语言">
-          <span data-lang-label>EN</span>
-        </button>
         <button class="btn btn-secondary" v-if="['image','video','pdf','office'].includes(previewType) && !loading" @click="togglePreviewFullscreen" :title="isFullscreen ? t('preview.exitFullscreen') : t('preview.fullscreen')">
           <i :class="isFullscreen ? 'fas fa-compress' : 'fas fa-expand'"></i> {{ isFullscreen ? t('preview.exitFullscreen') : t('preview.fullscreen') }}
         </button>
