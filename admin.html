@@ -3762,7 +3762,7 @@
         const toolbar = this.$refs.batchToolbar;
         if (!toolbar) return;
         const padding = 12;
-        const bottomOffset = 24;
+        const bottomOffset = 88;
         const width = toolbar.offsetWidth;
         const height = toolbar.offsetHeight;
         let left = this.batchToolbarPosition.left ?? (window.innerWidth - width) / 2;
@@ -5752,11 +5752,19 @@
       if (window.I18n) { I18n.onChange((lang) => { this.lang = lang; }); }
       document.addEventListener('fullscreenchange', this.handlePreviewFullscreenChange);
       document.addEventListener('webkitfullscreenchange', this.handlePreviewFullscreenChange);
+      // 视口/键盘监听需在认证检查之前注册,避免认证失败提前 return 时漏挂,
+      // 保证批量栏在窗口缩放时始终重新吸附(避让换页器)。
+      window.addEventListener('resize', this.handleWindowResize);
+      window.addEventListener('orientationchange', this.handleWindowResize);
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', this.handleWindowResize);
+      }
+      window.addEventListener('keydown', this.handleGlobalKeydown);
       // 先检查认证状态
       try {
         const authResponse = await fetch('/api/auth/check', { method: 'GET', credentials: 'include' });
         const authData = await authResponse.json();
-        
+
         if (authData.authRequired && !authData.authenticated) {
           window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
           return;
@@ -5767,12 +5775,6 @@
         return;
       }
 
-      window.addEventListener('resize', this.handleWindowResize);
-      window.addEventListener('orientationchange', this.handleWindowResize);
-      if (window.visualViewport) {
-        window.visualViewport.addEventListener('resize', this.handleWindowResize);
-      }
-      window.addEventListener('keydown', this.handleGlobalKeydown);
       this.restoreFolderCache();
       this.updateViewportFlags();
       this.updateWindowWidth();

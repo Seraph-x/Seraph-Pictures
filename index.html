@@ -1153,6 +1153,122 @@
         border-color: var(--primary-color);
       }
 
+      /* 上传结果区：顶部两栏居中（仅限右侧结果卡片） */
+      .result-section .card-header {
+        flex-direction: column;
+        align-items: center;
+      }
+      .result-section .result-actions {
+        justify-content: center;
+        position: relative;
+        width: 100%;
+      }
+      .result-section .link-format-tabs {
+        justify-content: center;
+        position: relative;
+        width: 100%;
+      }
+      /* 两行切换按钮各居本行右端,上下对齐 */
+      .result-section .result-actions > .result-view-toggle,
+      .result-section .link-format-tabs > .result-view-toggle {
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+      /* 统一已有按钮形状与大小:格式标签(Direct URL 等)对齐操作按钮
+         (Select All 等 el-button mini:32px 高 / 3px 圆角 / 12px 字号) */
+      .result-section .link-format-tabs .format-tab {
+        height: 32px;
+        padding: 0 15px;
+        display: inline-flex;
+        align-items: center;
+        font-size: 12px;
+        border-radius: 3px;
+      }
+
+      /* 上传结果操作按钮:背景跟随 UI 透明度(玻璃化),保留语义色作为文字/描边。
+         覆盖 claude-theme.css 的 !important 实心填充。 */
+      .result-section .result-actions .el-button {
+        background: rgba(var(--ui-surface-rgb), var(--ui-card-opacity)) !important;
+        backdrop-filter: var(--ui-card-backdrop-filter);
+        -webkit-backdrop-filter: var(--ui-card-backdrop-filter);
+        box-shadow: none !important;
+      }
+      .result-section .result-actions .el-button--primary {
+        color: var(--primary-color) !important;
+        border: 1px solid var(--primary-color) !important;
+      }
+      .result-section .result-actions .el-button--success {
+        color: #67c23a !important;
+        border: 1px solid #67c23a !important;
+      }
+      .result-section .result-actions .el-button--warning {
+        color: #e6a23c !important;
+        border: 1px solid #e6a23c !important;
+      }
+      .result-section .result-actions .el-button--danger {
+        color: #f56c6c !important;
+        border: 1px solid #f56c6c !important;
+      }
+      .result-section .result-actions .el-button.is-disabled {
+        color: var(--text-muted) !important;
+        border-color: rgba(var(--ui-border-rgb), 0.46) !important;
+      }
+
+      /* 上传结果：列表 / 网格 视图切换
+         注意:seraph-ui-polish.css 用 !important 把 .result-list 强制成多列 grid,
+         这里用更高优先级(.result-section 前缀 + !important)接管两种视图。 */
+
+      /* 列表视图(默认):单列,每个条目为横向行 */
+      .result-section .result-list:not(.is-grid) {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 10px;
+      }
+
+      /* 网格视图:多列卡片,条目纵向排列 */
+      .result-section .result-list.is-grid {
+        display: grid !important;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
+        gap: 12px;
+      }
+      .result-section .result-list.is-grid .result-item {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px;
+      }
+      .result-section .result-list.is-grid .result-item:hover {
+        transform: none;
+      }
+      .result-section .result-list.is-grid .result-item-preview {
+        width: 100% !important;
+        height: 140px !important;
+      }
+      .result-section .result-list.is-grid .result-item-actions {
+        justify-content: center;
+      }
+
+      /* 上传结果：视图/排序切换按钮(与 el-button mini 同高同圆角,形状统一) */
+      .result-view-toggle {
+        background: var(--surface-1);
+        border: 1px solid var(--input-border);
+        color: var(--text-secondary);
+        border-radius: 3px;
+        width: 32px;
+        height: 32px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s;
+      }
+      .result-view-toggle:hover {
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+      }
+
       /* 批量链接文本框 */
       .batch-links {
         width: 100%;
@@ -2605,6 +2721,13 @@
               <el-button size="mini" type="danger" @click="clearResults">
                 {{ t('home.clear') }}
               </el-button>
+              <button
+                class="result-view-toggle"
+                @click="toggleResultViewMode"
+                :title="resultViewMode === 'grid' ? t('home.viewGrid') : t('home.viewList')"
+              >
+                <i :class="resultViewMode === 'grid' ? 'fas fa-th' : 'fas fa-list'"></i>
+              </button>
             </div>
           </div>
 
@@ -2640,14 +2763,25 @@
               @click="linkFormat = 'ubb'"
               >UBB</span
             >
+            <button
+              class="result-view-toggle"
+              @click="toggleUploadSort"
+              :title="uploadSortDesc ? t('home.sortDesc') : t('home.sortAsc')"
+            >
+              <i :class="uploadSortDesc ? 'fas fa-sort-amount-down' : 'fas fa-sort-amount-up'"></i>
+            </button>
           </div>
 
           <!-- 上传结果列表 -->
-          <div class="result-list" v-if="uploadedFiles.length > 0">
+          <div
+            class="result-list"
+            :class="{ 'is-grid': resultViewMode === 'grid' }"
+            v-if="uploadedFiles.length > 0"
+          >
             <div
               class="result-item"
-              v-for="(file, index) in uploadedFiles"
-              :key="index"
+              v-for="file in displayedFiles"
+              :key="file.id"
               :class="{ selected: file.selected }"
             >
               <input
@@ -2695,7 +2829,7 @@
                 </button>
                 <button
                   class="action-btn delete"
-                  @click="removeFromResults(index)"
+                  @click="removeFromResults(file)"
                   :title="t('home.remove')"
                 >
                   <i class="fas fa-times"></i>
@@ -3148,6 +3282,10 @@
             'home.download': '下载',
             'home.preview': '预览',
             'home.remove': '移除',
+            'home.viewList': '列表视图',
+            'home.viewGrid': '网格视图',
+            'home.sortDesc': '最新在前',
+            'home.sortAsc': '最早在前',
             'home.batchPh': '选中的链接将显示在这里...',
             'home.emptyTitle': '上传文件后，链接将显示在这里',
             'home.emptyHint': '支持批量选择和一键复制',
@@ -3292,6 +3430,10 @@
             'home.download': 'Download',
             'home.preview': 'Preview',
             'home.remove': 'Remove',
+            'home.viewList': 'List view',
+            'home.viewGrid': 'Grid view',
+            'home.sortDesc': 'Newest first',
+            'home.sortAsc': 'Oldest first',
             'home.batchPh': 'Selected links will appear here...',
             'home.emptyTitle': 'Links will appear here after you upload',
             'home.emptyHint': 'Supports batch selection and one-click copy',
@@ -3408,6 +3550,8 @@
           uploadedFiles: [],
           uploadHistory: [],
           linkFormat: "url",
+          resultViewMode: "list", // 结果区视图：list（列表）/ grid（网格）
+          uploadSortDesc: true, // 按上传顺序排序：true=最新在前（默认），false=最早在前
           previewData: null, // 新的预览数据对象
           isFullscreen: false, // 预览是否处于全屏
           toasts: [],
@@ -3440,6 +3584,12 @@
               this.uploadedFiles.length > 0 &&
               this.uploadedFiles.every((f) => f.selected)
             );
+          },
+          displayedFiles() {
+            // uploadedFiles 本身是「最新在前」（新文件 unshift 到头部）
+            return this.uploadSortDesc
+              ? this.uploadedFiles
+              : this.uploadedFiles.slice().reverse();
           },
           failedCount() {
             return this.uploadingFiles.filter((f) => f.status === "error")
@@ -3691,6 +3841,7 @@
                   "url_image";
 
                 const uploadedFile = {
+                  id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
                   name: fileName,
                   fileName: fileName,
                   url: `${this.baseURL}${src}`,
@@ -4458,6 +4609,7 @@
           // 处理上传成功
           handleUploadSuccess(item, src) {
             const uploadedFile = {
+              id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
               name: item.file.name, // 原始文件名
               fileName: item.file.name, // 保存原始文件名用于显示
               url: `${this.baseURL}${src}`,
@@ -4588,9 +4740,23 @@
             }
           },
 
-          // 从结果中移除
-          removeFromResults(index) {
-            this.uploadedFiles.splice(index, 1);
+          // 从结果中移除（按对象引用删，避免排序后下标错位）
+          removeFromResults(file) {
+            const idx = this.uploadedFiles.indexOf(file);
+            if (idx !== -1) {
+              this.uploadedFiles.splice(idx, 1);
+            }
+          },
+
+          // 切换列表/网格视图
+          toggleResultViewMode() {
+            this.resultViewMode =
+              this.resultViewMode === "grid" ? "list" : "grid";
+          },
+
+          // 切换上传顺序正序/倒序
+          toggleUploadSort() {
+            this.uploadSortDesc = !this.uploadSortDesc;
           },
 
           // 下载文件

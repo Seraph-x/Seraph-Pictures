@@ -556,10 +556,11 @@ body {
 .batch-toolbar {
   position: fixed;
   left: 50%;
-  bottom: 28px;
+  bottom: 88px;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
+  flex-wrap: nowrap;
   gap: 12px;
   padding: 10px 18px;
   background: var(--card-bg, rgba(255, 255, 255, 0.65));
@@ -568,7 +569,7 @@ body {
   box-shadow: 0 12px 30px rgba(194, 100, 63, 0.25);
   backdrop-filter: var(--ui-card-backdrop-filter, blur(14px));
   -webkit-backdrop-filter: var(--ui-card-backdrop-filter, blur(14px));
-  z-index: 1000;
+  z-index: 1300;
   cursor: grab;
   user-select: none;
 }
@@ -597,39 +598,44 @@ body {
 }
 
 .batch-actions {
-  display: flex;
+  display: inline-flex !important;
   align-items: center;
+  flex-wrap: nowrap !important;
   gap: 8px;
 }
 
 .batch-btn {
   border-radius: 999px !important;
   font-weight: 600;
-  border: none !important;
+  border: 1px solid transparent !important;
+  background: rgba(var(--ui-surface-rgb), var(--ui-card-opacity)) !important;
+  backdrop-filter: var(--ui-card-backdrop-filter);
+  -webkit-backdrop-filter: var(--ui-card-backdrop-filter);
 }
 
 .batch-btn-copy {
-  background: linear-gradient(135deg, #c2643f 0%, #d98a68 100%) !important;
-  color: #fff !important;
+  border-color: #c2643f !important;
+  color: #c2643f !important;
 }
 
 .batch-btn-move {
-  background: linear-gradient(135deg, #c2643f 0%, #d98a68 100%) !important;
-  color: #fff !important;
+  border-color: #c2643f !important;
+  color: #c2643f !important;
 }
 
 .batch-btn-delete {
-  background: linear-gradient(135deg, #ff7b7b 0%, #ff9f9f 100%) !important;
-  color: #fff !important;
+  border-color: #e15555 !important;
+  color: #e15555 !important;
 }
 
 .batch-btn-download {
-  background: linear-gradient(135deg, #35d49b 0%, #7ee6c1 100%) !important;
-  color: #fff !important;
+  border-color: #1fa97f !important;
+  color: #1fa97f !important;
 }
 
 .batch-btn-cancel {
-  background: rgba(80, 80, 80, 0.15) !important;
+  background: rgba(var(--ui-surface-rgb), var(--ui-card-opacity)) !important;
+  border-color: rgba(var(--ui-border-rgb), 0.5) !important;
   color: #3b3b3b !important;
 }
 
