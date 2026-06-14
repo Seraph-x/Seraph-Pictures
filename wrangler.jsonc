@@ -17,7 +17,13 @@
       "binding": "R2_BUCKET",
       "bucket_name": "k-vault-files"
     }
-  ]
+  ],
+  // Passkey/WebAuthn 规范域名(明文 vars，非机密)。锁定后 passkey 只在该域名生效。
+  // 本地 npm start 用 --binding 覆盖回 localhost(见 package.json)。
+  "vars": {
+    "WEBAUTHN_RP_ID": "pictures.seraphzero.com",
+    "WEBAUTHN_ORIGIN": "https://pictures.seraphzero.com"
+  }
   // Guest uploads use a SEPARATE Telegram bot/channel so guest abuse cannot get
   // the main bot banned. Configure these as Secrets in the Pages dashboard
   // (Settings -> Environment variables / Secrets) — never commit real values:
