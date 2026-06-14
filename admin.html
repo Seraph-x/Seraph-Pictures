@@ -61,6 +61,36 @@
       height: 100%;
       border: none;
     }
+    .preview-modal .preview-media {
+      max-width: 90vw;
+      max-height: 75vh;
+      border-radius: 8px;
+      background: #000;
+    }
+    .preview-modal .preview-media-audio {
+      width: min(90vw, 520px);
+    }
+    .preview-modal .preview-unsupported {
+      width: min(90vw, 420px);
+      padding: 40px 24px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      text-align: center;
+      color: #fff;
+    }
+    .preview-modal .preview-unsupported i {
+      font-size: 48px;
+      opacity: 0.85;
+      margin-bottom: 12px;
+    }
+    .preview-modal .preview-unsupported h3 {
+      margin: 8px 0 6px;
+      font-size: 1.05em;
+    }
+    .preview-modal .preview-unsupported p {
+      font-size: 0.85em;
+      opacity: 0.7;
+    }
     .preview-close {
       position: absolute;
       top: 20px;
@@ -1628,14 +1658,25 @@
       </button>
       <!-- 原生图片预览 -->
       <img v-if="previewData.type === 'native-image'" :src="previewData.url" @click.stop>
-      <!-- iframe 预览（视频/音频/文档） -->
+      <!-- 原生视频预览 -->
+      <video v-else-if="previewData.type === 'video'" class="preview-media" :src="previewData.url" controls autoplay playsinline @click.stop></video>
+      <!-- 原生音频预览 -->
+      <audio v-else-if="previewData.type === 'audio'" class="preview-media-audio" :src="previewData.url" controls autoplay @click.stop></audio>
+      <!-- PDF / 文本类本地预览（sandbox 阻止上传文件中的脚本在本站执行） -->
       <div v-else-if="previewData.type === 'iframe'" class="iframe-container" @click.stop>
         <iframe
           ref="previewIframe"
           :src="previewData.iframeUrl"
-          allow="clipboard-write; autoplay; fullscreen; encrypted-media"
+          :sandbox="previewData.sandbox"
+          allow="autoplay; fullscreen"
           allowfullscreen>
         </iframe>
+      </div>
+      <!-- 不支持在线预览（office/压缩包等）→ 提示下载 -->
+      <div v-else-if="previewData.type === 'unsupported'" class="preview-unsupported" @click.stop>
+        <i class="fas fa-file"></i>
+        <h3>{{ t('admin.previewUnsupportedTitle') }}</h3>
+        <p>{{ t('admin.previewUnsupportedDesc') }}</p>
       </div>
       <!-- 底部操作栏 -->
       <div class="preview-toolbar" @click.stop>
@@ -1776,6 +1817,8 @@
         'admin.edit': '编辑',
         'admin.delete': '删除',
         'admin.preview': '预览',
+        'admin.previewUnsupportedTitle': '此文件类型暂不支持在线预览',
+        'admin.previewUnsupportedDesc': '请下载后用本地软件打开',
         'admin.audioNotSupported': '当前浏览器不支持音频播放',
         'admin.emptyTip': '当前目录下没有符合条件的文件。',
         'admin.resetFilters': '清空筛选并返回根目录',
@@ -2153,6 +2196,8 @@
         'admin.edit': 'Edit',
         'admin.delete': 'Delete',
         'admin.preview': 'Preview',
+        'admin.previewUnsupportedTitle': 'This file type cannot be previewed online',
+        'admin.previewUnsupportedDesc': 'Please download and open it with a local app',
         'admin.audioNotSupported': 'Your browser does not support audio playback',
         'admin.emptyTip': 'No matching files in this folder.',
         'admin.resetFilters': 'Clear filters and return to root',
@@ -3755,31 +3800,37 @@
         const fileName = item.metadata?.fileName || item.name;
         const fileUrl = `${this.baseURL}/file/${item.name}`;
         const fileType = this.getActualFileType(item.name);
+        const ext = item.name.split('.').pop().toLowerCase();
+        const base = { url: fileUrl, fileName: fileName, fileKey: item.name };
 
-        // 图片类型 - 原生图片 Lightbox
+        // 图片 - 原生图片 Lightbox
         if (fileType === 'image') {
-          this.previewData = {
-            type: 'native-image',
-            url: fileUrl,
-            fileName: fileName,
-            fileKey: item.name
-          };
+          this.previewData = { ...base, type: 'native-image' };
           return;
         }
-
-        // 视频/音频/文档类型 - iframe 预览
-        const PREVIEW_SERVICE_BASE = 'https://www.katelya.eu.org';
-        const targetUrl = encodeURIComponent(fileUrl);
-        const targetTitle = encodeURIComponent(fileName);
-        const iframeSrc = `${PREVIEW_SERVICE_BASE}/preview?url=${targetUrl}&title=${targetTitle}&autoplay=1`;
-
-        this.previewData = {
-          type: 'iframe',
-          iframeUrl: iframeSrc,
-          url: fileUrl,
-          fileName: fileName,
-          fileKey: item.name
-        };
+        // 视频 - 原生 <video>
+        if (fileType === 'video') {
+          this.previewData = { ...base, type: 'video' };
+          return;
+        }
+        // 音频 - 原生 <audio>
+        if (fileType === 'audio') {
+          this.previewData = { ...base, type: 'audio' };
+          return;
+        }
+        // PDF - 浏览器原生查看器
+        if (ext === 'pdf') {
+          this.previewData = { ...base, type: 'iframe', iframeUrl: fileUrl };
+          return;
+        }
+        // 文本/标记类 - 同源 iframe，sandbox 禁止脚本执行（防止上传的 HTML/SVG 在本站运行）
+        const INLINE_TEXT_EXTS = ['txt', 'md', 'markdown', 'json', 'xml', 'html', 'htm', 'css', 'js', 'ts', 'csv', 'log', 'yaml', 'yml', 'ini', 'conf', 'cfg', 'svg'];
+        if (INLINE_TEXT_EXTS.includes(ext)) {
+          this.previewData = { ...base, type: 'iframe', iframeUrl: fileUrl, sandbox: '' };
+          return;
+        }
+        // 其他（office/压缩包/未知）- 提示下载
+        this.previewData = { ...base, type: 'unsupported' };
       },
       // 关闭预览弹窗
       closePreview() {

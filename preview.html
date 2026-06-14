@@ -191,6 +191,18 @@
       object-fit: contain;
     }
 
+    /* 原生视频/音频预览 */
+    .preview-media {
+      max-width: 100%;
+      max-height: 70vh;
+      border-radius: 8px;
+      background: #000;
+    }
+
+    .preview-media-audio {
+      width: 100%;
+    }
+
     /* 统一媒体预览 - iframe 容器 (85% 屏幕宽高) */
     .iframe-preview-container {
       width: 100%;
@@ -733,48 +745,34 @@
         </div>
 
         <!-- 图片预览 - 保持原生方式 -->
-        <img v-if="previewType === 'image' && !loading" 
-             :src="fileUrl" 
+        <img v-if="previewType === 'image' && !loading"
+             :src="fileUrl"
              class="preview-image"
              @load="onImageLoad"
              @error="onLoadError">
 
-        <!-- 视频/音频/文档预览 - 使用统一媒体预览服务 iframe -->
-        <div v-else-if="(previewType === 'video' || previewType === 'audio') && !loading" 
-             class="iframe-preview-container">
-          <iframe 
-            ref="mediaIframe"
-            :src="iframePreviewUrl"
-            allow="autoplay; fullscreen; encrypted-media"
-            allowfullscreen>
-          </iframe>
-        </div>
+        <!-- 视频预览 - 原生 <video> -->
+        <video v-else-if="previewType === 'video' && !loading"
+               class="preview-media"
+               :src="fullFileUrl"
+               controls autoplay playsinline></video>
 
-        <!-- PDF 预览 - 使用统一媒体预览服务 -->
+        <!-- 音频预览 - 原生 <audio> -->
+        <audio v-else-if="previewType === 'audio' && !loading"
+               class="preview-media-audio"
+               :src="fullFileUrl"
+               controls autoplay></audio>
+
+        <!-- PDF 预览 - 浏览器原生查看器 -->
         <div v-else-if="previewType === 'pdf' && !loading" class="iframe-preview-container">
-          <iframe 
-            ref="mediaIframe"
-            :src="iframePreviewUrl"
-            allow="autoplay; fullscreen; encrypted-media"
-            allowfullscreen>
-          </iframe>
-        </div>
-
-        <!-- Office 文档预览 - 使用统一媒体预览服务 -->
-        <div v-else-if="previewType === 'office' && !loading" class="iframe-preview-container">
-          <iframe 
-            ref="mediaIframe"
-            :src="iframePreviewUrl"
-            allow="autoplay; fullscreen; encrypted-media"
-            allowfullscreen>
-          </iframe>
+          <iframe ref="mediaIframe" :src="fullFileUrl" allow="fullscreen" allowfullscreen></iframe>
         </div>
 
         <!-- 文本预览 -->
         <pre v-else-if="previewType === 'text' && !loading" class="preview-text">{{ textContent }}</pre>
 
-        <!-- 不支持预览 -->
-        <div v-else-if="previewType === 'unsupported' && !loading" class="preview-unsupported">
+        <!-- Office / 其他类型 - 暂不支持在线预览，提示下载 -->
+        <div v-else-if="!loading" class="preview-unsupported">
           <i :class="fileIcon"></i>
           <h3>{{ t('preview.unsupportedTitle') }}</h3>
           <p>{{ t('preview.unsupportedDesc') }}</p>
@@ -816,9 +814,6 @@
   <script src="https://cdn.jsdelivr.net/npm/nsfwjs@2.4.2/dist/nsfwjs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
   <script>
-    // 统一媒体预览服务基础 URL
-    const PREVIEW_SERVICE_BASE = 'https://www.katelya.eu.org';
-
     if (window.I18n) {
       I18n.register({
         zh: {
@@ -890,20 +885,6 @@
         fullFileUrl() {
           const fileUrlPath = this.fileUrl.startsWith('/') ? this.fileUrl : `/file/${this.fileUrl}`;
           return window.location.origin + fileUrlPath;
-        },
-        // 统一媒体预览 URL - 简化版，Blog 会自动识别文件类型
-        iframePreviewUrl() {
-          const params = new URLSearchParams({
-            url: this.fullFileUrl,
-            title: this.fileName,
-            autoplay: '1'
-          });
-          return `${PREVIEW_SERVICE_BASE}/preview?${params.toString()}`;
-        },
-        officeViewerUrl() {
-          // 使用 Microsoft Office Online Viewer
-          // URL 必须经过正确编码
-          return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(this.fullFileUrl)}`;
         }
       },
       methods: {

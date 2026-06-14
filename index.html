@@ -1341,6 +1341,17 @@
         border: none;
       }
 
+      .preview-modal .preview-media {
+        max-width: 90vw;
+        max-height: 75vh;
+        border-radius: 8px;
+        background: #000;
+      }
+
+      .preview-modal .preview-media-audio {
+        width: min(90vw, 520px);
+      }
+
       .preview-close {
         position: absolute;
         top: 20px;
@@ -2822,7 +2833,26 @@
           :src="previewData.url"
           @click.stop
         />
-        <!-- iframe 预览（视频/音频/文档） -->
+        <!-- 原生视频预览 -->
+        <video
+          v-else-if="previewData.type === 'video'"
+          class="preview-media"
+          :src="previewData.url"
+          controls
+          autoplay
+          playsinline
+          @click.stop
+        ></video>
+        <!-- 原生音频预览 -->
+        <audio
+          v-else-if="previewData.type === 'audio'"
+          class="preview-media-audio"
+          :src="previewData.url"
+          controls
+          autoplay
+          @click.stop
+        ></audio>
+        <!-- PDF / 文本类本地预览（sandbox 阻止上传文件中的脚本在本站执行） -->
         <div
           v-else-if="previewData.type === 'iframe'"
           class="iframe-container"
@@ -2831,7 +2861,8 @@
           <iframe
             ref="previewIframe"
             :src="previewData.iframeUrl"
-            allow="clipboard-write; autoplay; fullscreen; encrypted-media"
+            :sandbox="previewData.sandbox"
+            allow="autoplay; fullscreen"
             allowfullscreen
           >
           </iframe>
@@ -3027,9 +3058,6 @@
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/element-ui@2.15.3/lib/index.js"></script>
     <script>
-      // 统一媒体预览服务基础 URL
-      const PREVIEW_SERVICE_BASE = "https://www.katelya.eu.org";
-
       // 双语词典（首页）
       if (window.I18n) {
         I18n.register({
@@ -4579,31 +4607,31 @@
               return;
             }
 
-            // 视频/音频/文档类型 - 使用 Blog Preview iframe
+            // 视频/音频/文档类型 - 本地原生预览（不再调用外部服务）
             const videoExts = ["mp4", "webm", "mkv", "avi", "mov", "m3u8"];
-            const audioExts = ["mp3", "wav", "ogg", "flac", "m4a"];
-            const docExts = ["pdf", "txt", "doc", "docx"];
+            const audioExts = ["mp3", "wav", "ogg", "flac", "m4a", "aac"];
+            const base = { url: fileUrl, fileName: fileName };
 
-            if (
-              videoExts.includes(ext) ||
-              audioExts.includes(ext) ||
-              docExts.includes(ext)
-            ) {
-              // 构造 iframe URL - 必须对参数进行 encodeURIComponent 编码
-              const targetUrl = encodeURIComponent(fileUrl);
-              const targetTitle = encodeURIComponent(fileName);
-              const iframeSrc = `${PREVIEW_SERVICE_BASE}/preview?url=${targetUrl}&title=${targetTitle}&autoplay=1`;
-
-              this.previewData = {
-                type: "iframe",
-                iframeUrl: iframeSrc,
-                url: fileUrl,
-                fileName: fileName,
-              };
+            if (videoExts.includes(ext)) {
+              this.previewData = { ...base, type: "video" };
+              return;
+            }
+            if (audioExts.includes(ext)) {
+              this.previewData = { ...base, type: "audio" };
+              return;
+            }
+            if (ext === "pdf") {
+              this.previewData = { ...base, type: "iframe", iframeUrl: fileUrl };
+              return;
+            }
+            // 文本/标记类 - 同源 iframe，sandbox 禁止脚本执行
+            const inlineTextExts = ["txt", "md", "markdown", "json", "xml", "html", "htm", "css", "js", "ts", "csv", "log", "yaml", "yml", "ini", "conf", "cfg", "svg"];
+            if (inlineTextExts.includes(ext)) {
+              this.previewData = { ...base, type: "iframe", iframeUrl: fileUrl, sandbox: "" };
               return;
             }
 
-            // 其他类型 - 直接下载
+            // 其他类型（office/.zip/.exe 等）- 直接下载
             this.downloadFile(file);
           },
 
@@ -4710,11 +4738,11 @@
           },
 
           // 核心方法：从污染的 URL 中提取干净的文件直链
-          // 无论输入是 ID、路径、还是完整 URL，都返回标准格式：https://pan.katelya.eu.org/file/{id}.{ext}
+          // 无论输入是 ID、路径、还是完整 URL，都返回本站标准格式：{baseURL}/file/{id}.{ext}
           getCleanFileUrl(item) {
             let rawUrl = item.url || item.path || "";
 
-            // 情况1: 已经是标准直链格式 https://pan.katelya.eu.org/file/xxx.ext
+            // 情况1: 已经是标准直链格式 https://<host>/file/xxx.ext
             if (rawUrl.startsWith("https://") && rawUrl.includes("/file/")) {
               // 提取 /file/ 后面的部分作为 fileId
               const match = rawUrl.match(/\/file\/([^?#]+)/);
@@ -4958,7 +4986,7 @@
           cleanUrlField(url) {
             if (!url) return url;
 
-            // 情况1: /file/https://pan.katelya.eu.org/file/xxx.ext
+            // 情况1: /file/https://<host>/file/xxx.ext
             // 或 /file/https://... 这种污染格式
             if (
               url.includes("/file/https://") ||
