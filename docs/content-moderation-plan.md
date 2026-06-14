@@ -95,3 +95,9 @@ moderation: {
 - 自动检测是否启用 / 阈值 / 是否叠加第三方。
 - CSAM 专业服务选哪家(决定凭据与接线方式)。
 - 运营主体的法律上报义务归属。
+
+## 10. 与「访客存储后端计划」(`docs/guest-storage-backends-plan.md`)的相互依赖
+若**先**实施存储后端计划(访客可上传到 Telegram 以外的后端),本计划需相应调整:
+- **扫描钩子改为后端无关**:审查必须在"读到字节之后、`uploadToR2/S3/...` 分发之前"的公共位置执行,而非只在 telegram 分支(Phase 2/3 的落点要前移到分发前)。
+- **下架/移除改为按后端**:CSAM/违规命中需真正删字节时,复用 `functions/api/manage/delete`(已按后端删 R2 对象 / S3 / Discord 消息等);Telegram 仍是"清频道"。元数据级拦截(`ListType=Block` + `/file` 的 `shouldBlock`)各后端通用、不变。
+- **顺序前置(重要)**:放开非 Telegram 后端 = 访客内容进入持久的管理员存储,风险升级。**在审查能力(至少 Phase 0/1 + CSAM 基线)就位前,不应对访客开放 Telegram 以外的后端。**

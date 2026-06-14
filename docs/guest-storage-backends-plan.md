@@ -73,3 +73,8 @@ guestFolderPrefix: string   // 非 telegram 后端时把访客文件归入的前
 - 单独开分支(如 `feat/guest-storage-backends`),小步提交。
 - 每步按"验证"自测;`npx mocha` 失败集不超过当时基线;前端用本地 `npm start` + 浏览器实测(登出态各组合)。
 - 通过后:合并 `main` → `npm run pages:deploy` → 推 `origin/main`(逐项经用户确认)。
+
+## 9. 前置依赖:内容审查(`docs/content-moderation-plan.md`)
+访客被关在一次性的隔离 Telegram 频道时风险可控;一旦放行到 R2/S3 等**持久存储**,违规/非法内容会进入与管理员同一份存储,风险显著上升。因此:
+- **先决条件**:对访客开放 Telegram 以外的后端**之前**,应先具备基本审查能力(内容审查计划 **Phase 0/1 + CSAM 基线**);否则非 TG 后端保持默认关。
+- **联动改动**:开放后,审查的扫描钩子需"后端无关"(分发前对字节执行),CSAM/违规移除需"按后端删除"(复用 `functions/api/manage/delete`)。详见内容审查计划**第 10 节**。
