@@ -77,9 +77,17 @@
       gap: 12px;
     }
 
-    .header-title i { 
-      color: var(--primary-color); 
+    .header-title i {
+      color: var(--primary-color);
       font-size: 1.1em;
+    }
+
+    .header-title .brand-logo {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      object-fit: cover;
+      box-shadow: 0 4px 12px rgba(194, 100, 63, 0.2);
     }
 
     .header-actions {
@@ -735,7 +743,13 @@
     <!-- 头部 -->
     <div class="header">
       <div class="header-title">
-        <i class="fas fa-eye"></i>
+        <img
+          src="/logo.png"
+          alt="Seraph's Pictures Logo"
+          class="brand-logo"
+          loading="eager"
+          onerror="this.onerror=null;this.src='/favicon.ico';"
+        />
         <span>{{ t('preview.title') }}</span>
       </div>
       <div class="header-actions">
