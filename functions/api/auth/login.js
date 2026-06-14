@@ -6,7 +6,7 @@ import {
   createSession,
   createSessionCookieHeader,
   isAuthRequired,
-  timingSafeEqual
+  verifyCredentials
 } from '../../utils/auth.js';
 
 const MAX_FAILED_ATTEMPTS = 5;
@@ -94,10 +94,9 @@ export async function onRequestPost(context) {
       });
     }
 
-    // 验证凭据
-    const userOk = timingSafeEqual(username, env.BASIC_USER);
-    const passOk = timingSafeEqual(password, env.BASIC_PASS);
-    if (userOk && passOk) {
+    // 验证凭据(KV 哈希优先,回退 env)
+    const { ok } = await verifyCredentials(username, password, env);
+    if (ok) {
       // 创建会话
       const sessionToken = await createSession(username, env);
       await clearFailedAttempts(env, clientIp);
