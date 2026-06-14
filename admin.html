@@ -1031,6 +1031,7 @@
             <el-tooltip :content="t('admin.tooltipStorage')" placement="bottom"><i class="fas fa-server" @click="showStorageConfigPanel"></i></el-tooltip>
             <el-tooltip :content="t('admin.tooltipUiDesign')" placement="bottom"><i class="fas fa-sliders-h" @click="showUiDesignSettingsPanel"></i></el-tooltip>
             <el-tooltip :content="t('admin.tooltipGuestUpload')" placement="bottom"><i class="fas fa-user-shield" @click="showGuestSettingsPanel"></i></el-tooltip>
+            <el-tooltip :content="t('admin.tooltipAccount')" placement="bottom"><i class="fas fa-user-cog" @click="showAccountSecurityPanel"></i></el-tooltip>
             <button type="button" class="admin-theme-btn" data-theme-toggle :title="t('admin.tooltipTheme')">
               <i class="fas fa-moon" data-theme-icon></i>
             </button>
@@ -1572,6 +1573,28 @@
         'admin.tooltipUiDesign': '前端 UI 设计',
         'admin.tooltipTheme': '切换主题',
         'admin.tooltipGuestUpload': '访客上传设置',
+        'admin.tooltipAccount': '账号与安全',
+        'admin.accountPanelTitle': '账号与安全',
+        'admin.accountSubtitle': '修改管理员用户名与密码，保存后立即生效并作废其它登录会话。',
+        'admin.accountCurrentUserLabel': '当前用户名',
+        'admin.accountNewUsernameLabel': '新用户名',
+        'admin.accountNewUsernamePh': '留空则不修改',
+        'admin.accountCurrentPasswordLabel': '当前密码',
+        'admin.accountCurrentPasswordPh': '请输入当前密码以确认',
+        'admin.accountNewPasswordLabel': '新密码',
+        'admin.accountNewPasswordPh': '留空则不修改（至少 6 位）',
+        'admin.accountNewPasswordConfirmLabel': '确认新密码',
+        'admin.accountNewPasswordConfirmPh': '再次输入新密码',
+        'admin.accountSave': '保存修改',
+        'admin.accountSaving': '保存中…',
+        'admin.accountSaved': '已保存',
+        'admin.accountSavedMsg': '账号已更新',
+        'admin.accountReadFailed': '读取账号信息失败：{msg}',
+        'admin.accountSaveFailed': '保存失败：{msg}',
+        'admin.accountNeedCurrentPassword': '请输入当前密码',
+        'admin.accountNothingToChange': '请填写新的用户名或新密码',
+        'admin.accountPasswordTooShort': '新密码至少 6 位',
+        'admin.accountPasswordMismatch': '两次输入的新密码不一致',
         'admin.totalRecords': '总记录:',
         'admin.loadedCount': '已加载',
         'admin.folderManage': '目录管理',
@@ -1911,6 +1934,28 @@
         'admin.tooltipUiDesign': 'Frontend UI Design',
         'admin.tooltipTheme': 'Toggle Theme',
         'admin.tooltipGuestUpload': 'Guest Upload Settings',
+        'admin.tooltipAccount': 'Account & Security',
+        'admin.accountPanelTitle': 'Account & Security',
+        'admin.accountSubtitle': 'Change the admin username and password. Takes effect immediately and signs out other sessions.',
+        'admin.accountCurrentUserLabel': 'Current username',
+        'admin.accountNewUsernameLabel': 'New username',
+        'admin.accountNewUsernamePh': 'Leave blank to keep current',
+        'admin.accountCurrentPasswordLabel': 'Current password',
+        'admin.accountCurrentPasswordPh': 'Enter current password to confirm',
+        'admin.accountNewPasswordLabel': 'New password',
+        'admin.accountNewPasswordPh': 'Leave blank to keep current (min 6 chars)',
+        'admin.accountNewPasswordConfirmLabel': 'Confirm new password',
+        'admin.accountNewPasswordConfirmPh': 'Re-enter new password',
+        'admin.accountSave': 'Save changes',
+        'admin.accountSaving': 'Saving…',
+        'admin.accountSaved': 'Saved',
+        'admin.accountSavedMsg': 'Account updated',
+        'admin.accountReadFailed': 'Failed to read account info: {msg}',
+        'admin.accountSaveFailed': 'Save failed: {msg}',
+        'admin.accountNeedCurrentPassword': 'Please enter your current password',
+        'admin.accountNothingToChange': 'Please provide a new username or new password',
+        'admin.accountPasswordTooShort': 'New password must be at least 6 characters',
+        'admin.accountPasswordMismatch': 'The two new passwords do not match',
         'admin.totalRecords': 'Total:',
         'admin.loadedCount': 'Loaded',
         'admin.folderManage': 'Folder Management',
@@ -4953,6 +4998,159 @@
               if (input) input.value = '';
               applyPreview();
             });
+          }
+        });
+      },
+      async showAccountSecurityPanel() {
+        const requestCredentials = async (method, payload) => {
+          const url = method === 'GET'
+            ? `/api/auth/credentials?_ts=${Date.now()}`
+            : '/api/auth/credentials';
+          const init = {
+            method,
+            credentials: 'include',
+            headers: { Accept: 'application/json' }
+          };
+          if (method !== 'GET') {
+            init.headers['Content-Type'] = 'application/json';
+            init.body = JSON.stringify(payload || {});
+          }
+          const response = await fetch(url, init);
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok || data?.success === false) {
+            const err = new Error(data?.message || `HTTP ${response.status}`);
+            err.status = response.status;
+            throw err;
+          }
+          return data;
+        };
+
+        let current = { username: '', source: 'env' };
+        try {
+          current = await requestCredentials('GET');
+        } catch (error) {
+          this.$message.warning(this.t('admin.accountReadFailed', { msg: error.message || error }));
+        }
+
+        const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const html = `
+          <div class="ui-design-panel" id="accountSecurityPanel">
+            <div class="ui-design-head">
+              <div>
+                <div class="ui-design-title"><i class="fas fa-user-cog"></i><span>${this.t('admin.accountPanelTitle')}</span></div>
+                <div class="ui-design-subtitle">${this.t('admin.accountSubtitle')}</div>
+              </div>
+            </div>
+
+            <section class="ui-design-section">
+              <div class="ui-design-section-title">${this.t('admin.accountCurrentUserLabel')}</div>
+              <div class="ui-design-inline"><strong>${esc(current.username) || '—'}</strong></div>
+            </section>
+
+            <section class="ui-design-section">
+              <div class="ui-design-section-title">${this.t('admin.accountNewUsernameLabel')}</div>
+              <input id="accNewUsername" class="ui-design-input" type="text" autocomplete="username"
+                value="${esc(current.username)}" placeholder="${this.t('admin.accountNewUsernamePh')}">
+            </section>
+
+            <section class="ui-design-section">
+              <div class="ui-design-section-title">${this.t('admin.accountNewPasswordLabel')}</div>
+              <input id="accNewPassword" class="ui-design-input" type="password" autocomplete="new-password"
+                placeholder="${this.t('admin.accountNewPasswordPh')}">
+            </section>
+
+            <section class="ui-design-section">
+              <div class="ui-design-section-title">${this.t('admin.accountNewPasswordConfirmLabel')}</div>
+              <input id="accNewPassword2" class="ui-design-input" type="password" autocomplete="new-password"
+                placeholder="${this.t('admin.accountNewPasswordConfirmPh')}">
+            </section>
+
+            <section class="ui-design-section">
+              <div class="ui-design-section-title">${this.t('admin.accountCurrentPasswordLabel')}</div>
+              <input id="accCurrentPassword" class="ui-design-input" type="password" autocomplete="current-password"
+                placeholder="${this.t('admin.accountCurrentPasswordPh')}">
+            </section>
+
+            <div class="ui-design-foot">
+              <span id="accSaveStatus" class="ui-design-save-status"></span>
+            </div>
+          </div>
+        `;
+
+        const setSaveStatus = (state, text) => {
+          const status = document.getElementById('accSaveStatus');
+          if (!status) return;
+          status.setAttribute('data-state', state || '');
+          status.textContent = text || '';
+        };
+
+        this.$alert(html, this.t('admin.accountPanelTitle'), {
+          customClass: 'ui-design-alert ui-design-footer-actions',
+          dangerouslyUseHTMLString: true,
+          showCancelButton: true,
+          closeOnClickModal: false,
+          confirmButtonText: this.t('admin.accountSave'),
+          cancelButtonText: this.t('admin.cancel'),
+          beforeClose: (action, instance, done) => {
+            if (action !== 'confirm') {
+              done();
+              return;
+            }
+
+            const currentPassword = document.getElementById('accCurrentPassword')?.value || '';
+            const newUsernameRaw = (document.getElementById('accNewUsername')?.value || '').trim();
+            const newPassword = document.getElementById('accNewPassword')?.value || '';
+            const newPassword2 = document.getElementById('accNewPassword2')?.value || '';
+
+            const usernameChanged = newUsernameRaw && newUsernameRaw !== (current.username || '');
+            const passwordChanged = newPassword !== '';
+
+            if (!currentPassword) {
+              setSaveStatus('warning', this.t('admin.accountNeedCurrentPassword'));
+              this.$message.error(this.t('admin.accountNeedCurrentPassword'));
+              return;
+            }
+            if (!usernameChanged && !passwordChanged) {
+              setSaveStatus('warning', this.t('admin.accountNothingToChange'));
+              this.$message.error(this.t('admin.accountNothingToChange'));
+              return;
+            }
+            if (passwordChanged && newPassword.length < 6) {
+              setSaveStatus('warning', this.t('admin.accountPasswordTooShort'));
+              this.$message.error(this.t('admin.accountPasswordTooShort'));
+              return;
+            }
+            if (passwordChanged && newPassword !== newPassword2) {
+              setSaveStatus('warning', this.t('admin.accountPasswordMismatch'));
+              this.$message.error(this.t('admin.accountPasswordMismatch'));
+              return;
+            }
+
+            const payload = { currentPassword };
+            if (usernameChanged) payload.newUsername = newUsernameRaw;
+            if (passwordChanged) payload.newPassword = newPassword;
+
+            instance.confirmButtonLoading = true;
+            instance.confirmButtonText = this.t('admin.accountSaving');
+            setSaveStatus('saving', this.t('admin.accountSaving'));
+
+            requestCredentials('POST', payload)
+              .then((data) => {
+                instance.confirmButtonLoading = false;
+                instance.confirmButtonText = this.t('admin.accountSaved');
+                setSaveStatus('success', this.t('admin.accountSavedMsg'));
+                this.$message.success(this.t('admin.accountSavedMsg'));
+                window.setTimeout(() => done(), 260);
+              })
+              .catch((error) => {
+                instance.confirmButtonLoading = false;
+                instance.confirmButtonText = this.t('admin.accountSave');
+                setSaveStatus('warning', this.t('admin.accountSaveFailed', { msg: error.message || error }));
+                this.$message.error(this.t('admin.accountSaveFailed', { msg: error.message || error }));
+              });
           }
         });
       },
