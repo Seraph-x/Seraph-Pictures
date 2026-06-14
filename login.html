@@ -256,6 +256,37 @@
       animation: spin 0.8s linear infinite;
     }
 
+    .login-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 18px 0;
+      color: var(--text-secondary, #98a2b3);
+      font-size: 0.85em;
+    }
+    .login-divider::before,
+    .login-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: rgba(150, 150, 150, 0.25);
+    }
+    .login-btn-secondary {
+      background: transparent;
+      color: var(--primary-color, #d97757);
+      border: 1px solid rgba(217, 119, 87, 0.5);
+      font-size: 1em;
+    }
+    .login-btn-secondary:hover {
+      background: rgba(217, 119, 87, 0.08);
+      box-shadow: none;
+      transform: translateY(-2px);
+    }
+    .login-btn-secondary .spinner {
+      border: 2px solid rgba(217, 119, 87, 0.3);
+      border-top-color: var(--primary-color, #d97757);
+    }
+
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
@@ -513,9 +544,16 @@
         </button>
       </form>
 
+      <div class="login-divider"><span data-i18n="login.or">或</span></div>
+      <button type="button" class="login-btn login-btn-secondary" id="passkeyBtn" onclick="handlePasskeyLogin()">
+        <i class="fas fa-fingerprint"></i>
+        <span data-i18n="login.passkey">使用 Passkey 登录</span>
+      </button>
+
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@13.3.0/dist/bundle/index.umd.min.js"></script>
   <script>
     // 双语词典
     I18n.register({
@@ -532,7 +570,14 @@
         'login.errInvalid': '用户名或密码错误',
         'login.errEmpty': '请输入用户名和密码',
         'login.errFailed': '登录失败',
-        'login.errNetwork': '网络错误，请稍后重试'
+        'login.errNetwork': '网络错误，请稍后重试',
+        'login.or': '或',
+        'login.passkey': '使用 Passkey 登录',
+        'login.passkeyAuthing': '正在验证 Passkey...',
+        'login.passkeyNone': '尚未注册任何 Passkey',
+        'login.passkeyUnsupported': '当前浏览器不支持 Passkey',
+        'login.passkeyCancelled': '已取消或验证失败',
+        'login.passkeyFailed': 'Passkey 登录失败'
       },
       en: {
         'login.docTitle': 'Sign In | Seraph\'s Pictures',
@@ -547,7 +592,14 @@
         'login.errInvalid': 'Incorrect username or password',
         'login.errEmpty': 'Please enter your username and password',
         'login.errFailed': 'Sign-in failed',
-        'login.errNetwork': 'Network error, please try again later'
+        'login.errNetwork': 'Network error, please try again later',
+        'login.or': 'or',
+        'login.passkey': 'Sign in with Passkey',
+        'login.passkeyAuthing': 'Verifying passkey...',
+        'login.passkeyNone': 'No passkey registered yet',
+        'login.passkeyUnsupported': 'This browser does not support passkeys',
+        'login.passkeyCancelled': 'Cancelled or verification failed',
+        'login.passkeyFailed': 'Passkey sign-in failed'
       }
     });
 
@@ -714,6 +766,66 @@
         document.getElementById('loginForm').dispatchEvent(new Event('submit'));
       }
     });
+
+    function setPasskeyLoading(loading) {
+      const btn = document.getElementById('passkeyBtn');
+      if (!btn) return;
+      btn.disabled = loading;
+      btn.innerHTML = loading
+        ? '<div class="spinner"></div><span>' + I18n.t('login.passkeyAuthing') + '</span>'
+        : '<i class="fas fa-fingerprint"></i><span>' + I18n.t('login.passkey') + '</span>';
+    }
+
+    async function handlePasskeyLogin() {
+      hideError();
+      const SWA = window.SimpleWebAuthnBrowser;
+      if (!SWA || !window.PublicKeyCredential) {
+        showError(I18n.t('login.passkeyUnsupported'));
+        return;
+      }
+      setPasskeyLoading(true);
+      try {
+        const optRes = await fetch('/api/auth/passkey/auth/options', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: '{}'
+        });
+        const optData = await optRes.json();
+        if (!optRes.ok || !optData.success) {
+          showError(optRes.status === 404 ? I18n.t('login.passkeyNone') : (optData.message || I18n.t('login.passkeyFailed')));
+          setPasskeyLoading(false);
+          return;
+        }
+
+        let assertion;
+        try {
+          assertion = await SWA.startAuthentication({ optionsJSON: optData.options });
+        } catch (e) {
+          showError(I18n.t('login.passkeyCancelled'));
+          setPasskeyLoading(false);
+          return;
+        }
+
+        const verifyRes = await fetch('/api/auth/passkey/auth/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ response: assertion })
+        });
+        const verifyData = await verifyRes.json();
+        if (verifyRes.ok && verifyData.success) {
+          redirectToTarget();
+        } else {
+          showError(verifyData.message || I18n.t('login.passkeyCancelled'));
+          setPasskeyLoading(false);
+        }
+      } catch (error) {
+        console.error('Passkey login error:', error);
+        showError(I18n.t('login.passkeyFailed'));
+        setPasskeyLoading(false);
+      }
+    }
   </script>
 </body>
 </html>

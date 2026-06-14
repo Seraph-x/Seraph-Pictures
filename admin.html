@@ -590,6 +590,94 @@
       justify-content: center;
       text-align: center;
     }
+    .acc-passkey-list {
+      display: grid;
+      gap: 8px;
+    }
+    .acc-passkey-empty {
+      color: #98a2b3;
+      font-size: 13px;
+      padding: 6px 2px;
+    }
+    .acc-passkey-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(17, 24, 39, 0.08);
+      background: rgba(255, 255, 255, 0.6);
+    }
+    .acc-passkey-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .acc-passkey-meta > i {
+      color: #c2643f;
+    }
+    .acc-passkey-name {
+      font-weight: 600;
+      font-size: 14px;
+      color: #1f2937;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .acc-passkey-date {
+      font-size: 12px;
+      color: #98a2b3;
+    }
+    .acc-passkey-actions {
+      display: inline-flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .acc-passkey-mini {
+      width: 30px;
+      height: 30px;
+      border: 1px solid rgba(17, 24, 39, 0.1);
+      background: transparent;
+      border-radius: 8px;
+      cursor: pointer;
+      color: #475467;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+    .acc-passkey-mini:hover {
+      background: rgba(194, 100, 63, 0.08);
+      color: #c2643f;
+    }
+    .acc-passkey-mini.danger:hover {
+      background: rgba(220, 38, 38, 0.08);
+      color: #dc2626;
+    }
+    .acc-passkey-btn {
+      width: 100%;
+      height: 38px;
+      border-radius: 10px;
+      border: 1px dashed rgba(194, 100, 63, 0.5);
+      background: transparent;
+      color: #c2643f;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+    .acc-passkey-btn:hover {
+      background: rgba(194, 100, 63, 0.08);
+    }
+    .acc-passkey-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
     .ui-upload-drop {
       min-width: 128px;
       height: 38px;
@@ -1553,6 +1641,7 @@
 </body>
 <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script> <!-- Vue -->
 <script src="https://cdn.jsdelivr.net/npm/element-ui@2.15.3/lib/index.js"></script> <!-- ElementUI -->
+<script src="https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@13.3.0/dist/bundle/index.umd.min.js"></script> <!-- WebAuthn -->
 <script>
   if (window.I18n) {
     I18n.register({
@@ -1627,6 +1716,22 @@
         'admin.accountNothingToChange': '请填写新的用户名或新密码',
         'admin.accountPasswordTooShort': '新密码至少 6 位',
         'admin.accountPasswordMismatch': '两次输入的新密码不一致',
+        'admin.accountPasskeyTitle': 'Passkey（无密码登录）',
+        'admin.accountPasskeyTip': '注册后可用 Touch ID / Windows Hello / 手机 / 安全密钥登录；密码作为兜底保留。',
+        'admin.accountPasskeyRegister': '注册新的 Passkey',
+        'admin.accountPasskeyRegistering': '正在注册...',
+        'admin.accountPasskeyEmpty': '尚未注册任何 Passkey',
+        'admin.accountPasskeyRename': '重命名',
+        'admin.accountPasskeyDelete': '删除',
+        'admin.accountPasskeyRenamePrompt': '输入新的名称',
+        'admin.accountPasskeyDeleteConfirm': '确定删除该 Passkey？',
+        'admin.accountPasskeyRegistered': 'Passkey 已注册',
+        'admin.accountPasskeyDeleted': 'Passkey 已删除',
+        'admin.accountPasskeyRenamed': '已重命名',
+        'admin.accountPasskeyUnsupported': '当前浏览器不支持 Passkey',
+        'admin.accountPasskeyCancelled': '已取消或验证失败',
+        'admin.accountPasskeyFailed': '操作失败：{msg}',
+        'admin.accountPasskeyNamePh': '为这个 Passkey 取个名字（如 我的 Mac）',
         'admin.totalRecords': '总记录:',
         'admin.loadedCount': '已加载',
         'admin.folderManage': '目录管理',
@@ -1988,6 +2093,22 @@
         'admin.accountNothingToChange': 'Please provide a new username or new password',
         'admin.accountPasswordTooShort': 'New password must be at least 6 characters',
         'admin.accountPasswordMismatch': 'The two new passwords do not match',
+        'admin.accountPasskeyTitle': 'Passkey (passwordless)',
+        'admin.accountPasskeyTip': 'After registering, sign in with Touch ID / Windows Hello / phone / security key. Password is kept as a fallback.',
+        'admin.accountPasskeyRegister': 'Register a new passkey',
+        'admin.accountPasskeyRegistering': 'Registering...',
+        'admin.accountPasskeyEmpty': 'No passkey registered yet',
+        'admin.accountPasskeyRename': 'Rename',
+        'admin.accountPasskeyDelete': 'Delete',
+        'admin.accountPasskeyRenamePrompt': 'Enter a new name',
+        'admin.accountPasskeyDeleteConfirm': 'Delete this passkey?',
+        'admin.accountPasskeyRegistered': 'Passkey registered',
+        'admin.accountPasskeyDeleted': 'Passkey deleted',
+        'admin.accountPasskeyRenamed': 'Renamed',
+        'admin.accountPasskeyUnsupported': 'This browser does not support passkeys',
+        'admin.accountPasskeyCancelled': 'Cancelled or verification failed',
+        'admin.accountPasskeyFailed': 'Operation failed: {msg}',
+        'admin.accountPasskeyNamePh': 'Name this passkey (e.g. My Mac)',
         'admin.totalRecords': 'Total:',
         'admin.loadedCount': 'Loaded',
         'admin.folderManage': 'Folder Management',
@@ -5124,6 +5245,16 @@
             <div class="ui-design-foot acc-foot-center">
               <span id="accSaveStatus" class="ui-design-save-status"></span>
             </div>
+
+            <section class="ui-design-section">
+              <div class="ui-design-section-title"><i class="fas fa-fingerprint"></i> ${this.t('admin.accountPasskeyTitle')}</div>
+              <div class="ui-design-tip">${this.t('admin.accountPasskeyTip')}</div>
+              <div id="accPasskeyList" class="acc-passkey-list"></div>
+              <button type="button" id="accPasskeyRegister" class="acc-passkey-btn">
+                <i class="fas fa-plus"></i> ${this.t('admin.accountPasskeyRegister')}
+              </button>
+              <span id="accPasskeyStatus" class="ui-design-save-status" style="justify-content:center;"></span>
+            </section>
           </div>
         `;
 
@@ -5148,6 +5279,118 @@
               }
             });
           });
+        };
+
+        const esc2 = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+        const setPkStatus = (state, text) => {
+          const el = document.getElementById('accPasskeyStatus');
+          if (!el) return;
+          el.setAttribute('data-state', state || '');
+          el.textContent = text || '';
+        };
+        const pkRequest = async (method, body) => {
+          const init = { method, credentials: 'include', headers: { Accept: 'application/json' } };
+          if (body) { init.headers['Content-Type'] = 'application/json'; init.body = JSON.stringify(body); }
+          const res = await fetch('/api/auth/passkey/credentials', init);
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || data?.success === false) {
+            const err = new Error(data?.message || `HTTP ${res.status}`); err.status = res.status; throw err;
+          }
+          return data;
+        };
+        const renderPasskeys = (list) => {
+          const box = document.getElementById('accPasskeyList');
+          if (!box) return;
+          if (!list || list.length === 0) {
+            box.innerHTML = `<div class="acc-passkey-empty">${this.t('admin.accountPasskeyEmpty')}</div>`;
+            return;
+          }
+          box.innerHTML = list.map((c) => {
+            const date = c.createdAt ? new Date(c.createdAt).toLocaleString() : '';
+            return `<div class="acc-passkey-item">
+              <div class="acc-passkey-meta">
+                <i class="fas fa-key"></i>
+                <div><div class="acc-passkey-name">${esc2(c.name)}</div><div class="acc-passkey-date">${esc2(date)}</div></div>
+              </div>
+              <div class="acc-passkey-actions">
+                <button type="button" class="acc-passkey-mini" data-pk-rename="${esc2(c.id)}" title="${this.t('admin.accountPasskeyRename')}"><i class="fas fa-pen"></i></button>
+                <button type="button" class="acc-passkey-mini danger" data-pk-delete="${esc2(c.id)}" title="${this.t('admin.accountPasskeyDelete')}"><i class="fas fa-trash"></i></button>
+              </div>
+            </div>`;
+          }).join('');
+          box.querySelectorAll('[data-pk-rename]').forEach((b) => {
+            b.addEventListener('click', async () => {
+              const id = b.getAttribute('data-pk-rename');
+              const name = window.prompt(this.t('admin.accountPasskeyRenamePrompt'));
+              if (name == null || !name.trim()) return;
+              try { await pkRequest('PATCH', { id, name: name.trim() }); this.$message.success(this.t('admin.accountPasskeyRenamed')); loadPasskeys(); }
+              catch (e) { this.$message.error(this.t('admin.accountPasskeyFailed', { msg: e.message || e })); }
+            });
+          });
+          box.querySelectorAll('[data-pk-delete]').forEach((b) => {
+            b.addEventListener('click', async () => {
+              const id = b.getAttribute('data-pk-delete');
+              if (!window.confirm(this.t('admin.accountPasskeyDeleteConfirm'))) return;
+              try { await pkRequest('DELETE', { id }); this.$message.success(this.t('admin.accountPasskeyDeleted')); loadPasskeys(); }
+              catch (e) { this.$message.error(this.t('admin.accountPasskeyFailed', { msg: e.message || e })); }
+            });
+          });
+        };
+        const loadPasskeys = async () => {
+          try {
+            const data = await pkRequest('GET');
+            renderPasskeys(data.credentials || []);
+          } catch (e) {
+            setPkStatus('warning', this.t('admin.accountPasskeyFailed', { msg: e.message || e }));
+          }
+        };
+        const registerPasskey = async () => {
+          const SWA = window.SimpleWebAuthnBrowser;
+          if (!SWA || !window.PublicKeyCredential) {
+            this.$message.error(this.t('admin.accountPasskeyUnsupported'));
+            return;
+          }
+          const btn = document.getElementById('accPasskeyRegister');
+          if (btn) btn.disabled = true;
+          setPkStatus('saving', this.t('admin.accountPasskeyRegistering'));
+          try {
+            const optData = await (await fetch('/api/auth/passkey/register/options', {
+              method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: '{}'
+            })).json();
+            if (!optData.success) throw new Error(optData.message || 'options failed');
+
+            let attestation;
+            try {
+              attestation = await SWA.startRegistration({ optionsJSON: optData.options });
+            } catch (e) {
+              setPkStatus('warning', this.t('admin.accountPasskeyCancelled'));
+              if (btn) btn.disabled = false;
+              return;
+            }
+
+            const name = window.prompt(this.t('admin.accountPasskeyNamePh')) || 'Passkey';
+            const verifyData = await (await fetch('/api/auth/passkey/register/verify', {
+              method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ response: attestation, name })
+            })).json();
+            if (!verifyData.success) throw new Error(verifyData.message || 'verify failed');
+
+            setPkStatus('success', this.t('admin.accountPasskeyRegistered'));
+            this.$message.success(this.t('admin.accountPasskeyRegistered'));
+            loadPasskeys();
+          } catch (e) {
+            setPkStatus('warning', this.t('admin.accountPasskeyFailed', { msg: e.message || e }));
+            this.$message.error(this.t('admin.accountPasskeyFailed', { msg: e.message || e }));
+          } finally {
+            if (btn) btn.disabled = false;
+          }
+        };
+        const bindPasskeyUI = () => {
+          const reg = document.getElementById('accPasskeyRegister');
+          if (reg) reg.addEventListener('click', registerPasskey);
+          loadPasskeys();
         };
 
         this.$alert(html, this.t('admin.accountPanelTitle'), {
@@ -5216,7 +5459,7 @@
               });
           }
         });
-        window.setTimeout(bindPasswordToggles, 0);
+        window.setTimeout(() => { bindPasswordToggles(); bindPasskeyUI(); }, 0);
       },
       async showGuestSettingsPanel() {
         const clamp = (value, min, max) => {
