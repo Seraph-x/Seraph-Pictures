@@ -244,6 +244,13 @@ html[data-theme="dark"] textarea::placeholder {
   box-shadow: 0 8px 20px rgba(217, 119, 87, 0.2);
 }
 
+/* Floating language toggle reuses the floating theme-toggle chrome and
+   sits just left of it; color is unified with the theme toggle below. */
+.theme-floating-toggle[data-i18n-toggle] {
+  right: 80px;
+  font-weight: 700;
+}
+
 .theme-auto-inline-toggle {
   display: inline-flex;
   align-items: center;
@@ -532,6 +539,32 @@ html[data-theme="dark"] .theme-auto-inline-toggle i,
 html[data-theme="dark"] .theme-admin-toggle i,
 html[data-theme="dark"] .gallery-theme-toggle i {
   color: #d0dcff !important;
+}
+
+/* Unify language (中/EN text) and theme (icon) toggles to the orange
+   accent in both themes, matching the neighbouring nav buttons.
+   The class+attribute selectors (0,2,0) beat the shared
+   .header-theme-toggle / .gallery-theme-toggle !important color rules
+   in claude-theme.css; the dark variants add an extra level. */
+.theme-floating-toggle[data-i18n-toggle],
+.theme-auto-inline-toggle[data-i18n-toggle],
+.theme-admin-toggle[data-i18n-toggle],
+.header-theme-toggle[data-i18n-toggle],
+.gallery-theme-toggle[data-i18n-toggle],
+.action-btn[data-i18n-toggle],
+.admin-lang-btn[data-i18n-toggle],
+[data-theme-toggle] i {
+  color: var(--claude-accent) !important;
+}
+html[data-theme="dark"] .theme-floating-toggle[data-i18n-toggle],
+html[data-theme="dark"] .theme-auto-inline-toggle[data-i18n-toggle],
+html[data-theme="dark"] .theme-admin-toggle[data-i18n-toggle],
+html[data-theme="dark"] .header-theme-toggle[data-i18n-toggle],
+html[data-theme="dark"] .gallery-theme-toggle[data-i18n-toggle],
+html[data-theme="dark"] .action-btn[data-i18n-toggle],
+html[data-theme="dark"] .admin-lang-btn[data-i18n-toggle],
+html[data-theme="dark"] [data-theme-toggle] i {
+  color: var(--claude-accent) !important;
 }
 
 html[data-theme="dark"] .storage-switcher,
