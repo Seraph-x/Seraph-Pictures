@@ -2,6 +2,7 @@
   "name": "seraph-pictures",
   "description": "Seraph's Pictures - private media workspace for Cloudflare Pages and Docker",
   "version": "1.0.0",
+  "license": "MIT",
   "scripts": {
     "build": "npm run frontend:build",
     "ci-test": "concurrently --kill-others --success first \"npm start\" \"wait-on http://localhost:8080 && mocha --exit\"",

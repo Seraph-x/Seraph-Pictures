@@ -7,7 +7,7 @@ A private media workspace for Cloudflare Pages: image/file hosting, admin manage
 
 **English** | [中文](README.md)
 
-[![License: CC0-1.0](https://img.shields.io/badge/License-CC0_1.0-lightgrey.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Cloudflare Pages](https://img.shields.io/badge/Cloudflare-Pages-F38020?logo=cloudflare&logoColor=white)
 ![Vue 3](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)
 ![Hono](https://img.shields.io/badge/Hono-backend-E36002?logo=hono&logoColor=white)
@@ -323,4 +323,4 @@ The following are **not yet shipped** and should not be treated as available:
 
 ## License
 
-Released under [CC0 1.0 Universal](LICENSE).
+Released under the [MIT License](LICENSE).

@@ -7,7 +7,7 @@
 
 [English](README-EN.md) | **中文**
 
-[![License: CC0-1.0](https://img.shields.io/badge/License-CC0_1.0-lightgrey.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Cloudflare Pages](https://img.shields.io/badge/Cloudflare-Pages-F38020?logo=cloudflare&logoColor=white)
 ![Vue 3](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)
 ![Hono](https://img.shields.io/badge/Hono-backend-E36002?logo=hono&logoColor=white)
@@ -328,4 +328,4 @@ npm --prefix frontend run build
 
 ## 许可证
 
-本项目以 [CC0 1.0 Universal](LICENSE) 释出。
+本项目基于 [MIT 许可证](LICENSE) 释出。
