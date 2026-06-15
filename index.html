@@ -1188,31 +1188,37 @@
         border-radius: 3px;
       }
 
-      /* 上传结果操作按钮:背景跟随 UI 透明度(玻璃化),保留语义色作为文字/描边。
+      /* 上传结果/历史 操作按钮:背景跟随 UI 透明度(玻璃化),保留语义色作为文字/描边。
          覆盖 claude-theme.css 的 !important 实心填充。 */
-      .result-section .result-actions .el-button {
+      .result-section .result-actions .el-button,
+      .history-section .result-actions .el-button {
         background: rgba(var(--ui-surface-rgb), var(--ui-card-opacity)) !important;
         backdrop-filter: var(--ui-card-backdrop-filter);
         -webkit-backdrop-filter: var(--ui-card-backdrop-filter);
         box-shadow: none !important;
       }
-      .result-section .result-actions .el-button--primary {
+      .result-section .result-actions .el-button--primary,
+      .history-section .result-actions .el-button--primary {
         color: var(--primary-color) !important;
         border: 1px solid var(--primary-color) !important;
       }
-      .result-section .result-actions .el-button--success {
+      .result-section .result-actions .el-button--success,
+      .history-section .result-actions .el-button--success {
         color: #67c23a !important;
         border: 1px solid #67c23a !important;
       }
-      .result-section .result-actions .el-button--warning {
+      .result-section .result-actions .el-button--warning,
+      .history-section .result-actions .el-button--warning {
         color: #e6a23c !important;
         border: 1px solid #e6a23c !important;
       }
-      .result-section .result-actions .el-button--danger {
+      .result-section .result-actions .el-button--danger,
+      .history-section .result-actions .el-button--danger {
         color: #f56c6c !important;
         border: 1px solid #f56c6c !important;
       }
-      .result-section .result-actions .el-button.is-disabled {
+      .result-section .result-actions .el-button.is-disabled,
+      .history-section .result-actions .el-button.is-disabled {
         color: var(--text-muted) !important;
         border-color: rgba(var(--ui-border-rgb), 0.46) !important;
       }
