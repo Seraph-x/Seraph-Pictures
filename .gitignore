@@ -21,3 +21,7 @@ test-login.json
 
 # Internal planning / scratch docs (local working notes, not for the public repo)
 docs/*-plan.md
+
+# Internal working notes kept local-only (not published)
+/TODO.md
+/CLAUDE.md
