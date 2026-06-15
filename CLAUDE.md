@@ -10,7 +10,7 @@
 4. **停下等用户确认**,再继续后续步骤。
 5. 合并 `main`:`git merge --no-ff <branch>`。
 6. `npm run pages:deploy`。
-7. 推送 `main`:`git push origin main`(会再触发 Cloudflare Git 集成部署一次)。
+7. 推送 `main`:`git push origin main`(仅同步 GitHub 仓库,不触发部署;上线只由第 6 步 `npm run pages:deploy` 完成)。
 8. curl 核实线上:抓取页面/资源并 `grep` 关键标记,确认改动已生效。
 9. 停 dev server。
 
