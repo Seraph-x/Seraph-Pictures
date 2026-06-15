@@ -1,6 +1,0 @@
-[    2238ms] [ERROR] Refused to execute script from 'https://71ddb5cd.k-vault-2lv.pages.dev/i18n.js?v=20260611' because its MIME type ('text/html') is not executable, and strict MIME type checking is enabled. @ https://71ddb5cd.k-vault-2lv.pages.dev/:0
-[    2244ms] [WARNING] Allow attribute will take precedence over 'allowfullscreen'. @ https://71ddb5cd.k-vault-2lv.pages.dev/:2832
-[    3173ms] [ERROR] Refused to execute script from 'https://71ddb5cd.k-vault-2lv.pages.dev/i18n.js?v=20260611' because its MIME type ('text/html') is not executable, and strict MIME type checking is enabled. @ https://71ddb5cd.k-vault-2lv.pages.dev/login?redirect=%2F:0
-[    3183ms] ReferenceError: I18n is not defined
-    at https://71ddb5cd.k-vault-2lv.pages.dev/login?redirect=%2F:521:5
-[    3196ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ https://71ddb5cd.k-vault-2lv.pages.dev/login?redirect=%2F:0

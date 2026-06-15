@@ -1,7 +1,0 @@
-[      88ms] [WARNING] Allow attribute will take precedence over 'allowfullscreen'. @ http://localhost:8099/index.html:2833
-[      93ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8099/api/ui-config?_ts=1781176904174:0
-[     101ms] [WARNING] [ui-config] GET /api/ui-config failed: Error: Request failed (404)
-    at http://localhost:8099/theme.js?v=20260305:356:19 @ http://localhost:8099/theme.js?v=20260305:400
-[     794ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8099/api/auth/check:0
-[     803ms] [ERROR] Auth check failed: SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON @ http://localhost:8099/index.html:4854
-[     823ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8099/api/status:0

@@ -1,9 +1,0 @@
-[     191ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost:8099/login.html:0
-[     240ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8099/api/ui-config?_ts=1781175586868:0
-[     241ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8099/api/auth/check:0
-[     241ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8099/api/ui-config?_ts=1781175586877:0
-[     251ms] [ERROR] Auth check failed: SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON @ http://localhost:8099/login.html:609
-[     255ms] [WARNING] [ui-config] GET /api/ui-config failed: Error: Request failed (404)
-    at http://localhost:8099/theme.js?v=20260305:356:19 @ http://localhost:8099/theme.js?v=20260305:400
-[     255ms] [WARNING] [ui-config] GET /api/ui-config failed: Error: Request failed (404)
-    at http://localhost:8099/theme.js?v=20260305:356:19 @ http://localhost:8099/theme.js?v=20260305:400

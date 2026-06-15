@@ -1,2 +1,0 @@
-[     105ms] [WARNING] Allow attribute will take precedence over 'allowfullscreen'. @ http://localhost:8080/admin:1407
-[     172ms] [INFO] Slow network is detected. See https://www.chromestatus.com/feature/5636954674692096 for more details. Fallback font will be used while loading: https://cdn.jsdelivr.net/npm/element-ui@2.15.3/lib/theme-chalk/fonts/element-icons.woff @ http://localhost:8080/admin:4951

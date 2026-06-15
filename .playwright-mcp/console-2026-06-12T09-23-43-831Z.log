@@ -1,4 +1,0 @@
-[     631ms] [ERROR] Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED @ https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447:0
-[     664ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ https://pictures.seraphzero.com/login:0
-[   67539ms] [WARNING] Allow attribute will take precedence over 'allowfullscreen'. @ https://pictures.seraphzero.com/:2832
-[   67686ms] [ERROR] Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED @ https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447:0
