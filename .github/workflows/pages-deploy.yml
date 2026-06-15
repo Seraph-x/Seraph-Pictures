@@ -1,14 +1,73 @@
 name: pages-deploy
 
+# Deploys the site to Cloudflare Pages via Wrangler.
+# Mirrors the local `npm run pages:deploy`: build frontend/dist, then upload it
+# together with the root-level functions/ directory (Pages Functions). The Pages
+# project name is read from wrangler.jsonc ("name"), so forks only edit that file.
+#
+# To enable deploys (in your own repo or a fork), add two repository secrets
+# under Settings -> Secrets and variables -> Actions:
+#   CLOUDFLARE_API_TOKEN   token with the "Cloudflare Pages: Edit" permission
+#   CLOUDFLARE_ACCOUNT_ID  the account that owns the Pages project
+# Until CLOUDFLARE_API_TOKEN is set, the deploy job is skipped (not failed), so
+# pushing to main while you iterate locally never produces red CI runs.
+
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
+# Serialize deploys; never cancel an in-flight upload mid-flight.
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: false
+
 jobs:
-  notice:
+  # secrets cannot be referenced directly in a job-level `if`, so probe the token
+  # in a step and expose a boolean the deploy job can gate on.
+  check:
     runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.probe.outputs.ready }}
     steps:
-      - name: Deployment Notice
+      - name: Probe for Cloudflare credentials
+        id: probe
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
-          echo "Cloudflare Pages deployment is handled by Cloudflare Git integration."
-          echo "This repository does not require CF_API_TOKEN/CF_ACCOUNT_ID/CF_PAGES_PROJECT secrets."
-          echo "If you need CLI deployment, run wrangler locally with your own Cloudflare credentials."
+          if [ -n "$CF_TOKEN" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::CLOUDFLARE_API_TOKEN is not set — skipping deploy. Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID repo secrets to enable Pages deploys."
+          fi
+
+  deploy:
+    needs: check
+    if: needs.check.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Build frontend (vite + legacy assets)
+        run: npm run build
+
+      - name: Deploy to Cloudflare Pages
+        # Project name comes from wrangler.jsonc; --branch keeps CI's detached
+        # HEAD targeting the production deployment instead of a preview.
+        run: npx wrangler pages deploy frontend/dist --branch="${{ github.ref_name }}"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
