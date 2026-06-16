@@ -9,6 +9,44 @@
   <link rel="apple-touch-icon" href="/logo.png">
   <link rel="shortcut icon" href="/favicon.ico?v=20260615">
   <link rel="stylesheet" href="/theme.css">
+  <script>
+  /* Early background paint: insert a fixed z-index:0 layer with the cached
+     custom background as soon as <body> exists, so navigating between pages
+     doesn't flash. Mirrors theme.js's .ui-bg-image-layer (content is z-index:5
+     above it); theme.js adds its own identical layer on load. */
+  (function () {
+    try {
+      var dark = false;
+      try { dark = localStorage.getItem("themeMode") === "dark"; } catch (e) {}
+      var s = {};
+      try { s = JSON.parse(localStorage.getItem("kvUiDesignSettings")) || {}; } catch (e) {}
+      var base = dark ? "#1c1b19" : (s.baseColor || "#fafaf8");
+      var url = s.globalBackgroundUrl || "";
+      if (/login/.test(location.pathname) && s.loginBackgroundMode === "custom") {
+        url = s.loginBackgroundUrl || url;
+      }
+      if (!url || !/^(https?:)?\/\/|^\//.test(url)) return;
+      var safe = url.replace(/["\\]/g, function (c) { return "\\" + c; });
+      function inject() {
+        if (!document.body) return false;
+        if (document.getElementById("kv-early-bg-layer")) return true;
+        var d = document.createElement("div");
+        d.id = "kv-early-bg-layer";
+        d.style.cssText =
+          "position:fixed;inset:0;z-index:0;pointer-events:none;background-color:" + base +
+          ';background-image:url("' + safe + '");background-size:cover;' +
+          "background-position:center;background-repeat:no-repeat;";
+        document.body.insertBefore(d, document.body.firstChild);
+        return true;
+      }
+      if (!inject()) {
+        var obs = new MutationObserver(function () { if (inject()) obs.disconnect(); });
+        obs.observe(document.documentElement, { childList: true });
+        document.addEventListener("DOMContentLoaded", function () { inject(); obs.disconnect(); }, { once: true });
+      }
+    } catch (e) {}
+  })();
+  </script>
   <script src="/theme.js?v=20260305"></script>
   <script src="/i18n.js?v=20260611"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-ui@2.15.3/lib/theme-chalk/index.css">
