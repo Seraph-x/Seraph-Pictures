@@ -122,6 +122,15 @@ export async function onRequest(context) {
       }
     }
 
+    // Only the configured background gets a cacheable response. Gated to image
+    // 200s so non-images (and 404/redirects) skip the lookup and stay no-store.
+    if (response && response.status === 200) {
+      const contentType = response.headers.get('Content-Type') || '';
+      if (contentType.startsWith('image/') && await isConfiguredBackground(env, fileId)) {
+        return withBackgroundCache(response);
+      }
+    }
+
     return response;
   } catch (error) {
     console.error('file route error:', error);
@@ -181,6 +190,50 @@ function handleOptions() {
   addCorsHeaders(headers);
   headers.set('Access-Control-Max-Age', '86400');
   return new Response(null, { status: 204, headers });
+}
+
+// The admin-configured background maps to a unique, content-immutable file id
+// (changing the background produces a new id/URL), so it is safe to cache hard.
+// This stops every page navigation from re-downloading it. Everything else
+// stays no-store so deletes/blocks take effect immediately.
+function withBackgroundCache(response) {
+  const cached = new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
+  cached.headers.set('Cache-Control', 'public, max-age=604800, immutable');
+  cached.headers.set('CDN-Cache-Control', 'public, max-age=604800');
+  return cached;
+}
+
+function extractFileId(rawUrl) {
+  const value = String(rawUrl || '');
+  if (!value) return '';
+  try {
+    const pathname = value.startsWith('http') ? new URL(value).pathname : value;
+    const match = pathname.match(/\/file\/(.+)$/);
+    return match ? decodeURIComponent(match[1]) : '';
+  } catch {
+    return '';
+  }
+}
+
+async function isConfiguredBackground(env, fileId) {
+  if (!env?.img_url || !fileId) return false;
+  try {
+    const cfg = await env.img_url.get('ui_config', { type: 'json' });
+    if (!cfg) return false;
+    const targets = [cfg.globalBackgroundUrl, cfg.loginBackgroundUrl]
+      .map(extractFileId)
+      .filter(Boolean);
+    if (!targets.length) return false;
+    let decoded = fileId;
+    try { decoded = decodeURIComponent(fileId); } catch { /* keep raw */ }
+    return targets.includes(fileId) || targets.includes(decoded);
+  } catch {
+    return false;
+  }
 }
 
 function errorResponse(message, status = 500) {
