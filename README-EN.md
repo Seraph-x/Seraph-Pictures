@@ -41,6 +41,7 @@ Seraph's Pictures is a lightweight, private media workspace that deploys to Clou
 - `/admin.html` — admin console
 - `/gallery.html` — image gallery
 - `/webdav.html` — WebDAV upload center
+- `/storage-settings.html` — storage backend settings (admin "Storage Config" entry)
 - `/app/status` — Vue status page
 
 The Vue app stays under `/app/`. On Cloudflare Pages the root legacy pages are the reliable main flow; `/app/storage` and `/app/drive` already have UI screens, but their Cloudflare Functions endpoints still need to be completed before they can replace the legacy console (see [Roadmap](#roadmap)).
@@ -58,6 +59,8 @@ The Vue app stays under `/app/`. On Cloudflare Pages the root legacy pages are t
 - **Admin console**: file listing, folder management (Folder Manager), grid view with pagination, detail view, rename, delete, likes, and move-to-folder.
 - **Manual content control**: admins can block/allow individual files; blocked access redirects to `block-img.html`, and in allow-list mode non-listed content redirects to `whitelist-on.html`.
 - **WebDAV upload center**: a standalone entry at `/webdav.html`.
+- **Runtime storage settings**: `/storage-settings.html` (admin "Storage Config" entry) edits Telegram / WebDAV / S3 / Discord / GitHub / Hugging Face credentials without a redeploy; secrets are AES-GCM encrypted in KV and take precedence over env vars at runtime. The Telegram main and guest channels are kept separate.
+- **Browser image cache**: image responses carry a 3-minute `private` cache so switching pages does not re-download them; the edge (CDN) is not cached, so delete / block / allow-list changes stay instant for other viewers.
 - **Gallery with multiple link formats**: browse at `/gallery.html` and copy URL, Markdown, HTML, or BBCode links with one click.
 - **Online preview with Data Saver**: in-browser preview for images/media with a data-saver option.
 - **Authentication**: Basic Auth plus cookie-based sessions.
@@ -86,6 +89,7 @@ Root legacy UI
 ├── admin.html          # primary admin console
 ├── gallery.html        # image gallery
 ├── webdav.html         # WebDAV upload center
+├── storage-settings.html # storage backend settings
 ├── preview.html        # compatibility preview page
 ├── block-img.html      # blocked-file notice
 └── whitelist-on.html   # allow-list notice
@@ -186,6 +190,8 @@ The following upload backends are supported; configure the relevant fields via e
 
 > All secrets should be configured as Pages Secrets or Docker `.env` values — never committed.
 
+> Besides env vars, admins can edit the backend credentials above at runtime from `/storage-settings.html` (admin "Storage Config" entry) with no redeploy. The config is stored in KV (key `storage_config`); secret fields are AES-GCM encrypted (key from `CONFIG_ENCRYPTION_KEY`, falling back to `SESSION_SECRET`). KV config takes precedence over env vars at runtime; R2 is a Cloudflare binding and is still configured only in Pages.
+
 ## Guest Uploads
 
 - Files from unauthenticated visitors go through a **separate Telegram bot + channel** (`TG_GUEST_BOT_TOKEN` / `TG_GUEST_CHAT_ID`), isolated from admin storage; if unset, it falls back to the main bot.
@@ -201,6 +207,7 @@ Common Cloudflare Pages bindings and variables (configure secrets via the dashbo
 | `BASIC_USER` / `BASIC_PASS` | Admin credentials |
 | `TG_BOT_TOKEN` / `TG_CHAT_ID` | Main Telegram storage credentials |
 | `img_url` | KV namespace binding (required; stores metadata and config) |
+| `CONFIG_ENCRYPTION_KEY` | Encrypts the storage credentials saved to KV via `/storage-settings.html` (falls back to `SESSION_SECRET` when unset) |
 | `R2_BUCKET` | R2 binding (optional) |
 | `S3_*` | S3-compatible storage (optional) |
 | `WEBDAV_*` | WebDAV backend (optional) |
