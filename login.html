@@ -112,8 +112,8 @@
 
     .login-card {
       background: var(--card-bg);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: var(--ui-card-backdrop-filter, blur(10px));
+      -webkit-backdrop-filter: var(--ui-card-backdrop-filter, blur(10px));
       border-radius: 28px;
       padding: 48px 40px;
       box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1), 0 2px 16px rgba(217, 119, 87, 0.08);
