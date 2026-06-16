@@ -126,12 +126,16 @@ export async function onRequest(context) {
       }
     }
 
-    // Only the configured background gets a cacheable response. Gated to image
-    // 200s so non-images (and 404/redirects) skip the lookup and stay no-store.
+    // Image responses get a short browser-only cache so switching pages does
+    // not re-download them. The configured background keeps its hard immutable
+    // cache. Both are gated to image 200s; everything else stays no-store.
     if (response && response.status === 200) {
       const contentType = response.headers.get('Content-Type') || '';
-      if (contentType.startsWith('image/') && await isConfiguredBackground(env, fileId)) {
-        return withBackgroundCache(response);
+      if (contentType.startsWith('image/')) {
+        if (await isConfiguredBackground(env, fileId)) {
+          return withBackgroundCache(response);
+        }
+        return withImageCache(response);
       }
     }
 
@@ -208,6 +212,22 @@ function withBackgroundCache(response) {
   });
   cached.headers.set('Cache-Control', 'public, max-age=604800, immutable');
   cached.headers.set('CDN-Cache-Control', 'public, max-age=604800');
+  return cached;
+}
+
+// Non-background images get a short browser-only cache (3 min) so navigating
+// between pages reuses them instead of re-downloading. CDN-Cache-Control stays
+// no-store so the shared edge never caches: deletes/blocks/whitelist changes
+// stay effective for every viewer except the one browser that already loaded
+// the image within the window.
+function withImageCache(response) {
+  const cached = new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
+  cached.headers.set('Cache-Control', 'private, max-age=180');
+  cached.headers.set('CDN-Cache-Control', 'no-store');
   return cached;
 }
 
