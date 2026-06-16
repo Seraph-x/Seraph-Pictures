@@ -2,6 +2,21 @@
    Warm "Klimt" palette, theme-aware: :root = light, [data-theme=dark] = dark.
    All surface/text/accent colors derive from the --claude-* tokens, so any
    rule referencing them follows the active theme automatically. */
+
+/* Cross-document view transitions: hold the outgoing page (background included)
+   until the next page is ready, then cross-fade, so same-origin navigations
+   don't flash. The background is identical across pages, so it stays visually
+   continuous. Unsupported browsers fall back to normal navigation. */
+@view-transition {
+  navigation: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+}
+
 :root {
   /* Light (default) — warm cream surfaces, ink text, muted terracotta accent */
   --claude-bg: #f6f2ec;
