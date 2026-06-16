@@ -12,6 +12,7 @@ const legacyFiles = [
   'gallery.html',
   'preview.html',
   'webdav.html',
+  'storage-settings.html',
   'block-img.html',
   'whitelist-on.html',
   'theme.css',

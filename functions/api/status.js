@@ -5,6 +5,7 @@ import { checkWebDAVConnection, hasWebDAVConfig } from '../utils/webdav.js';
 import { checkGitHubConnection, hasGitHubConfig } from '../utils/github.js';
 import { getGuestConfig } from '../utils/guest.js';
 import { buildTelegramBotApiUrl, getTelegramApiBase } from '../utils/telegram.js';
+import { resolveStorageEnv } from '../utils/storage-config.js';
 
 const MB = 1024 * 1024;
 const DIRECT_UPLOAD_THRESHOLD = 20 * MB;
@@ -30,7 +31,8 @@ function storageCapability(type, label, layer = 'direct') {
 }
 
 export async function onRequestGet(context) {
-  const { env } = context;
+  // Overlay any KV-stored storage config so status reflects what uploads will use.
+  const env = await resolveStorageEnv(context.env);
 
   const guestUpload = await getGuestConfig(env);
 

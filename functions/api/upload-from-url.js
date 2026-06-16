@@ -6,6 +6,7 @@ import { hasHuggingFaceConfig, uploadToHuggingFace } from "../utils/huggingface.
 import { hasWebDAVConfig, normalizeWebDAVPath, uploadToWebDAV } from "../utils/webdav.js";
 import { hasGitHubConfig, normalizeGitHubStoragePath, uploadToGitHub } from "../utils/github.js";
 import { assertAllowedRemoteHost, assertPublicRedirect, parseSafeRemoteUrl, RemoteUrlError } from "../utils/remote-url.js";
+import { resolveStorageEnv } from "../utils/storage-config.js";
 import {
   buildTelegramDirectLink,
   buildTelegramBotApiUrl,
@@ -88,46 +89,49 @@ export async function onRequestPost(context) {
     const fileName = buildFileName(fetched.finalUrl, contentType);
     const fileExtension = getFileExtension(fileName);
 
+    // Overlay any KV-stored storage config onto env (KV wins, else env/secret).
+    const senv = await resolveStorageEnv(env);
+
     if (storageMode === "r2") {
-      if (!env.R2_BUCKET) {
+      if (!senv.R2_BUCKET) {
         return jsonResponse({ error: "R2 is not configured" }, 400);
       }
-      return await uploadToR2(arrayBuffer, fileName, fileExtension, contentType, fileSize, env, folderPath);
+      return await uploadToR2(arrayBuffer, fileName, fileExtension, contentType, fileSize, senv, folderPath);
     }
 
     if (storageMode === "s3") {
-      if (!env.S3_ENDPOINT || !env.S3_ACCESS_KEY_ID) {
+      if (!senv.S3_ENDPOINT || !senv.S3_ACCESS_KEY_ID) {
         return jsonResponse({ error: "S3 is not configured" }, 400);
       }
-      return await uploadToS3(arrayBuffer, fileName, fileExtension, contentType, fileSize, env, folderPath);
+      return await uploadToS3(arrayBuffer, fileName, fileExtension, contentType, fileSize, senv, folderPath);
     }
 
     if (storageMode === "discord") {
-      if (!env.DISCORD_WEBHOOK_URL && !env.DISCORD_BOT_TOKEN) {
+      if (!senv.DISCORD_WEBHOOK_URL && !senv.DISCORD_BOT_TOKEN) {
         return jsonResponse({ error: "Discord is not configured" }, 400);
       }
-      return await uploadToDiscordStorage(arrayBuffer, fileName, fileExtension, contentType, fileSize, env, folderPath);
+      return await uploadToDiscordStorage(arrayBuffer, fileName, fileExtension, contentType, fileSize, senv, folderPath);
     }
 
     if (storageMode === "huggingface") {
-      if (!hasHuggingFaceConfig(env)) {
+      if (!hasHuggingFaceConfig(senv)) {
         return jsonResponse({ error: "HuggingFace is not configured" }, 400);
       }
-      return await uploadToHFStorage(arrayBuffer, fileName, fileExtension, contentType, fileSize, env, folderPath);
+      return await uploadToHFStorage(arrayBuffer, fileName, fileExtension, contentType, fileSize, senv, folderPath);
     }
 
     if (storageMode === "webdav") {
-      if (!hasWebDAVConfig(env)) {
+      if (!hasWebDAVConfig(senv)) {
         return jsonResponse({ error: "WebDAV is not configured" }, 400);
       }
-      return await uploadToWebDAVStorage(arrayBuffer, fileName, fileExtension, contentType, fileSize, env, folderPath);
+      return await uploadToWebDAVStorage(arrayBuffer, fileName, fileExtension, contentType, fileSize, senv, folderPath);
     }
 
     if (storageMode === "github") {
-      if (!hasGitHubConfig(env)) {
+      if (!hasGitHubConfig(senv)) {
         return jsonResponse({ error: "GitHub is not configured" }, 400);
       }
-      return await uploadToGitHubStorage(arrayBuffer, fileName, fileExtension, contentType, fileSize, env, folderPath);
+      return await uploadToGitHubStorage(arrayBuffer, fileName, fileExtension, contentType, fileSize, senv, folderPath);
     }
 
     const guestOptions = isAdmin
@@ -137,7 +141,7 @@ export async function onRequestPost(context) {
           guestIp: getClientIP(request),
           retentionDays: guestConfig?.retentionDays ?? 3,
         };
-    const telegramResponse = await uploadToTelegram(arrayBuffer, fileName, fileExtension, contentType, fileSize, env, new URL(request.url).origin, folderPath, guestOptions);
+    const telegramResponse = await uploadToTelegram(arrayBuffer, fileName, fileExtension, contentType, fileSize, senv, new URL(request.url).origin, folderPath, guestOptions);
     if (!isAdmin && telegramResponse.status >= 200 && telegramResponse.status < 300) {
       await incrementGuestCount(request, env, guestConfig);
     }

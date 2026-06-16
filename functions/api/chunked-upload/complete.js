@@ -8,6 +8,7 @@ import { uploadToDiscord } from '../../utils/discord.js';
 import { hasHuggingFaceConfig, uploadToHuggingFace } from '../../utils/huggingface.js';
 import { hasWebDAVConfig, normalizeWebDAVPath, uploadToWebDAV } from '../../utils/webdav.js';
 import { hasGitHubConfig, normalizeGitHubStoragePath, uploadToGitHub } from '../../utils/github.js';
+import { resolveStorageEnv } from '../../utils/storage-config.js';
 import {
   buildTelegramDirectLink,
   buildTelegramBotApiUrl,
@@ -87,6 +88,8 @@ export async function onRequestPost(context) {
 
     const fileExtension = getFileExtension(taskData.fileName);
     let storageType = taskData.storageMode || 'telegram';
+    // Overlay any KV-stored storage config onto env (KV wins, else env/secret).
+    const senv = await resolveStorageEnv(env);
     const folderPath = normalizeFolderPath(taskData.folderPath || '');
     let responseFileKey = null;
     let metadataKey = null;
@@ -101,10 +104,10 @@ export async function onRequestPost(context) {
       responseFileKey = uploadResult.fileKey;
       metadataKey = uploadResult.fileKey;
     } else if (storageType === 's3') {
-      if (!env.S3_ENDPOINT || !env.S3_ACCESS_KEY_ID) {
+      if (!senv.S3_ENDPOINT || !senv.S3_ACCESS_KEY_ID) {
         return jsonResponse({ error: 'S3 未配置，无法完成上传' }, 500);
       }
-      const s3 = createS3Client(env);
+      const s3 = createS3Client(senv);
       const s3Id = `s3_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
       const s3Key = `${s3Id}.${fileExtension}`;
       const arrayBuffer = await file.arrayBuffer();
@@ -116,11 +119,11 @@ export async function onRequestPost(context) {
       metadataKey = responseFileKey;
       extraMetadata.s3Key = s3Key;
     } else if (storageType === 'discord') {
-      if (!env.DISCORD_WEBHOOK_URL && !env.DISCORD_BOT_TOKEN) {
+      if (!senv.DISCORD_WEBHOOK_URL && !senv.DISCORD_BOT_TOKEN) {
         return jsonResponse({ error: 'Discord 未配置，无法完成上传' }, 500);
       }
       const arrayBuffer = await file.arrayBuffer();
-      const discordResult = await uploadToDiscord(arrayBuffer, taskData.fileName, taskData.fileType, env);
+      const discordResult = await uploadToDiscord(arrayBuffer, taskData.fileName, taskData.fileType, senv);
       if (!discordResult.success) {
         return jsonResponse({ error: 'Discord 上传失败: ' + discordResult.error }, 500);
       }
@@ -133,13 +136,13 @@ export async function onRequestPost(context) {
       extraMetadata.discordUploadMode = discordResult.mode;
       extraMetadata.discordSourceUrl = discordResult.sourceUrl;
     } else if (storageType === 'huggingface') {
-      if (!hasHuggingFaceConfig(env)) {
+      if (!hasHuggingFaceConfig(senv)) {
         return jsonResponse({ error: 'HuggingFace 未配置，无法完成上传' }, 500);
       }
       const arrayBuffer = await file.arrayBuffer();
       const hfId = `hf_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
       const hfPath = joinStoragePath(folderPath, `${hfId}.${fileExtension}`);
-      const hfResult = await uploadToHuggingFace(arrayBuffer, hfPath, taskData.fileName, env);
+      const hfResult = await uploadToHuggingFace(arrayBuffer, hfPath, taskData.fileName, senv);
       if (!hfResult.success) {
         return jsonResponse({ error: 'HuggingFace 上传失败: ' + hfResult.error }, 500);
       }
@@ -147,7 +150,7 @@ export async function onRequestPost(context) {
       metadataKey = responseFileKey;
       extraMetadata.hfPath = hfPath;
     } else if (storageType === 'webdav') {
-      if (!hasWebDAVConfig(env)) {
+      if (!hasWebDAVConfig(senv)) {
         return jsonResponse({ error: 'WebDAV 未配置，无法完成上传' }, 500);
       }
       const arrayBuffer = await file.arrayBuffer();
@@ -158,14 +161,14 @@ export async function onRequestPost(context) {
         arrayBuffer,
         webdavPath,
         file.type || 'application/octet-stream',
-        env
+        senv
       );
       responseFileKey = `webdav:${publicId}`;
       metadataKey = responseFileKey;
       extraMetadata.webdavPath = normalizeWebDAVPath(webdavResult.path || webdavPath);
       extraMetadata.webdavEtag = webdavResult.etag || undefined;
     } else if (storageType === 'github') {
-      if (!hasGitHubConfig(env)) {
+      if (!hasGitHubConfig(senv)) {
         return jsonResponse({ error: 'GitHub 未配置，无法完成上传' }, 500);
       }
       const arrayBuffer = await file.arrayBuffer();
@@ -177,7 +180,7 @@ export async function onRequestPost(context) {
         normalizeGitHubStoragePath(githubStorageKey),
         taskData.fileName,
         file.type || 'application/octet-stream',
-        env
+        senv
       );
       responseFileKey = `github:${publicId}`;
       metadataKey = responseFileKey;
@@ -187,7 +190,7 @@ export async function onRequestPost(context) {
       Object.assign(extraMetadata, githubResult.metadata || {});
     } else {
       storageType = 'telegram';
-      const result = await uploadToTelegram(file, env);
+      const result = await uploadToTelegram(file, senv);
       if (!result.success) {
         return jsonResponse({ error: result.error }, 500);
       }

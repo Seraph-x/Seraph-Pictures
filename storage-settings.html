@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Seraph's Pictures</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20260615">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico?v=20260615" />
+    <link rel="apple-touch-icon" href="/logo.png" />
+    <link rel="shortcut icon" href="/favicon.ico?v=20260615" />
+    <link rel="stylesheet" href="/theme.css?v=20260616" />
+  <script>
+  /* Early background paint (mirrors theme.js's layer) so navigation doesn't flash. */
+  (function () {
+    try {
+      var dark = false;
+      try { dark = localStorage.getItem("themeMode") === "dark"; } catch (e) {}
+      var s = {};
+      try { s = JSON.parse(localStorage.getItem("kvUiDesignSettings")) || {}; } catch (e) {}
+      var base = dark ? "#1c1b19" : (s.baseColor || "#fafaf8");
+      var url = s.globalBackgroundUrl || "";
+      if (!url || !/^(https?:)?\/\/|^\//.test(url)) return;
+      var safe = url.replace(/["\\]/g, function (c) { return "\\" + c; });
+      function inject() {
+        if (!document.body) return false;
+        if (document.getElementById("kv-early-bg-layer")) return true;
+        var d = document.createElement("div");
+        d.id = "kv-early-bg-layer";
+        d.style.cssText =
+          "position:fixed;inset:0;z-index:0;pointer-events:none;background-color:" + base +
+          ';background-image:url("' + safe + '");background-size:cover;' +
+          "background-position:center;background-repeat:no-repeat;";
+        document.body.insertBefore(d, document.body.firstChild);
+        return true;
+      }
+      if (!inject()) {
+        var obs = new MutationObserver(function () { if (inject()) obs.disconnect(); });
+        obs.observe(document.documentElement, { childList: true });
+        document.addEventListener("DOMContentLoaded", function () { inject(); obs.disconnect(); }, { once: true });
+      }
+    } catch (e) {}
+  })();
+  </script>
+    <script src="/theme.js?v=20260305"></script>
+    <script src="/i18n.js?v=20260611"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" />
+    <style>
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--claude-bg);
+        color: var(--claude-text);
+        font-family: "Manrope", "Noto Sans SC", "PingFang SC", "Segoe UI", sans-serif;
+      }
+
+      .page { max-width: 1080px; margin: 0 auto; padding: 20px; position: relative; z-index: 5; }
+
+      .header {
+        position: sticky;
+        top: 20px;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 16px 24px;
+        border-radius: 16px;
+        /* Track admin-configured card opacity/blur (set by theme.js from ui-config). */
+        background: var(--claude-panel);
+        border: 1px solid var(--claude-line);
+        box-shadow: var(--shadow-sm);
+        backdrop-filter: var(--ui-card-backdrop-filter, blur(10px));
+        -webkit-backdrop-filter: var(--ui-card-backdrop-filter, blur(10px));
+        margin-bottom: 16px;
+      }
+
+      .header-title {
+        display: flex; align-items: center; gap: 10px;
+        font-family: "Sora", "Manrope", "Noto Sans SC", sans-serif;
+        font-size: 1.3rem; font-weight: 700; letter-spacing: 0.02em; margin: 0;
+      }
+      .header-title i { color: var(--claude-accent); }
+      .header-logo { width: 34px; height: 34px; border-radius: 9px; object-fit: cover; }
+      .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+      .intro { margin: 0 0 16px; color: var(--claude-text-soft); font-size: 0.92rem; line-height: 1.6; }
+
+      .card {
+        background: var(--claude-panel);
+        border: 1px solid var(--claude-line);
+        border-radius: 16px;
+        box-shadow: var(--shadow-sm);
+        backdrop-filter: var(--ui-card-backdrop-filter, blur(10px));
+        -webkit-backdrop-filter: var(--ui-card-backdrop-filter, blur(10px));
+        padding: 20px 22px;
+        margin-bottom: 16px;
+      }
+      .card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+      .card-header h2 { font-size: 1.08rem; margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
+      .card-header h2 i { color: var(--claude-accent); }
+      .card-sub { margin: 0; color: var(--claude-text-soft); font-size: 0.85rem; }
+
+      .badge {
+        font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px;
+        background: rgba(120,120,120,0.16); color: var(--claude-text-soft); white-space: nowrap;
+      }
+
+      .guest-block {
+        margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--claude-line);
+      }
+      .guest-title { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.95rem; margin-bottom: 10px; }
+
+      .field-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px 16px; }
+      .field { display: flex; flex-direction: column; gap: 5px; }
+      .field label { font-size: 0.82rem; color: var(--claude-text-soft); }
+      .field input {
+        width: 100%; padding: 9px 11px; border-radius: 10px;
+        border: 1px solid var(--input-border, var(--claude-line));
+        background: var(--surface-1, transparent); color: var(--claude-text);
+        font-size: 0.9rem; font-family: inherit;
+      }
+      .field input:focus { outline: none; border-color: var(--claude-accent); }
+
+      .actionbar {
+        position: sticky; bottom: 16px; z-index: 40;
+        display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        padding: 14px 20px; border-radius: 14px;
+        background: var(--claude-panel); border: 1px solid var(--claude-line);
+        box-shadow: var(--shadow-sm);
+        backdrop-filter: var(--ui-card-backdrop-filter, blur(10px));
+        -webkit-backdrop-filter: var(--ui-card-backdrop-filter, blur(10px));
+      }
+      .btn-primary, .action-link, .action-btn, .btn-ghost {
+        cursor: pointer; border-radius: 10px; font-family: inherit; font-size: 0.88rem;
+        border: 1px solid var(--claude-line); background: var(--surface-1, transparent);
+        color: var(--claude-text); padding: 8px 14px; display: inline-flex; align-items: center; gap: 7px;
+        text-decoration: none;
+      }
+      .btn-primary { background: var(--claude-accent); color: #fff; border-color: transparent; font-weight: 600; }
+      .btn-primary:disabled { opacity: 0.6; cursor: default; }
+      /* Keep the language + theme toggles identical square buttons. */
+      .header-actions .action-btn {
+        width: 40px; height: 40px; padding: 0;
+        justify-content: center; align-items: center; flex: 0 0 auto;
+      }
+      .header-actions .action-btn [data-lang-label] { font-size: 0.85rem; font-weight: 600; line-height: 1; }
+      .status-line { font-size: 0.88rem; color: var(--claude-text-soft); }
+      .status-line.ok { color: #2e7d32; }
+      .status-line.err { color: #c62828; }
+
+      .loading, .empty { padding: 40px; text-align: center; color: var(--claude-text-soft); }
+    </style>
+  <link rel="stylesheet" href="/claude-theme.css">
+  <link rel="stylesheet" href="/claude-layout.css">
+  </head>
+  <body>
+    <main class="page">
+      <header class="header">
+        <h1 class="header-title">
+          <img src="/logo.png" alt="Logo" class="header-logo" onerror="this.onerror=null;this.src='/favicon.ico';" />
+          <span data-i18n="storage.title">存储设置</span>
+        </h1>
+        <div class="header-actions">
+          <a class="action-link" href="./"><i class="fas fa-home"></i><span data-i18n="nav.home">首页</span></a>
+          <a class="action-link" href="/admin.html"><i class="fas fa-folder-tree"></i><span data-i18n="nav.admin">管理后台</span></a>
+          <button type="button" class="action-btn" data-i18n-toggle aria-label="切换语言">
+            <span data-lang-label>EN</span>
+          </button>
+          <button type="button" class="action-btn" data-theme-toggle data-i18n-aria-label="storage.toggleTheme" aria-label="切换主题">
+            <i class="fas fa-moon" data-theme-icon></i>
+          </button>
+        </div>
+      </header>
+
+      <p class="intro" data-i18n="storage.intro">在此直接编辑各存储后端的配置（保存到加密 KV，运行时优先于环境变量）。密钥字段留空表示保持原值不变。</p>
+
+      <div id="formRoot">
+        <div class="loading" data-i18n="storage.loading">正在加载配置…</div>
+      </div>
+
+      <div class="actionbar" id="actionbar" style="display:none;">
+        <span id="saveStatus" class="status-line" data-i18n="storage.unsaved">尚未保存</span>
+        <div style="display:flex; gap:10px;">
+          <button type="button" class="btn-ghost" id="reloadBtn"><i class="fas fa-rotate"></i> <span data-i18n="storage.reload">重新加载</span></button>
+          <button type="button" class="btn-primary" id="saveBtn"><i class="fas fa-floppy-disk"></i> <span data-i18n="storage.save">保存配置</span></button>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      (function () {
+        var API = "/api/storage-config";
+        var state = { schema: [], config: {}, secretsPresent: {} };
+
+        if (window.I18n) {
+          I18n.register({
+            zh: {
+              "nav.home": "首页",
+              "nav.admin": "管理后台",
+              "storage.title": "存储设置",
+              "storage.toggleTheme": "切换主题",
+              "storage.intro": "在此直接编辑各存储后端的配置（保存到加密 KV，运行时优先于环境变量）。密钥字段留空表示保持原值不变。",
+              "storage.loading": "正在加载配置…",
+              "storage.unsaved": "尚未保存",
+              "storage.reload": "重新加载",
+              "storage.save": "保存配置",
+              "storage.saving": "正在保存…",
+              "storage.saved": "已保存",
+              "storage.saveFailed": "保存失败",
+              "storage.loadFailed": "加载失败",
+              "storage.guestChannel": "访客通道",
+              "storage.reserved": "预留·暂未启用",
+              "storage.secretSet": "已设置（留空保持不变）",
+              "storage.secretEmpty": "未设置",
+              "storage.r2Note": "R2 为 Cloudflare 绑定，无法在此编辑。"
+            },
+            en: {
+              "nav.home": "Home",
+              "nav.admin": "Admin",
+              "storage.title": "Storage Settings",
+              "storage.toggleTheme": "Toggle theme",
+              "storage.intro": "Edit each storage backend here (saved to encrypted KV, which takes precedence over env vars at runtime). Leave secret fields blank to keep the existing value.",
+              "storage.loading": "Loading configuration…",
+              "storage.unsaved": "Not saved yet",
+              "storage.reload": "Reload",
+              "storage.save": "Save",
+              "storage.saving": "Saving…",
+              "storage.saved": "Saved",
+              "storage.saveFailed": "Save failed",
+              "storage.loadFailed": "Failed to load",
+              "storage.guestChannel": "Guest channel",
+              "storage.reserved": "Reserved · not active yet",
+              "storage.secretSet": "Set (leave blank to keep)",
+              "storage.secretEmpty": "Not set",
+              "storage.r2Note": "R2 is a Cloudflare binding and cannot be edited here."
+            }
+          });
+        }
+
+        function t(key) { return window.I18n ? I18n.t(key) : key; }
+        function el(tag, attrs, children) {
+          var node = document.createElement(tag);
+          if (attrs) Object.keys(attrs).forEach(function (k) {
+            if (k === "text") node.textContent = attrs[k];
+            else if (k === "html") node.innerHTML = attrs[k];
+            else node.setAttribute(k, attrs[k]);
+          });
+          (children || []).forEach(function (c) { if (c) node.appendChild(c); });
+          return node;
+        }
+
+        function fieldInput(type, field) {
+          var inputId = "f_" + type + "_" + field.key;
+          var input = el("input", { id: inputId, "data-type": type, "data-key": field.key });
+          if (field.secret) {
+            input.type = "password";
+            input.setAttribute("autocomplete", "new-password");
+            input.value = "";
+            var present = state.secretsPresent[type] && state.secretsPresent[type][field.key];
+            input.placeholder = present ? t("storage.secretSet") : t("storage.secretEmpty");
+            input.setAttribute("data-secret", "1");
+          } else {
+            input.type = "text";
+            input.value = (state.config[type] && state.config[type][field.key]) || "";
+          }
+          var label = el("label", { for: inputId, text: field.label });
+          return el("div", { class: "field" }, [label, input]);
+        }
+
+        function fieldsGrid(type) {
+          var def = state.schema.filter(function (s) { return s.type === type; })[0];
+          if (!def) return null;
+          var grid = el("div", { class: "field-grid" });
+          def.fields.forEach(function (field) { grid.appendChild(fieldInput(type, field)); });
+          return grid;
+        }
+
+        function groupCard(group) {
+          var main = group.main;
+          var guest = group.guest;
+          var card = el("div", { class: "card" });
+          var header = el("div", { class: "card-header" }, [
+            el("div", {}, [ el("h2", {}, [ el("i", { class: "fas fa-database" }), el("span", { text: main.label }) ]) ])
+          ]);
+          card.appendChild(header);
+          card.appendChild(fieldsGrid(main.type));
+
+          if (guest) {
+            var block = el("div", { class: "guest-block" });
+            var title = el("div", { class: "guest-title" }, [
+              el("i", { class: "fas fa-user-group" }),
+              el("span", { text: t("storage.guestChannel") })
+            ]);
+            if (!guest.enabled) title.appendChild(el("span", { class: "badge", text: t("storage.reserved") }));
+            block.appendChild(title);
+            block.appendChild(fieldsGrid(guest.type));
+            card.appendChild(block);
+          }
+          return card;
+        }
+
+        function buildGroups() {
+          var byGroup = {};
+          var order = [];
+          state.schema.forEach(function (def) {
+            var g = def.group || def.type;
+            if (!byGroup[g]) { byGroup[g] = {}; order.push(g); }
+            if (def.guest) byGroup[g].guest = def;
+            else byGroup[g].main = def;
+          });
+          return order.map(function (g) { return byGroup[g]; }).filter(function (x) { return x.main; });
+        }
+
+        function render() {
+          var root = document.getElementById("formRoot");
+          root.innerHTML = "";
+          buildGroups().forEach(function (group) { root.appendChild(groupCard(group)); });
+          document.getElementById("actionbar").style.display = "flex";
+          if (window.I18n) I18n.apply(root);
+        }
+
+        function collect() {
+          var patch = {};
+          document.querySelectorAll("#formRoot input[data-type]").forEach(function (input) {
+            var type = input.getAttribute("data-type");
+            var key = input.getAttribute("data-key");
+            var isSecret = input.getAttribute("data-secret") === "1";
+            var val = input.value;
+            if (isSecret && !val) return; // blank secret = keep existing
+            if (!patch[type]) patch[type] = {};
+            patch[type][key] = val;
+          });
+          return patch;
+        }
+
+        function setStatus(key, kind) {
+          var node = document.getElementById("saveStatus");
+          node.textContent = t(key);
+          node.className = "status-line" + (kind ? " " + kind : "");
+        }
+
+        async function load() {
+          try {
+            var res = await fetch(API, { credentials: "include" });
+            if (res.status === 401) { window.location.href = "/login.html"; return; }
+            if (!res.ok) throw new Error("HTTP " + res.status);
+            var json = await res.json();
+            var data = json.data || json;
+            state.schema = data.schema || [];
+            state.config = data.config || {};
+            state.secretsPresent = data.secretsPresent || {};
+            render();
+            setStatus("storage.unsaved");
+          } catch (e) {
+            document.getElementById("formRoot").innerHTML =
+              '<div class="empty">' + t("storage.loadFailed") + " (" + (e.message || e) + ")</div>";
+          }
+        }
+
+        async function save() {
+          var btn = document.getElementById("saveBtn");
+          btn.disabled = true;
+          setStatus("storage.saving");
+          try {
+            var res = await fetch(API, {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ config: collect() })
+            });
+            if (res.status === 401) { window.location.href = "/login.html"; return; }
+            var json = await res.json();
+            if (!res.ok || json.success === false) {
+              var msg = (json && json.error && (json.error.message || json.error)) || ("HTTP " + res.status);
+              setStatus("storage.saveFailed", "err");
+              document.getElementById("saveStatus").textContent = t("storage.saveFailed") + ": " + msg;
+            } else {
+              var data = json.data || json;
+              state.config = data.config || state.config;
+              state.secretsPresent = data.secretsPresent || state.secretsPresent;
+              render();
+              setStatus("storage.saved", "ok");
+            }
+          } catch (e) {
+            setStatus("storage.saveFailed", "err");
+            document.getElementById("saveStatus").textContent = t("storage.saveFailed") + ": " + (e.message || e);
+          } finally {
+            btn.disabled = false;
+          }
+        }
+
+        document.getElementById("saveBtn").addEventListener("click", save);
+        document.getElementById("reloadBtn").addEventListener("click", load);
+        if (window.I18n) I18n.onChange(function () { render(); });
+
+        load();
+      })();
+    </script>
+  </body>
+</html>

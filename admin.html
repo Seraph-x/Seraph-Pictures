@@ -1262,6 +1262,7 @@
           </div>
           <div class="admin-header-system">
             <el-tooltip :content="t('admin.tooltipStorage')" placement="bottom"><i class="fas fa-server" @click="showStorageConfigPanel"></i></el-tooltip>
+            <el-tooltip :content="t('admin.tooltipStorageConfig')" placement="bottom"><i class="fas fa-database" @click="openStorageSettings"></i></el-tooltip>
             <el-tooltip :content="t('admin.tooltipUiDesign')" placement="bottom"><i class="fas fa-sliders-h" @click="showUiDesignSettingsPanel"></i></el-tooltip>
             <el-tooltip :content="t('admin.tooltipGuestUpload')" placement="bottom"><i class="fas fa-user-shield" @click="showGuestSettingsPanel"></i></el-tooltip>
             <el-tooltip :content="t('admin.tooltipAccount')" placement="bottom"><i class="fas fa-user-cog" @click="showAccountSecurityPanel"></i></el-tooltip>
@@ -1820,7 +1821,8 @@
         'admin.loadDataSaver': '省流模式',
         'admin.loadNoImage': '无图模式',
         'admin.safeModeMenu': '安全模式(NSFW)',
-        'admin.tooltipStorage': '存储状态与配置',
+        'admin.tooltipStorage': '存储状态',
+        'admin.tooltipStorageConfig': '存储配置',
         'admin.tooltipUiDesign': '前端 UI 设计',
         'admin.tooltipTheme': '切换主题',
         'admin.tooltipGuestUpload': '访客上传设置',
@@ -2202,7 +2204,8 @@
         'admin.loadDataSaver': 'Data Saver Mode',
         'admin.loadNoImage': 'No-Image Mode',
         'admin.safeModeMenu': 'Safe Mode (NSFW)',
-        'admin.tooltipStorage': 'Storage Status & Config',
+        'admin.tooltipStorage': 'Storage Status',
+        'admin.tooltipStorageConfig': 'Storage Config',
         'admin.tooltipUiDesign': 'Frontend UI Design',
         'admin.tooltipTheme': 'Toggle Theme',
         'admin.tooltipGuestUpload': 'Guest Upload Settings',
@@ -4644,6 +4647,9 @@
           loading.close();
           this.$message.error('检查状态失败: ' + error.message);
         }
+      },
+      openStorageSettings() {
+        window.location.href = '/storage-settings.html';
       },
       async showStorageConfigPanel() {
         const loading = this.$message({ message: this.t('admin.readingStorageStatus'), duration: 0 });

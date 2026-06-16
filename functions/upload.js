@@ -5,6 +5,7 @@ import { uploadToDiscord } from "./utils/discord.js";
 import { hasHuggingFaceConfig, uploadToHuggingFace } from "./utils/huggingface.js";
 import { hasWebDAVConfig, normalizeWebDAVPath, uploadToWebDAV } from "./utils/webdav.js";
 import { hasGitHubConfig, normalizeGitHubStoragePath, uploadToGitHub } from "./utils/github.js";
+import { resolveStorageEnv } from "./utils/storage-config.js";
 import {
   buildTelegramDirectLink,
   buildTelegramBotApiUrl,
@@ -61,36 +62,39 @@ export async function onRequestPost(context) {
 
     let result;
 
+    // Overlay any KV-stored storage config onto env (KV wins, else env/secret).
+    const senv = await resolveStorageEnv(env);
+
     if (storageMode === "r2") {
-      if (!env.R2_BUCKET) {
+      if (!senv.R2_BUCKET) {
         return errorResponse("R2 is not configured.");
       }
-      result = await uploadToR2(uploadFile, fileName, fileExtension, env, folderPath);
+      result = await uploadToR2(uploadFile, fileName, fileExtension, senv, folderPath);
     } else if (storageMode === "s3") {
-      if (!env.S3_ENDPOINT || !env.S3_ACCESS_KEY_ID) {
+      if (!senv.S3_ENDPOINT || !senv.S3_ACCESS_KEY_ID) {
         return errorResponse("S3 is not configured.");
       }
-      result = await uploadToS3(uploadFile, fileName, fileExtension, env, folderPath);
+      result = await uploadToS3(uploadFile, fileName, fileExtension, senv, folderPath);
     } else if (storageMode === "discord") {
-      if (!env.DISCORD_WEBHOOK_URL && !env.DISCORD_BOT_TOKEN) {
+      if (!senv.DISCORD_WEBHOOK_URL && !senv.DISCORD_BOT_TOKEN) {
         return errorResponse("Discord is not configured.");
       }
-      result = await uploadToDiscordStorage(uploadFile, fileName, fileExtension, env, folderPath);
+      result = await uploadToDiscordStorage(uploadFile, fileName, fileExtension, senv, folderPath);
     } else if (storageMode === "huggingface") {
-      if (!hasHuggingFaceConfig(env)) {
+      if (!hasHuggingFaceConfig(senv)) {
         return errorResponse("HuggingFace is not configured.");
       }
-      result = await uploadToHFStorage(uploadFile, fileName, fileExtension, env, folderPath);
+      result = await uploadToHFStorage(uploadFile, fileName, fileExtension, senv, folderPath);
     } else if (storageMode === "webdav") {
-      if (!hasWebDAVConfig(env)) {
+      if (!hasWebDAVConfig(senv)) {
         return errorResponse("WebDAV is not configured.");
       }
-      result = await uploadToWebDAVStorage(uploadFile, fileName, fileExtension, env, folderPath);
+      result = await uploadToWebDAVStorage(uploadFile, fileName, fileExtension, senv, folderPath);
     } else if (storageMode === "github") {
-      if (!hasGitHubConfig(env)) {
+      if (!hasGitHubConfig(senv)) {
         return errorResponse("GitHub is not configured.");
       }
-      result = await uploadToGitHubStorage(uploadFile, fileName, fileExtension, env, folderPath);
+      result = await uploadToGitHubStorage(uploadFile, fileName, fileExtension, senv, folderPath);
     } else {
       const guestOptions = isAdmin
         ? null
@@ -103,7 +107,7 @@ export async function onRequestPost(context) {
         uploadFile,
         fileName,
         fileExtension,
-        env,
+        senv,
         new URL(request.url).origin,
         folderPath,
         guestOptions

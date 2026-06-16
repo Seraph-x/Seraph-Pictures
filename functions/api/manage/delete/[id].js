@@ -4,6 +4,7 @@ import { deleteHuggingFaceFile } from '../../../utils/huggingface.js';
 import { deleteWebDAVFile } from '../../../utils/webdav.js';
 import { deleteGitHubFile } from '../../../utils/github.js';
 import { buildTelegramBotApiUrl } from '../../../utils/telegram.js';
+import { resolveStorageEnv } from '../../../utils/storage-config.js';
 
 const STORAGE_PREFIXES = ['img:', 'vid:', 'aud:', 'doc:', 'r2:', 's3:', 'discord:', 'hf:', 'webdav:', 'github:', ''];
 
@@ -40,6 +41,8 @@ async function deleteFile(context) {
 
     const metadata = record.metadata;
     const storageType = String(metadata.storageType || metadata.storage || 'telegram').toLowerCase();
+    // Overlay any KV-stored storage config so deletion uses the same creds as upload.
+    const senv = await resolveStorageEnv(env);
 
     if (storageType === 'r2' || fileId.startsWith('r2:')) {
       const r2Key = metadata.r2Key
@@ -66,7 +69,7 @@ async function deleteFile(context) {
     if (storageType === 's3' || fileId.startsWith('s3:')) {
       const s3Key = metadata.s3Key || fileId.replace(/^s3:/, '');
       try {
-        const s3 = createS3Client(env);
+        const s3 = createS3Client(senv);
         await s3.deleteObject(s3Key);
       } catch (error) {
         console.error('S3 delete error (best-effort):', error);
@@ -90,7 +93,7 @@ async function deleteFile(context) {
           discordDeleted = await deleteDiscordMessage(
             metadata.discordChannelId,
             metadata.discordMessageId,
-            env
+            senv
           );
         }
       } catch (error) {
@@ -113,7 +116,7 @@ async function deleteFile(context) {
       let hfDeleted = false;
       try {
         if (metadata.hfPath) {
-          hfDeleted = await deleteHuggingFaceFile(metadata.hfPath, env);
+          hfDeleted = await deleteHuggingFaceFile(metadata.hfPath, senv);
         }
       } catch (error) {
         console.error('HuggingFace delete error (best-effort):', error);
@@ -136,7 +139,7 @@ async function deleteFile(context) {
       try {
         const webdavPath = metadata.webdavPath || metadata.path || fileId.replace(/^webdav:/, '');
         if (webdavPath) {
-          webdavDeleted = await deleteWebDAVFile(webdavPath, env);
+          webdavDeleted = await deleteWebDAVFile(webdavPath, senv);
         }
       } catch (error) {
         console.error('WebDAV delete error (best-effort):', error);
@@ -158,7 +161,7 @@ async function deleteFile(context) {
       let githubDeleted = false;
       try {
         const githubStorageKey = metadata.githubStorageKey || fileId.replace(/^github:/, '');
-        githubDeleted = await deleteGitHubFile(githubStorageKey, metadata, env);
+        githubDeleted = await deleteGitHubFile(githubStorageKey, metadata, senv);
       } catch (error) {
         console.error('GitHub delete error (best-effort):', error);
       }

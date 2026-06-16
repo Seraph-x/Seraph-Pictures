@@ -3,6 +3,7 @@ import { getDiscordFileUrl } from '../utils/discord.js';
 import { getHuggingFaceFile } from '../utils/huggingface.js';
 import { getWebDAVFile } from '../utils/webdav.js';
 import { getGitHubFile } from '../utils/github.js';
+import { resolveStorageEnv } from '../utils/storage-config.js';
 import {
   buildTelegramBotApiUrl,
   buildTelegramFileUrl,
@@ -96,21 +97,24 @@ export async function onRequest(context) {
     }
 
     const storageType = inferStorageType(fileId, record?.metadata || {});
+    // Overlay any KV-stored storage config so retrieval uses the same creds as upload.
+    const senv = await resolveStorageEnv(env);
+    const sctx = { ...context, env: senv };
     let response;
     if (storageType === 'r2') {
-      response = await handleR2File(context, record?.metadata?.r2Key || fileId, record);
+      response = await handleR2File(sctx, record?.metadata?.r2Key || fileId, record);
     } else if (storageType === 's3') {
-      response = await handleS3File(context, fileId, record);
+      response = await handleS3File(sctx, fileId, record);
     } else if (storageType === 'discord') {
-      response = await handleDiscordFile(context, fileId, record);
+      response = await handleDiscordFile(sctx, fileId, record);
     } else if (storageType === 'huggingface') {
-      response = await handleHFFile(context, fileId, record);
+      response = await handleHFFile(sctx, fileId, record);
     } else if (storageType === 'webdav') {
-      response = await handleWebDAVFile(context, fileId, record);
+      response = await handleWebDAVFile(sctx, fileId, record);
     } else if (storageType === 'github') {
-      response = await handleGitHubFile(context, fileId, record);
+      response = await handleGitHubFile(sctx, fileId, record);
     } else {
-      response = await handleTelegramFile(context, fileId, record);
+      response = await handleTelegramFile(sctx, fileId, record);
     }
 
     if (shareAccess?.trackDownload && shouldCountAsDownload(request.method, response)) {
