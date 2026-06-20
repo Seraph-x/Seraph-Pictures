@@ -47,7 +47,7 @@ describe('Claude layout balance contract', function () {
 
     assert.match(legacyLayout, /body\.login-page[\s\S]*place-items:\s*center\s*!important/);
     assert.match(legacyLayout, /\.login-container[\s\S]*margin-inline:\s*auto\s*!important/);
-    assert.match(main, /import '\.\/claude-layout\.css';/);
+    assert.match(main, /import\('\.\/claude-layout\.css'\)/);
     assert.match(vueLayout, /\.app-bg[\s\S]*margin:\s*16px auto 40px\s*!important/);
     assert.match(vueLayout, /\.claude-login-page[\s\S]*place-items:\s*center/);
     assert.match(vueLayout, /\.claude-login-shell[\s\S]*margin:\s*auto/);
@@ -62,7 +62,7 @@ describe('Claude layout balance contract', function () {
     assert.match(admin, /<body class="admin-page">/);
     assert.doesNotMatch(header, /class="stats"/);
     assert.match(sidebar, /class="folder-stats"/);
-    assert.match(sidebar, /总记录:\s*\{\{\s*totalCount\s*\|\|\s*Number\s*\}\}/);
+    assert.match(sidebar, /\{\{\s*t\('admin\.totalRecords'\)\s*\}\}\s*\{\{\s*totalCount\s*\|\|\s*Number\s*\}\}/);
     assert.match(layout, /\.admin-page\s+\.header-content[\s\S]*flex-wrap:\s*nowrap\s*!important/);
     assert.match(layout, /\.header-content\s+\.actions[\s\S]*justify-content:\s*flex-end\s*!important/);
     assert.match(layout, /\.header-content\s+\.actions[\s\S]*flex-wrap:\s*nowrap\s*!important/);
@@ -111,7 +111,7 @@ describe('Claude layout balance contract', function () {
     assert.match(indexHtml, /alt="Seraph's Pictures Logo"/);
     assert.match(indexHtml, /<span class="brand-name">Seraph's Pictures<\/span>/);
     assert.match(indexHtml, /class="theme-toggle-btn header-theme-toggle theme-icon-only"/);
-    assert.match(indexHtml, /class="nav-link is-active" aria-current="page"><i class="fas fa-home"><\/i> 首页/);
+    assert.match(indexHtml, /class="nav-link is-active" aria-current="page"><i class="fas fa-home"><\/i> \{\{ t\('nav\.home'\) \}\}/);
     assert.doesNotMatch(indexHtml, /class="logout-link"/);
     assert.doesNotMatch(indexHtml, /data-theme-label/);
     assert.match(layout, /\.theme-icon-only[\s\S]*aspect-ratio:\s*1/);
@@ -119,13 +119,13 @@ describe('Claude layout balance contract', function () {
 
     const themeIndex = indexHtml.indexOf('class="theme-toggle-btn header-theme-toggle theme-icon-only"');
     const navIndex = indexHtml.indexOf('class="nav-links"');
-    const storageIndex = indexHtml.indexOf('存储配置');
-    const webdavIndex = indexHtml.indexOf('WebDAV');
-    const adminIndex = indexHtml.indexOf('管理后台');
+    const galleryIndex = indexHtml.indexOf("t('nav.gallery')");
+    const webdavIndex = indexHtml.indexOf("t('nav.webdav')");
+    const adminIndex = indexHtml.indexOf("t('nav.admin')");
 
     assert.ok(navIndex < themeIndex, 'theme toggle should render after navigation');
-    assert.ok(storageIndex < webdavIndex, 'storage config should move before WebDAV');
-    assert.ok(webdavIndex < adminIndex, 'admin should move to the old storage-side position');
+    assert.ok(galleryIndex < webdavIndex, 'gallery should render before WebDAV');
+    assert.ok(webdavIndex < adminIndex, 'admin should render after WebDAV');
   });
 
   it('keeps upload results and uploaded file cards evenly sized as content grows', function () {
@@ -152,8 +152,8 @@ describe('Claude layout balance contract', function () {
     assert.match(adminHtml, /class="actions admin-header-tools"/);
     assert.match(adminHtml, /class="admin-header-system"/);
     assert.match(adminHtml, /showStorageConfigPanel/);
-    assert.match(adminHtml, /\{ name: '上传中心', url: '\/', icon: 'fas fa-cloud-upload-alt' \}/);
-    assert.match(adminHtml, /\{ name: '图片浏览', url: '\/gallery\.html', icon: 'fas fa-images' \}/);
+    assert.match(adminHtml, /name: \(window\.I18n \? I18n\.t\('admin\.toolkitOpenUploader'\) : '打开上传中心'\), url: '\/'/);
+    assert.match(adminHtml, /name: \(window\.I18n \? I18n\.t\('nav\.gallery'\) : '图片浏览'\), url: '\/gallery\.html'/);
     assert.match(adminHtml, /window\.location\.href = target/);
     assert.doesNotMatch(adminHtml, /Movavi|FreeConvert|YouCompress|Cloudinary/);
     assert.doesNotMatch(adminHtml, /editWebsites|编辑快捷方式/);

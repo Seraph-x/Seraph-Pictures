@@ -13,7 +13,7 @@ describe('Claude-inspired theme contract', function () {
     const main = readRepoFile('frontend/src/main.js');
     const styles = readRepoFile('frontend/src/claude-theme.css');
 
-    assert.match(main, /import '\.\/claude-theme\.css';/);
+    assert.match(main, /import\('\.\/claude-theme\.css'\)/);
     assert.match(styles, /--claude-bg:\s*#1f1f1d/);
     assert.match(styles, /--claude-accent:\s*#d97757/);
     assert.match(styles, /font-family:\s*"Inter", "SF Pro Text"/);
@@ -27,8 +27,8 @@ describe('Claude-inspired theme contract', function () {
 
     assert.match(loginView, /claude-login-page/);
     assert.match(loginView, /claude-mark/);
-    assert.match(loginView, /Welcome, Seraph/);
-    assert.match(loginView, /Seraph's Pictures private workspace/);
+    assert.match(loginView, /t\('login\.welcome'\)/);
+    assert.match(loginView, /t\('login\.workspace'\)/);
     assert.doesNotMatch(loginView, />K-Vault private workspace</);
     assert.match(loginView, /class="claude-login-box"/);
   });
@@ -54,10 +54,12 @@ describe('Claude-inspired theme contract', function () {
   it('removes the legacy purple-pink gradient from default pages', function () {
     const indexHtml = readRepoFile('index.html');
     const loginHtml = readRepoFile('login.html');
+    const globalTheme = readRepoFile('theme.css');
     const legacyTheme = readRepoFile('claude-theme.css');
 
-    assert.match(legacyTheme, /--claude-bg:\s*#1f1f1d/);
-    assert.match(legacyTheme, /--primary-color:\s*var\(--claude-accent\)/);
+    assert.match(globalTheme, /--claude-bg:\s*#1c1b19/);
+    assert.match(globalTheme, /--primary-color:\s*var\(--claude-accent\)/);
+    assert.match(legacyTheme, /background:\s*var\(--claude-bg\)\s*!important/);
 
     for (const html of [indexHtml, loginHtml]) {
       assert.match(html, /href="\/claude-theme\.css"/);

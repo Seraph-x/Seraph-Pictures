@@ -107,10 +107,9 @@ describe('frontend Pages entrypoint', function () {
     for (const html of pages) {
       assert.doesNotMatch(html, /href="\.\/app\//);
     }
-    assert.match(readDistFile(sourceIndexPath), /href="\/app\/storage"/);
     assert.match(readDistFile(sourceAdminPath), /href="\/app\/storage"/);
     assert.match(readDistFile(sourceAdminPath), /href="\/app\/status"/);
-    assert.match(readDistFile(legacyIndexPath), /href="\/app\/storage"/);
+    assert.match(readDistFile(legacyAdminPath), /href="\/app\/storage"/);
     assert.match(readDistFile(legacyAdminPath), /href="\/app\/status"/);
   });
 
@@ -124,7 +123,7 @@ describe('frontend Pages entrypoint', function () {
     const legacyAdmin = readDistFile(legacyAdminPath);
     const legacyWebdav = readDistFile(legacyWebdavPath);
 
-    assert.match(appShell, /<a class="nav-link" href="\/">Legacy<\/a>/);
+    assert.match(appShell, /<a class="nav-link" href="\/">\{\{ t\('nav\.legacy'\) \}\}<\/a>/);
     assert.doesNotMatch(appShell, /href="\/legacy\/index\.html"/);
     assert.doesNotMatch(appShell, /target="_blank"/);
 

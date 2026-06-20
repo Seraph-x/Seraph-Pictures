@@ -75,8 +75,11 @@ function writeAppDeepLinkEntrypoints() {
 
   for (const route of appDeepLinkRoutes) {
     const directoryEntry = path.resolve(appDistDir, route, 'index.html');
+    const htmlEntry = path.resolve(appDistDir, route + '.html');
     ensureDir(directoryEntry);
+    ensureDir(htmlEntry);
     fs.writeFileSync(directoryEntry, appIndexHtml);
+    fs.writeFileSync(htmlEntry, appIndexHtml);
   }
 }
 
