@@ -2058,9 +2058,7 @@
         'admin.systemStatusTitle': '系统连接状态',
         'admin.checkStatusFailed': '检查状态失败: {msg}',
         'admin.readingStorageStatus': '正在读取存储状态...',
-        'admin.openConfigPanel': '打开配置界面',
-        'admin.openDiagPanel': '打开诊断界面',
-        'admin.storageStatusTitle': '存储状态与配置',
+        'admin.storageStatusTitle': '存储状态',
         'admin.close': '关闭',
         'admin.statusUnknown': '未知',
         'admin.readStorageFailed': '读取存储状态失败: {msg}',
@@ -2441,9 +2439,7 @@
         'admin.systemStatusTitle': 'System Connection Status',
         'admin.checkStatusFailed': 'Status check failed: {msg}',
         'admin.readingStorageStatus': 'Reading storage status...',
-        'admin.openConfigPanel': 'Open Config Panel',
-        'admin.openDiagPanel': 'Open Diagnostics',
-        'admin.storageStatusTitle': 'Storage Status & Config',
+        'admin.storageStatusTitle': 'Storage Status',
         'admin.close': 'Close',
         'admin.statusUnknown': 'Unknown',
         'admin.readStorageFailed': 'Failed to read storage status: {msg}',
@@ -4678,10 +4674,6 @@
           const html = `
             <div class="storage-config-panel">
               <div class="storage-config-grid">${rows}</div>
-              <div class="storage-config-actions">
-                <a class="el-button el-button--primary" href="/app/storage">${this.t('admin.openConfigPanel')}</a>
-                <a class="el-button" href="/app/status">${this.t('admin.openDiagPanel')}</a>
-              </div>
             </div>
           `;
           this.$alert(html, this.t('admin.storageStatusTitle'), {

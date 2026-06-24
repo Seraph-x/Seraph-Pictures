@@ -179,6 +179,19 @@ describe('Claude layout balance contract', function () {
     assert.match(layout, /@media\s*\(max-width:\s*1180px\)[\s\S]*grid-template-columns:\s*1fr\s*!important/);
   });
 
+  it('shows storage status dialog without config navigation actions', function () {
+    const adminHtml = readRepoFile('admin.html');
+
+    assert.match(adminHtml, /'admin\.storageStatusTitle': 'Storage Status'/);
+    assert.doesNotMatch(adminHtml, /Storage Status & Config/);
+    assert.doesNotMatch(adminHtml, /admin\.openConfigPanel/);
+    assert.doesNotMatch(adminHtml, /admin\.openDiagPanel/);
+    assert.doesNotMatch(adminHtml, /storage-config-actions/);
+    assert.doesNotMatch(adminHtml, /href="\/app\/storage"/);
+    assert.doesNotMatch(adminHtml, /href="\/app\/status"/);
+    assert.match(adminHtml, /confirmButtonText:\s*this\.t\('admin\.close'\)/);
+  });
+
   it('centers UI design dialog controls and removes old project footer branding', function () {
     const adminHtml = readRepoFile('admin.html');
     const layout = readRepoFile('seraph-admin-polish.css');

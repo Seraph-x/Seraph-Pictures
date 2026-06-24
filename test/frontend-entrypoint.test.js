@@ -108,10 +108,8 @@ describe('frontend Pages entrypoint', function () {
     for (const html of pages) {
       assert.doesNotMatch(html, /href="\.\/app\//);
     }
-    assert.match(readDistFile(sourceAdminPath), /href="\/app\/storage"/);
-    assert.match(readDistFile(sourceAdminPath), /href="\/app\/status"/);
-    assert.match(readDistFile(legacyAdminPath), /href="\/app\/storage"/);
-    assert.match(readDistFile(legacyAdminPath), /href="\/app\/status"/);
+    assert.doesNotMatch(readDistFile(sourceAdminPath), /href="\/app\/(?:storage|status)"/);
+    assert.doesNotMatch(readDistFile(legacyAdminPath), /href="\/app\/(?:storage|status)"/);
   });
 
   it('anchors legacy navigation and auth API calls at the site root', function () {
