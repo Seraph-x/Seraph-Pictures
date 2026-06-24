@@ -128,16 +128,13 @@ describe('Claude layout balance contract', function () {
     assert.ok(webdavIndex < adminIndex, 'admin should render after WebDAV');
   });
 
-  it('keeps the upload brand logo on the original click path while guests go to login', function () {
+  it('links the guest upload brand logo to the legacy login page', function () {
     const indexHtml = readRepoFile('index.html');
     const themeJs = readRepoFile('theme.js');
 
-    assert.doesNotMatch(indexHtml, /class="brand-logo-link"/);
-    assert.match(indexHtml, /class="brand-logo"[\s\S]*@click\.stop="handleBrandLogoClick"/);
-    assert.match(indexHtml, /data-brand-home="1"/);
-    assert.match(indexHtml, /handleBrandLogoClick\(\)[\s\S]*this\.isGuest[\s\S]*\/login\.html\?redirect=/);
-    assert.match(indexHtml, /handleBrandLogoClick\(\)[\s\S]*window\.location\.href = "\/"/);
-    assert.match(themeJs, /img\.addEventListener\("click"[\s\S]*window\.location\.href = "\/"/);
+    assert.match(indexHtml, /class="brand-logo-link"\s+:href="brandLogoHref"/);
+    assert.match(indexHtml, /brandLogoHref\(\)[\s\S]*this\.isGuest[\s\S]*\/login\.html\?redirect=/);
+    assert.match(themeJs, /if \(img\.closest && img\.closest\("a"\)\) continue;/);
   });
 
   it('keeps upload results and uploaded file cards evenly sized as content grows', function () {
