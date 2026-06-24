@@ -226,22 +226,6 @@
         color: var(--text-primary);
       }
 
-      /* 页面加载动画 */
-      @keyframes fadeIn {
-        from {
-          opacity: 0;
-          transform: translateY(10px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-
-      #app {
-        animation: fadeIn 0.5s ease-out;
-      }
-
       #app {
         max-width: 1400px;
         margin: 0 auto;
@@ -2325,13 +2309,13 @@
         </div>
         <div class="nav-links">
           <a href="./" class="nav-link is-active" aria-current="page"><i class="fas fa-home"></i> {{ t('nav.home') }}</a>
-          <a href="/gallery.html" v-if="!isGuest"
+          <a href="/gallery" v-if="!isGuest"
             ><i class="fas fa-images"></i> {{ t('nav.gallery') }}</a
           >
-          <a href="/webdav.html" v-if="!isGuest"
+          <a href="/webdav" v-if="!isGuest"
             ><i class="fas fa-hard-drive"></i> {{ t('nav.webdav') }}</a
           >
-          <a href="/admin.html" v-if="!isGuest"
+          <a href="/admin" v-if="!isGuest"
             ><i class="fas fa-cog"></i> {{ t('nav.admin') }}</a
           >
         </div>
@@ -3756,7 +3740,7 @@
             const currentPath =
               window.location.pathname + window.location.search;
             window.location.href =
-              "/login.html?redirect=" + encodeURIComponent(currentPath || "/");
+              "/login?redirect=" + encodeURIComponent(currentPath || "/");
           },
           normalizeFolderPath(value) {
             const parts = String(value || "")
@@ -5415,7 +5399,7 @@
                   return true;
                 }
                 window.location.href =
-                  "/login.html?redirect=" +
+                  "/login?redirect=" +
                   encodeURIComponent(window.location.pathname);
                 return false;
               }

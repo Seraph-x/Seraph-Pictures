@@ -17,6 +17,7 @@ const sourceGalleryPath = path.join(repoRoot, 'gallery.html');
 const sourceWebdavPath = path.join(repoRoot, 'webdav.html');
 const appShellPath = path.join(repoRoot, 'frontend', 'src', 'components', 'AppShell.vue');
 const appDeepLinks = ['login', 'drive', 'admin', 'storage', 'status'];
+const extensionfulLegacyNavigation = /(?:href=|url: |window\.location\.(?:href|replace)\s*=\s*)['"]\/(?:gallery|admin|webdav|login|storage-settings)\.html\b/;
 
 function readDistFile(filePath) {
   return fs.readFileSync(filePath, 'utf8');
@@ -62,7 +63,7 @@ describe('frontend Pages entrypoint', function () {
   it('keeps the legacy WebDAV entrypoint reachable from the root UI', function () {
     const indexHtml = readDistFile(distIndexPath);
 
-    assert.match(indexHtml, /href="\/webdav\.html"/);
+    assert.match(indexHtml, /href="\/webdav"/);
     assert.ok(fs.existsSync(webdavPath), 'dist/webdav.html should exist');
     assert.ok(fs.existsSync(legacyWebdavPath), 'dist/legacy/webdav.html should exist');
     assert.match(readDistFile(webdavPath), /WebDAV 上传中心/);
@@ -89,7 +90,7 @@ describe('frontend Pages entrypoint', function () {
     assert.match(webdavHtml, /request\("\/api\/status"\)/);
     assert.match(webdavHtml, /request\("\/upload"/);
     assert.match(webdavHtml, /request\("\/api\/upload-from-url"/);
-    assert.match(webdavHtml, /window\.location\.href = "\/login\.html\?redirect="/);
+    assert.match(webdavHtml, /window\.location\.href = "\/login\?redirect="/);
     assert.doesNotMatch(webdavHtml, /request\("\.\/api\/status"\)/);
     assert.doesNotMatch(webdavHtml, /request\("\.\/upload"/);
   });
@@ -129,7 +130,7 @@ describe('frontend Pages entrypoint', function () {
 
     for (const html of [sourceIndex, legacyIndex, sourceWebdav, legacyWebdav]) {
       assert.doesNotMatch(html, /href="\.\/(?:gallery|admin|webdav)\.html"/);
-      assert.match(html, /href="\/admin\.html"/);
+      assert.match(html, /href="\/admin"/);
     }
 
     for (const html of [sourceAdmin, legacyAdmin, sourceGallery]) {
@@ -140,5 +141,36 @@ describe('frontend Pages entrypoint', function () {
     assert.match(sourceAdmin, /fetch\('\/api\/auth\/check'/);
     assert.match(sourceGallery, /fetch\('\/api\/auth\/check'/);
     assert.doesNotMatch(sourceGallery, /\.\/api\/manage\/login/);
+  });
+
+  it('uses extensionless legacy navigation targets to avoid Cloudflare Pages redirects', function () {
+    const sourceIndex = readDistFile(sourceIndexPath);
+    const sourceAdmin = readDistFile(sourceAdminPath);
+    const sourceGallery = readDistFile(sourceGalleryPath);
+    const sourceWebdav = readDistFile(sourceWebdavPath);
+    const legacyIndex = readDistFile(legacyIndexPath);
+    const legacyAdmin = readDistFile(legacyAdminPath);
+    const legacyWebdav = readDistFile(legacyWebdavPath);
+
+    for (const html of [sourceIndex, sourceAdmin, sourceGallery, sourceWebdav, legacyIndex, legacyAdmin, legacyWebdav]) {
+      assert.doesNotMatch(html, extensionfulLegacyNavigation);
+    }
+
+    assert.match(sourceIndex, /href="\/gallery"/);
+    assert.match(sourceIndex, /href="\/webdav"/);
+    assert.match(sourceIndex, /href="\/admin"/);
+    assert.match(sourceWebdav, /href="\/gallery"/);
+    assert.match(sourceWebdav, /href="\/admin"/);
+    assert.match(sourceAdmin, /url: '\/gallery'/);
+  });
+
+  it('does not animate full legacy document containers on initial page load', function () {
+    const sourceIndex = readDistFile(sourceIndexPath);
+    const sourceGallery = readDistFile(sourceGalleryPath);
+    const legacyLogin = readDistFile(path.join(repoRoot, 'login.html'));
+
+    assert.doesNotMatch(sourceIndex, /#app\s*\{[\s\S]*?animation:\s*fadeIn\b/);
+    assert.doesNotMatch(sourceGallery, /#app\s*\{[\s\S]*?animation:\s*fadeIn\b/);
+    assert.doesNotMatch(legacyLogin, /\.login-container\s*\{[\s\S]*?animation:\s*fadeInUp\b/);
   });
 });

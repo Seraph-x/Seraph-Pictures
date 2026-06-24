@@ -783,8 +783,8 @@
         </h1>
         <div class="header-actions">
           <a class="action-link" href="./"><i class="fas fa-home"></i><span data-i18n="nav.home">首页</span></a>
-          <a class="action-link" href="/gallery.html"><i class="fas fa-images"></i><span data-i18n="nav.gallery">图片浏览</span></a>
-          <a class="action-link" href="/admin.html"><i class="fas fa-folder-tree"></i><span data-i18n="nav.admin">管理后台</span></a>
+          <a class="action-link" href="/gallery"><i class="fas fa-images"></i><span data-i18n="nav.gallery">图片浏览</span></a>
+          <a class="action-link" href="/admin"><i class="fas fa-folder-tree"></i><span data-i18n="nav.admin">管理后台</span></a>
           <button type="button" class="action-btn" data-i18n-toggle aria-label="切换语言">
             <span data-lang-label>EN</span>
           </button>
@@ -1383,7 +1383,7 @@
           var auth = await request("/api/auth/check");
           if (auth.authRequired && !auth.authenticated) {
             var redirect = encodeURIComponent(window.location.pathname + window.location.search);
-            window.location.href = "/login.html?redirect=" + redirect;
+            window.location.href = "/login?redirect=" + redirect;
             return false;
           }
           return true;

@@ -133,7 +133,7 @@ describe('Claude layout balance contract', function () {
     const themeJs = readRepoFile('theme.js');
 
     assert.match(indexHtml, /class="brand-logo"[\s\S]*data-brand-home="1"[\s\S]*@click\.stop="handleBrandLogoClick"/);
-    assert.match(indexHtml, /handleBrandLogoClick\(\)[\s\S]*this\.isGuest[\s\S]*\/login\.html\?redirect=/);
+    assert.match(indexHtml, /handleBrandLogoClick\(\)[\s\S]*this\.isGuest[\s\S]*\/login\?redirect=/);
     assert.match(indexHtml, /handleBrandLogoClick\(\)[\s\S]*window\.location\.href = "\/"/);
     assert.match(themeJs, /img\.addEventListener\("click"[\s\S]*window\.location\.href = "\/"/);
     assert.doesNotMatch(indexHtml, /class="brand-logo-link"/);
@@ -164,7 +164,7 @@ describe('Claude layout balance contract', function () {
     assert.match(adminHtml, /class="admin-header-system"/);
     assert.match(adminHtml, /showStorageConfigPanel/);
     assert.match(adminHtml, /name: \(window\.I18n \? I18n\.t\('admin\.toolkitOpenUploader'\) : '打开上传中心'\), url: '\/'/);
-    assert.match(adminHtml, /name: \(window\.I18n \? I18n\.t\('nav\.gallery'\) : '图片浏览'\), url: '\/gallery\.html'/);
+    assert.match(adminHtml, /name: \(window\.I18n \? I18n\.t\('nav\.gallery'\) : '图片浏览'\), url: '\/gallery'/);
     assert.match(adminHtml, /window\.location\.href = target/);
     assert.doesNotMatch(adminHtml, /Movavi|FreeConvert|YouCompress|Cloudinary/);
     assert.doesNotMatch(adminHtml, /editWebsites|编辑快捷方式/);

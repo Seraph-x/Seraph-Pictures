@@ -2645,7 +2645,7 @@
       isFullscreen: false,  // 预览是否处于全屏
       quickWebsites: [
         { name: (window.I18n ? I18n.t('admin.toolkitOpenUploader') : '打开上传中心'), url: '/', icon: 'fas fa-cloud-upload-alt' },
-        { name: (window.I18n ? I18n.t('nav.gallery') : '图片浏览'), url: '/gallery.html', icon: 'fas fa-images' },
+        { name: (window.I18n ? I18n.t('nav.gallery') : '图片浏览'), url: '/gallery', icon: 'fas fa-images' },
       ],
       tokenDialogVisible: false,
       tokenLoading: false,
@@ -3978,7 +3978,7 @@
           this.$message.success(this.t('admin.logoutSuccess'));
           // 跳转到登录页，禁止返回
           setTimeout(() => {
-            window.location.replace('/login.html');
+            window.location.replace('/login');
           }, 500);
         } catch (e) {
           this.$message.error(this.t('admin.logoutFailed'));
@@ -4649,7 +4649,7 @@
         }
       },
       openStorageSettings() {
-        window.location.href = '/storage-settings.html';
+        window.location.href = '/storage-settings';
       },
       async showStorageConfigPanel() {
         const loading = this.$message({ message: this.t('admin.readingStorageStatus'), duration: 0 });
@@ -5816,7 +5816,7 @@
         const authData = await authResponse.json();
 
         if (authData.authRequired && !authData.authenticated) {
-          window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+          window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
           return;
         }
         this.showLogoutButton = authData.authRequired && authData.authenticated;

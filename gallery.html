@@ -77,12 +77,6 @@
       max-width: 1600px; 
       margin: 0 auto; 
       padding: 20px;
-      animation: fadeIn 0.5s ease-out;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
     }
 
     /* 头部 */
@@ -924,7 +918,7 @@
         <input type="text" v-model="searchQuery" :placeholder="t('gallery.searchPlaceholder')" @input="handleSearch">
       </div>
       <div class="header-actions">
-        <a href="/admin.html" class="nav-btn"><i class="fas fa-th-large"></i> {{ t('nav.admin') }}</a>
+        <a href="/admin" class="nav-btn"><i class="fas fa-th-large"></i> {{ t('nav.admin') }}</a>
         <a href="./" class="nav-btn"><i class="fas fa-home"></i> {{ t('nav.home') }}</a>
         <button type="button" class="nav-btn gallery-theme-toggle" data-i18n-toggle aria-label="切换语言">
           <span data-lang-label>EN</span>
@@ -1284,7 +1278,7 @@
             });
             
             if (response.status === 401) {
-              window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+              window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
               return;
             }
 
@@ -1576,7 +1570,7 @@
             const response = await fetch('/api/auth/check', { credentials: 'include' });
             const data = await response.json();
             if (data.authRequired && !data.authenticated) {
-              window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+              window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
               return false;
             }
             return true;
