@@ -291,6 +291,13 @@
         background: rgba(255, 255, 255, 0.92);
       }
 
+      .brand-logo-link {
+        display: inline-flex;
+        color: inherit;
+        line-height: 0;
+        text-decoration: none;
+      }
+
       .nav-links {
         display: flex;
         gap: 8px;
@@ -2312,13 +2319,15 @@
       <!-- 头部导航 -->
       <div class="header">
         <div class="header-title">
-          <img
-            src="/logo.png"
-            alt="Seraph's Pictures Logo"
-            class="brand-logo"
-            loading="eager"
-            onerror="this.onerror=null;this.src='/favicon.ico';"
-          />
+          <a class="brand-logo-link" :href="brandLogoHref">
+            <img
+              src="/logo.png"
+              alt="Seraph's Pictures Logo"
+              class="brand-logo"
+              loading="eager"
+              onerror="this.onerror=null;this.src='/favicon.ico';"
+            />
+          </a>
           <span class="brand-name">Seraph's Pictures</span>
         </div>
         <div class="nav-links">
@@ -3616,6 +3625,12 @@
           uploadLimits: {},
         },
         computed: {
+          brandLogoHref() {
+            if (!this.isGuest) return "/";
+            const currentPath =
+              window.location.pathname + window.location.search;
+            return "/login.html?redirect=" + encodeURIComponent(currentPath || "/");
+          },
           selectedCount() {
             return this.uploadedFiles.filter((f) => f.selected).length;
           },

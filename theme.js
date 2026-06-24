@@ -972,7 +972,8 @@
   }
 
   // Brand name applies only where a .brand-name element exists (home page);
-  // the brand logo replaces every header logo image and links back home.
+  // bare brand logo images link back home, while wrapped logos keep their
+  // page-specific anchor targets.
   function applyBrand(next) {
     var name = (next.brandName && next.brandName.trim()) || "Seraph's Pictures";
     var logoUrl = sanitizeUrl(next.brandLogoUrl);
@@ -988,6 +989,7 @@
       var img = logoEls[j];
       if (logoUrl) img.setAttribute("src", logoUrl);
       img.style.cursor = "pointer";
+      if (img.closest && img.closest("a")) continue;
       if (!img.getAttribute("data-brand-home")) {
         img.setAttribute("data-brand-home", "1");
         img.addEventListener("click", function () {

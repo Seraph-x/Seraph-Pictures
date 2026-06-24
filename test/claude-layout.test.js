@@ -128,6 +128,15 @@ describe('Claude layout balance contract', function () {
     assert.ok(webdavIndex < adminIndex, 'admin should render after WebDAV');
   });
 
+  it('links the guest upload brand logo to the legacy login page', function () {
+    const indexHtml = readRepoFile('index.html');
+    const themeJs = readRepoFile('theme.js');
+
+    assert.match(indexHtml, /class="brand-logo-link"\s+:href="brandLogoHref"/);
+    assert.match(indexHtml, /brandLogoHref\(\)[\s\S]*this\.isGuest[\s\S]*\/login\.html\?redirect=/);
+    assert.match(themeJs, /if \(img\.closest && img\.closest\("a"\)\) continue;/);
+  });
+
   it('keeps upload results and uploaded file cards evenly sized as content grows', function () {
     const indexHtml = readRepoFile('index.html');
     const layout = readRepoFile('seraph-ui-polish.css');
