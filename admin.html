@@ -1253,16 +1253,6 @@
                 <el-dropdown-item command="unblock" :class="{ disabled: selectedFiles.length === 0 }"><i class="fas fa-unlock"></i> {{ t('admin.batchUnblock') }}</el-dropdown-item>
               </el-dropdown-menu>
             </el-dropdown>
-            <el-dropdown @command="handleWebsite">
-              <span class="el-dropdown-link"><i class="fas fa-external-link-alt"></i></span>
-              <el-dropdown-menu slot="dropdown">
-                <template v-for="site in quickWebsites">
-                  <el-dropdown-item :command="site.url">
-                    <i :class="site.icon"></i> {{ site.name }}
-                  </el-dropdown-item>
-                </template>
-              </el-dropdown-menu>
-            </el-dropdown>
             <el-dropdown @command="handleToolkit" :hide-on-click="false">
               <span class="el-dropdown-link"><i class="fas fa-toolbox"></i></span>
               <el-dropdown-menu slot="dropdown">
@@ -2092,7 +2082,6 @@
         'admin.checkingBroken': '正在检测失效文件...',
         'admin.brokenDetectedN': '检测到 {n} 个失效文件，已自动选中。<br>您可以使用批量删除功能移除它们。',
         'admin.noBrokenFiles': '未检测到失效文件',
-        'admin.quickLinkInternalOnly': '快捷入口仅支持站内跳转',
         'admin.editNameTitle': '修改文件名',
         'admin.fileNameEmpty': '文件名不能为空',
         'admin.fileNameTooLong': '文件名不能超过64个字符',
@@ -2473,7 +2462,6 @@
         'admin.checkingBroken': 'Checking broken files...',
         'admin.brokenDetectedN': 'Detected {n} broken files, auto-selected.<br>You can use batch delete to remove them.',
         'admin.noBrokenFiles': 'No broken files detected',
-        'admin.quickLinkInternalOnly': 'Quick links only support internal navigation',
         'admin.editNameTitle': 'Edit File Name',
         'admin.fileNameEmpty': 'File name cannot be empty',
         'admin.fileNameTooLong': 'File name cannot exceed 64 characters',
@@ -2663,10 +2651,6 @@
       },
       previewData: null,  // 模态框预览数据
       isFullscreen: false,  // 预览是否处于全屏
-      quickWebsites: [
-        { name: (window.I18n ? I18n.t('admin.toolkitOpenUploader') : '打开上传中心'), url: '/', icon: 'fas fa-cloud-upload-alt' },
-        { name: (window.I18n ? I18n.t('nav.gallery') : '图片浏览'), url: '/gallery', icon: 'fas fa-images' },
-      ],
       tokenDialogVisible: false,
       tokenLoading: false,
       createTokenDialogVisible: false,
@@ -4787,15 +4771,6 @@
           }
         });
       },
-      // 处理网站点击
-      handleWebsite(url) {
-        const target = String(url || '').trim();
-        if (!target.startsWith('/')) {
-          this.$message.error('快捷入口仅支持站内跳转');
-          return;
-        }
-        window.location.href = target;
-      },
       getFileIcon(filename) {
         const ext = filename.split('.').pop().toLowerCase();
         const iconMap = {
@@ -5888,8 +5863,6 @@
           };
         })
         .catch(() => {});
-
-      localStorage.removeItem('quickWebsites');
 
     }
     ,

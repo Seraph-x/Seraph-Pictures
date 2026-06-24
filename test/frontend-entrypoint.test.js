@@ -159,7 +159,7 @@ describe('frontend Pages entrypoint', function () {
     assert.match(sourceIndex, /href="\/admin"/);
     assert.match(sourceWebdav, /href="\/gallery"/);
     assert.match(sourceWebdav, /href="\/admin"/);
-    assert.match(sourceAdmin, /url: '\/gallery'/);
+    assert.doesNotMatch(sourceAdmin, /url: '\/gallery'/);
   });
 
   it('does not animate full legacy document containers on initial page load', function () {

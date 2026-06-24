@@ -163,9 +163,11 @@ describe('Claude layout balance contract', function () {
     assert.match(adminHtml, /class="actions admin-header-tools"/);
     assert.match(adminHtml, /class="admin-header-system"/);
     assert.match(adminHtml, /showStorageConfigPanel/);
-    assert.match(adminHtml, /name: \(window\.I18n \? I18n\.t\('admin\.toolkitOpenUploader'\) : '打开上传中心'\), url: '\/'/);
-    assert.match(adminHtml, /name: \(window\.I18n \? I18n\.t\('nav\.gallery'\) : '图片浏览'\), url: '\/gallery'/);
-    assert.match(adminHtml, /window\.location\.href = target/);
+    assert.doesNotMatch(adminHtml, /<el-dropdown @command="handleWebsite">/);
+    assert.doesNotMatch(adminHtml, /fa-external-link-alt/);
+    assert.doesNotMatch(adminHtml, /quickWebsites/);
+    assert.doesNotMatch(adminHtml, /handleWebsite/);
+    assert.doesNotMatch(adminHtml, /admin\.quickLinkInternalOnly/);
     assert.doesNotMatch(adminHtml, /Movavi|FreeConvert|YouCompress|Cloudinary/);
     assert.doesNotMatch(adminHtml, /editWebsites|编辑快捷方式/);
     assert.doesNotMatch(adminHtml, /window\.open\(url, '_blank'\)/);
