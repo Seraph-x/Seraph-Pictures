@@ -291,13 +291,6 @@
         background: rgba(255, 255, 255, 0.92);
       }
 
-      .brand-logo-link {
-        display: inline-flex;
-        color: inherit;
-        line-height: 0;
-        text-decoration: none;
-      }
-
       .nav-links {
         display: flex;
         gap: 8px;
@@ -2319,15 +2312,15 @@
       <!-- 头部导航 -->
       <div class="header">
         <div class="header-title">
-          <a class="brand-logo-link" :href="brandLogoHref">
-            <img
-              src="/logo.png"
-              alt="Seraph's Pictures Logo"
-              class="brand-logo"
-              loading="eager"
-              onerror="this.onerror=null;this.src='/favicon.ico';"
-            />
-          </a>
+          <img
+            src="/logo.png"
+            alt="Seraph's Pictures Logo"
+            class="brand-logo"
+            loading="eager"
+            data-brand-home="1"
+            @click.stop="handleBrandLogoClick"
+            onerror="this.onerror=null;this.src='/favicon.ico';"
+          />
           <span class="brand-name">Seraph's Pictures</span>
         </div>
         <div class="nav-links">
@@ -3625,12 +3618,6 @@
           uploadLimits: {},
         },
         computed: {
-          brandLogoHref() {
-            if (!this.isGuest) return "/";
-            const currentPath =
-              window.location.pathname + window.location.search;
-            return "/login.html?redirect=" + encodeURIComponent(currentPath || "/");
-          },
           selectedCount() {
             return this.uploadedFiles.filter((f) => f.selected).length;
           },
@@ -3759,6 +3746,17 @@
             // reference this.lang so templates re-render on language switch
             void this.lang;
             return window.I18n ? I18n.t(key, params) : key;
+          },
+
+          handleBrandLogoClick() {
+            if (this.isGuest) {
+              const currentPath =
+                window.location.pathname + window.location.search;
+              window.location.href =
+                "/login.html?redirect=" + encodeURIComponent(currentPath || "/");
+              return;
+            }
+            window.location.href = "/";
           },
           normalizeFolderPath(value) {
             const parts = String(value || "")
