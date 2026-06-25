@@ -3,9 +3,14 @@ const fs = require('fs');
 const path = require('path');
 
 const repoRoot = path.resolve(__dirname, '..');
+const NODE_SQLITE_MAJOR_VERSION = '22';
 
 function readWorkflow() {
   return fs.readFileSync(path.join(repoRoot, '.github', 'workflows', 'ci-test.yml'), 'utf8');
+}
+
+function readNodeVersion() {
+  return fs.readFileSync(path.join(repoRoot, '.node-version'), 'utf8').trim();
 }
 
 describe('CI workflow contract', function () {
@@ -37,5 +42,14 @@ describe('CI workflow contract', function () {
     assert.match(workflow, /uses:\s*actions\/checkout@v4/);
     assert.match(workflow, /uses:\s*actions\/setup-node@v4/);
     assert.match(workflow, /timeout-minutes:\s*\d+/);
+  });
+
+  it('uses the repository Node runtime version for tests', function () {
+    const workflow = readWorkflow();
+    const nodeVersion = readNodeVersion();
+
+    assert.match(workflow, /node-version-file:\s*['"]?\.node-version['"]?/);
+    assert.doesNotMatch(workflow, /node-version:\s*['"]?20['"]?/);
+    assert.strictEqual(nodeVersion, NODE_SQLITE_MAJOR_VERSION);
   });
 });
