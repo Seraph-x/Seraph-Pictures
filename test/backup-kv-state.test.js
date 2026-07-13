@@ -18,7 +18,7 @@ function createSource(records) {
     async listPage(cursor) {
       const index = cursor ? Number(cursor) : 0;
       return {
-        keys: pages[index].map(({ name, metadata }) => ({ name, metadata })),
+        keys: pages[index].map(({ name, metadata, expiration }) => ({ name, metadata, expiration })),
         cursor: index + 1 < pages.length ? String(index + 1) : null,
       };
     },
@@ -37,7 +37,10 @@ describe('encrypted KV recovery backup', function () {
       { name: 'guest_config', valueBase64: 'Z3Vlc3Qtc2VjcmV0', metadata: null },
       { name: 'security:schema_version', valueBase64: 'MQ==', metadata: null },
       { name: 'session:abc', valueBase64: 'c2Vzc2lvbi1zZWNyZXQ=', metadata: null },
-      { name: 'r2:public/image.jpg', valueBase64: '', metadata: { fileName: 'image.jpg' } },
+      {
+        name: 'r2:public/image.jpg', valueBase64: '', expiration: 2_000_000_000,
+        metadata: { fileName: 'image.jpg' },
+      },
     ];
 
     const records = await collectRecords(createSource(input));
@@ -92,6 +95,31 @@ describe('encrypted KV recovery backup', function () {
     ]);
     assert.strictEqual(await source.readValue('admin_credentials'), 'AP8B');
     assert.strictEqual(requests.length, 2);
+  });
+
+  it('bulk-writes base64 values with metadata and expiration intact', async function () {
+    const { createCloudflareKvSource } = await import(SOURCE_URL);
+    let request;
+    const fetchImpl = async (url, options) => {
+      request = { url, options };
+      return Response.json({ success: true, result: {
+        successful_key_count: 1, unsuccessful_keys: [],
+      } });
+    };
+    const source = createCloudflareKvSource({
+      accountId: 'account', namespaceId: 'namespace', apiToken: 'token', fetchImpl,
+    });
+
+    await source.writeRecords([{
+      name: 'file.png', valueBase64: 'AAE=', expiration: 2_000_000_000,
+      metadata: { fileName: 'file.png', visibility: 'public' },
+    }]);
+
+    assert.match(request.url, /\/bulk$/);
+    assert.deepStrictEqual(JSON.parse(request.options.body), [{
+      key: 'file.png', value: 'AAE=', base64: true, expiration: 2_000_000_000,
+      metadata: { fileName: 'file.png', visibility: 'public' },
+    }]);
   });
 
   it('rejects repository-local backup output and requires production inputs', async function () {

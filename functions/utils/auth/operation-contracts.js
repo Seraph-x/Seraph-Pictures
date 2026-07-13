@@ -47,6 +47,15 @@ function isShareRecord(value) {
     && value.expiresAt > value.createdAt;
 }
 
+function isBarrierStatus(value) {
+  if (!isObject(value) || typeof value.frozen !== 'boolean') return false;
+  const identityValid = value.frozen
+    ? (typeof value.generation === 'string' && value.generation.length > 0
+      && typeof value.audience === 'string' && value.audience.length > 0)
+    : value.generation === null && value.audience === null;
+  return identityValid && Number.isInteger(value.active) && value.active >= 0;
+}
+
 const VALIDATORS = Object.freeze({
   bootstrapLogin: (value) => isResult(value) && (!value.ok || isSession(value.session)),
   migrateLegacyLogin: (value) => isResult(value) && (!value.ok || isSession(value.session)),
@@ -99,6 +108,20 @@ const VALIDATORS = Object.freeze({
   quotaCancel: (value) => isObject(value)
     && value.ok === true && typeof value.cancelled === 'boolean',
   quotaReleaseExpired: (value) => isObject(value)
+    && Number.isInteger(value.released) && value.released >= 0,
+  mutationEnter: (value) => isObject(value)
+    && typeof value.allowed === 'boolean'
+    && (value.allowed
+      ? (typeof value.leaseId === 'string' && value.leaseId.length > 0)
+      : value.leaseId === null)
+    && Number.isInteger(value.active) && value.active >= 0,
+  mutationExit: (value) => isObject(value)
+    && typeof value.released === 'boolean'
+    && Number.isInteger(value.active) && value.active >= 0,
+  mutationFreezeBegin: isBarrierStatus,
+  mutationFreezeEnd: isBarrierStatus,
+  mutationFreezeStatus: isBarrierStatus,
+  mutationReleaseExpired: (value) => isObject(value)
     && Number.isInteger(value.released) && value.released >= 0,
 });
 

@@ -43,6 +43,7 @@ export async function collectRecords(source) {
       name: key.name,
       valueBase64: await source.readValue(key.name),
       metadata: key.metadata ?? null,
+      ...(key.expiration ? { expiration: key.expiration } : {}),
     })));
     records = records.concat(pageRecords);
     cursor = page.cursor;

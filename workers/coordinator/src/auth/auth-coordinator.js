@@ -7,6 +7,10 @@ import { ShareRepository } from '../share/share-repository.js';
 import { ShareCoordinatorService } from '../share/share-coordinator.js';
 import { GuestQuotaRepository } from '../quota/quota-repository.js';
 import { GuestQuotaService } from '../quota/quota-coordinator.js';
+import { MutationBarrierRepository } from '../mutation/mutation-barrier-repository.js';
+import barrierModule from '../../../../shared/security/mutation-barrier-service.cjs';
+
+const { MutationBarrierService } = barrierModule;
 
 const OPERATION_METHODS = Object.freeze({
   bootstrapLogin: 'bootstrapLogin',
@@ -46,6 +50,12 @@ const OPERATION_METHODS = Object.freeze({
   quotaComplete: 'quotaComplete',
   quotaCancel: 'quotaCancel',
   quotaReleaseExpired: 'quotaReleaseExpired',
+  mutationEnter: 'mutationEnter',
+  mutationExit: 'mutationExit',
+  mutationFreezeBegin: 'mutationFreezeBegin',
+  mutationFreezeEnd: 'mutationFreezeEnd',
+  mutationFreezeStatus: 'mutationFreezeStatus',
+  mutationReleaseExpired: 'mutationReleaseExpired',
 });
 
 function jsonResponse(body, status = 200) {
@@ -138,6 +148,12 @@ function createCoordinatorServices(ctx) {
       ids: dependencies.tokens,
       alarms,
     }),
+    barrier: new MutationBarrierService({
+      repository: new MutationBarrierRepository(ctx.storage),
+      clock: dependencies.clock,
+      ids: dependencies.tokens,
+      alarms,
+    }),
     alarms,
   });
 }
@@ -161,6 +177,12 @@ function operationService(services) {
     quotaComplete: (payload) => services.quota.complete(payload),
     quotaCancel: (payload) => services.quota.cancel(payload),
     quotaReleaseExpired: (payload) => services.quota.releaseExpired(payload),
+    mutationEnter: (payload) => services.barrier.enter(payload),
+    mutationExit: (payload) => services.barrier.exit(payload),
+    mutationFreezeBegin: (payload) => services.barrier.freezeBegin(payload),
+    mutationFreezeEnd: (payload) => services.barrier.freezeEnd(payload),
+    mutationFreezeStatus: (payload) => services.barrier.status(payload),
+    mutationReleaseExpired: (payload) => services.barrier.releaseExpired(payload),
   });
 }
 
@@ -171,6 +193,7 @@ export class AuthCoordinator {
     this.service = operationService(services);
     this.configService = services.config;
     this.quotaService = services.quota;
+    this.barrierService = services.barrier;
     this.alarms = services.alarms;
   }
 
@@ -182,10 +205,12 @@ export class AuthCoordinator {
     await Promise.all([
       this.configService.abortStale({}),
       this.quotaService.releaseExpired({}),
+      this.barrierService.releaseExpired({}),
     ]);
     const candidates = [
       this.configService.nextAlarmAt(),
       this.quotaService.nextAlarmAt(),
+      this.barrierService.nextAlarmAt(),
     ].filter(Number.isFinite);
     await this.alarms.replace(candidates.length ? Math.min(...candidates) : null);
   }
@@ -193,7 +218,7 @@ export class AuthCoordinator {
 
 function bindMethods(service, operationMethods) {
   const entries = Object.entries(operationMethods)
-    .filter(([operation]) => !['config', 'share', 'quota'].some((prefix) => (
+    .filter(([operation]) => !['config', 'share', 'quota', 'mutation'].some((prefix) => (
       operation.startsWith(prefix)
     )))
     .map(([operation, method]) => [operation, service[method].bind(service)]);

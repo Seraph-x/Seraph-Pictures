@@ -11,6 +11,19 @@ function markerKv(metadata, key = 'file-1') {
   };
 }
 
+function barrierCoordinator() {
+  return {
+    idFromName() { return 'coordinator-id'; },
+    get() { return { async fetch(request) {
+      const operation = new URL(request.url).pathname.split('/').at(-1);
+      const data = operation === 'mutationEnter'
+        ? { allowed: true, leaseId: 'lease-1', active: 1 }
+        : { released: true, active: 0 };
+      return Response.json({ data });
+    } }; },
+  };
+}
+
 describe('Cloudflare explicit file visibility', function () {
   it('conceals a private record from anonymous requests', async function () {
     const route = await import('../functions/file/[id].js');
@@ -135,7 +148,10 @@ describe('Cloudflare explicit file visibility', function () {
     const context = {
       request: new Request('https://vault.example/api/v1/upload', { method: 'POST' }),
       data: { fileVisibility: 'private' },
-      env: { img_url: { async put(key, value, options) { storedMetadata = options.metadata; } } },
+      env: {
+        AUTH_COORDINATOR: barrierCoordinator(),
+        img_url: { async put(key, value, options) { storedMetadata = options.metadata; } },
+      },
       async next() {
         await this.env.img_url.put('file-1', '', {
           metadata: { fileName: 'file.png', TimeStamp: 1 },
@@ -158,6 +174,7 @@ describe('Cloudflare explicit file visibility', function () {
         img_url: { async put() {} },
         AUTH_DISABLED: 'true',
         APP_ENV: 'local',
+        AUTH_COORDINATOR: barrierCoordinator(),
       },
       async next() {
         await this.env.img_url.put('file-1', '', {

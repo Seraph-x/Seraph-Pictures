@@ -25,6 +25,14 @@ function coordinator(operations, options = {}) {
     get() { return { async fetch(request) {
       const operation = new URL(request.url).pathname.split('/').at(-1);
       operations.push(operation);
+      if (operation === 'mutationEnter') {
+        return Response.json({ data: {
+          allowed: true, leaseId: 'lease-1', active: 1,
+        } });
+      }
+      if (operation === 'mutationExit') {
+        return Response.json({ data: { released: true, active: 0 } });
+      }
       if (operation === 'configReadAuthority') {
         return Response.json({ data: {
           initialized: false, committedVersion: null, digest: null,
@@ -107,7 +115,8 @@ describe('Cloudflare guest upload handler', function () {
 
     assert.strictEqual(response.status, 200);
     assert.deepStrictEqual(operations, [
-      'status', 'configReadAuthority', 'quotaReserve', 'quotaComplete',
+      'mutationEnter', 'status', 'configReadAuthority', 'quotaReserve',
+      'quotaComplete', 'mutationExit',
     ]);
     assert.match(telegramUrl, /botguest-token\/sendPhoto$/);
     assert.strictEqual(JSON.stringify(kv.writes).includes('203.0.113.8'), false);
@@ -171,7 +180,7 @@ describe('Cloudflare guest upload handler', function () {
     const response = await onRequest(middlewareContext);
 
     assert.strictEqual(response.status, 403);
-    assert.deepStrictEqual(operations, ['status']);
+    assert.deepStrictEqual(operations, ['mutationEnter', 'status', 'mutationExit']);
     assert.strictEqual(kv.writes.length, 0);
   });
 

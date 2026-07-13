@@ -41,6 +41,12 @@ const OPERATIONS = new Set([
   'quotaComplete',
   'quotaCancel',
   'quotaReleaseExpired',
+  'mutationEnter',
+  'mutationExit',
+  'mutationFreezeBegin',
+  'mutationFreezeEnd',
+  'mutationFreezeStatus',
+  'mutationReleaseExpired',
 ]);
 
 function getStub(env) {

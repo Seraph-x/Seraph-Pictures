@@ -31,7 +31,8 @@
   // 本地 npm start 用 --binding 覆盖回 localhost(见 package.json)。
   "vars": {
     "WEBAUTHN_RP_ID": "pictures.seraphzero.com",
-    "WEBAUTHN_ORIGIN": "https://pictures.seraphzero.com"
+    "WEBAUTHN_ORIGIN": "https://pictures.seraphzero.com",
+    "MIGRATION_AUDIENCE": "1dd5b18021224616b0cd017ec1f3f455"
   }
   // Guest uploads use a SEPARATE Telegram bot/channel so guest abuse cannot get
   // the main bot banned. Configure these as Secrets in the Pages dashboard

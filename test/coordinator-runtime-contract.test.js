@@ -25,6 +25,9 @@ function createService() {
       committedVersion: null,
       digest: null,
     }),
+    mutationFreezeStatus: async () => ({
+      frozen: true, generation: 'generation-1', audience: 'namespace', active: 0,
+    }),
   });
 }
 
@@ -87,6 +90,22 @@ describe('coordinator runtime contract', function () {
     assert.strictEqual(response.status, 200);
     assert.deepStrictEqual(await response.json(), {
       data: { initialized: false, committedVersion: null, digest: null },
+    });
+  });
+
+  it('routes mutation freeze status through the private adapter', async function () {
+    const { routeAuthOperation } = await import(ADAPTER_URL);
+    const response = await routeAuthOperation({
+      request: new Request('https://internal/mutation/mutationFreezeStatus', {
+        method: 'POST', body: '{}',
+      }),
+      service: createService(),
+    });
+
+    assert.deepStrictEqual(await response.json(), {
+      data: {
+        frozen: true, generation: 'generation-1', audience: 'namespace', active: 0,
+      },
     });
   });
 

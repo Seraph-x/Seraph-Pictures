@@ -24,4 +24,34 @@ describe('Wrangler OAuth KV source', function () {
       'kv', 'key', 'get', 'binary-key', '--remote', '--namespace-id', 'namespace-id',
     ]);
   });
+
+  it('uses a remote bulk write without putting values on the command line', async function () {
+    const { createWranglerKvSource } = await import('../scripts/security/wrangler-kv-source.mjs');
+    const calls = [];
+    const source = createWranglerKvSource({
+      namespaceId: 'namespace-id',
+      runCommand: async (args) => { calls.push(args); return Buffer.alloc(0); },
+    });
+
+    await source.writeRecords([{
+      name: 'file.png', valueBase64: 'c2VjcmV0', metadata: { fileName: 'file.png' },
+    }]);
+
+    assert.deepStrictEqual(calls[0].slice(0, 3), ['kv', 'bulk', 'put']);
+    assert.ok(calls[0].includes('--remote'));
+    assert.ok(!calls[0].join(' ').includes('c2VjcmV0'));
+  });
+
+  it('converts command failures into an error that contains no key name', async function () {
+    const { createWranglerKvSource } = await import('../scripts/security/wrangler-kv-source.mjs');
+    const source = createWranglerKvSource({
+      namespaceId: 'namespace-id', wranglerBin: '/definitely/missing-wrangler',
+    });
+
+    await assert.rejects(
+      source.readValue('private/path/secret.png'),
+      (error) => error.message === 'WRANGLER_KV_COMMAND_FAILED'
+        && !error.message.includes('private/path/secret.png'),
+    );
+  });
 });
