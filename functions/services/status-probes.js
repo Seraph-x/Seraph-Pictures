@@ -6,12 +6,14 @@ import { checkGitHubConnection, hasGitHubConfig } from '../utils/github.js';
 import { getGuestConfig } from '../utils/guest.js';
 import { buildTelegramBotApiUrl, getTelegramApiBase } from '../utils/telegram.js';
 import { resolveStorageEnv } from '../utils/storage-config.js';
+import capabilityModule from '../../shared/storage/capabilities.cjs';
 
-const MEBIBYTE = 1024 * 1024;
-const DIRECT_LIMIT = 20 * MEBIBYTE;
-const LARGE_LIMIT = 100 * MEBIBYTE;
 const PROBE_TIMEOUT_MS = 5_000;
 const PROBE_BATCH_SIZE = 3;
+const STORAGE_TYPES = Object.freeze([
+  'telegram', 'r2', 's3', 'discord', 'huggingface', 'webdav', 'github',
+]);
+const { resolveCapability } = capabilityModule;
 
 function empty(layer = 'direct') {
   return Object.freeze({
@@ -32,21 +34,15 @@ function failed(message, layer = 'direct') {
 }
 
 function uploadLimits() {
-  const large = Object.freeze({
-    maxBytes: LARGE_LIMIT, directThreshold: DIRECT_LIMIT, supportsChunkUpload: true,
-  });
-  return Object.freeze({
-    telegram: Object.freeze({
-      maxBytes: DIRECT_LIMIT, directThreshold: DIRECT_LIMIT, supportsChunkUpload: false,
-      message: 'Telegram web upload on Cloudflare Pages is limited to 20MB.',
-    }),
-    r2: large,
-    s3: large,
-    discord: Object.freeze({ ...large, maxBytes: 25 * MEBIBYTE }),
-    huggingface: Object.freeze({ ...large, maxBytes: 35 * MEBIBYTE }),
-    webdav: large,
-    github: large,
-  });
+  return Object.freeze(Object.fromEntries(STORAGE_TYPES.map((type) => {
+    const capability = resolveCapability({ runtime: 'cloudflare', type });
+    const supportsChunkUpload = capability.modes.includes('multipart');
+    return [type, Object.freeze({
+      maxBytes: capability.maxBytes,
+      directThreshold: supportsChunkUpload ? capability.directThreshold : capability.maxBytes,
+      supportsChunkUpload,
+    })];
+  })));
 }
 
 function capabilities() {

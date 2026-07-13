@@ -2,9 +2,11 @@ import { checkAuthentication, isAuthRequired } from '../../utils/auth.js';
 import { createChunkPlan } from '../../utils/chunk-policy.js';
 import { createAuthErrorResponse } from '../../utils/auth/http-errors.js';
 import { initializeMultipart } from '../../services/multipart-client.js';
+import capabilityModule from '../../../shared/storage/capabilities.cjs';
 
 const CHUNK_SIZE = 5 * 1024 * 1024;
 const UPLOAD_TTL_MS = 60 * 60 * 1000;
+const { validateUploadCapability } = capabilityModule;
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -22,14 +24,14 @@ function createUploadId() {
 }
 
 function normalizeInput(body) {
-  if (body?.storageMode !== 'r2') {
-    throw Object.assign(new Error('MULTIPART_STORAGE_UNSUPPORTED'), { code: 'MULTIPART_STORAGE_UNSUPPORTED', status: 400 });
-  }
   if (!body.fileName || !body.fileType || !body.rootDigest) {
     throw Object.assign(new Error('MULTIPART_PAYLOAD_INVALID'), { code: 'MULTIPART_PAYLOAD_INVALID', status: 400 });
   }
   const plan = createChunkPlan({
     fileSize: Number(body.fileSize), chunkSize: CHUNK_SIZE, totalChunks: Number(body.totalChunks),
+  });
+  validateUploadCapability({
+    runtime: 'cloudflare', type: body.storageMode, mode: 'multipart', fileSize: plan.fileSize,
   });
   return Object.freeze({ body, plan });
 }

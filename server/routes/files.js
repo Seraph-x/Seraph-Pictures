@@ -36,7 +36,9 @@ function registerInfoRoute(app, helpers) {
 
 async function signedResponse({ context, id, range, storageRepo, helpers, headOnly }) {
   try {
-    return await helpers.handleSignedTelegramFile(id, range, storageRepo, context, headOnly);
+    return await helpers.handleSignedTelegramFile({
+      id, range, storageRepo, context, headOnly,
+    });
   } catch (error) {
     console.error('signed telegram file proxy error:', error);
     return headOnly

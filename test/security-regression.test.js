@@ -105,6 +105,34 @@ describe('security regressions', function () {
     assert.strictEqual(fetched, false);
   });
 
+  it('rejects unsupported Cloudflare URL upload storage before fetch', async function () {
+    const { onRequestPost } = await import('../functions/api/upload-from-url.js');
+    let fetched = false;
+    global.fetch = async () => {
+      fetched = true;
+      return new Response('secret');
+    };
+
+    const response = await onRequestPost({
+      request: new Request('https://vault.example/api/upload-from-url', {
+        method: 'POST',
+        body: JSON.stringify({
+          url: 'https://files.example/public.png',
+          storageMode: 'unsupported',
+        }),
+      }),
+      env: {
+        AUTH_DISABLED: 'true',
+        APP_ENV: 'local',
+        URL_UPLOAD_ALLOWED_HOSTS: 'files.example',
+      },
+    });
+
+    assert.strictEqual(response.status, 400);
+    assert.strictEqual(await response.json().then((body) => body.error), 'STORAGE_BACKEND_UNSUPPORTED');
+    assert.strictEqual(fetched, false);
+  });
+
   it('returns 400 when Cloudflare URL upload redirects to a private host', async function () {
     const { onRequestPost } = await import('../functions/api/upload-from-url.js');
     global.fetch = async () => new Response('', {

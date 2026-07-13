@@ -11,17 +11,19 @@ function validateMaximum({ context, fileSize, limit, helpers }) {
   );
 }
 
-function validateStorageLimit({ context, fileSize, storageMode, container, helpers }) {
-  const type = storageMode || container.config.bootstrapDefaultStorage?.type || 'telegram';
-  const limit = helpers.getUploadLimits()[type];
-  if (!limit || fileSize <= limit.maxBytes) return null;
-  return helpers.jsonError(
-    context,
-    413,
-    'STORAGE_FILE_TOO_LARGE',
-    'File exceeds selected storage limit.',
-    limit.message || `Selected storage limit is ${Math.floor(limit.maxBytes / 1024 / 1024)}MB.`,
-  );
+function validateStorageLimit(options) {
+  const { context, fileSize, storageMode, container, helpers, audience } = options;
+  const selected = storageMode || container.config.bootstrapDefaultStorage?.type || 'telegram';
+  const type = audience === 'guest' ? 'telegram' : selected;
+  try {
+    helpers.validateUploadCapability({ type, mode: 'direct', fileSize, audience });
+    return null;
+  } catch (error) {
+    return helpers.jsonError(
+      context, error.status || 400, error.code,
+      'Selected storage cannot accept this upload.', error.message,
+    );
+  }
 }
 
 async function performUpload(options) {
@@ -79,6 +81,15 @@ async function handleDirectUpload(context, container, helpers) {
     context, fileSize: buffer.byteLength, limit: container.config.uploadMaxSize, helpers,
   });
   if (maximumError) return maximumError;
+  const storageError = validateStorageLimit({
+    context,
+    fileSize: buffer.byteLength,
+    storageMode: helpers.asString(body.storageMode || body.storage),
+    container,
+    helpers,
+    audience: auth.authenticated ? 'admin' : 'guest',
+  });
+  if (storageError) return storageError;
   let reservation;
   try {
     reservation = await reserveGuestUpload({
@@ -86,17 +97,6 @@ async function handleDirectUpload(context, container, helpers) {
     });
   } catch (error) {
     return helpers.jsonError(context, error.status || 503, error.code || 'GUEST_REJECTED', 'Guest upload is not allowed.', error.message);
-  }
-  const storageError = validateStorageLimit({
-    context,
-    fileSize: buffer.byteLength,
-    storageMode: helpers.asString(body.storageMode || body.storage),
-    container,
-    helpers,
-  });
-  if (storageError) {
-    await settleGuestUpload({ services, reservation, succeeded: false });
-    return storageError;
   }
   const result = await performUpload({
     context, body, file, buffer, auth, reservation,

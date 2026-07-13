@@ -14,26 +14,15 @@ function validateMaximum({ context, fileSize, container, helpers }) {
 
 function validateStoragePlan({ context, fileSize, storageMode, container, helpers }) {
   const type = storageMode || container.config.bootstrapDefaultStorage?.type || 'telegram';
-  const limit = helpers.getUploadLimits()[type];
-  if (!limit) return null;
-  if (fileSize > limit.maxBytes) {
-    const megabytes = Math.floor(limit.maxBytes / 1024 / 1024);
+  try {
+    helpers.validateUploadCapability({ type, mode: 'chunked', fileSize });
+    return null;
+  } catch (error) {
     return helpers.jsonError(
-      context,
-      413,
-      'STORAGE_FILE_TOO_LARGE',
-      'File exceeds selected storage limit.',
-      limit.message || `Selected storage limit is ${megabytes}MB.`,
+      context, error.status || 400, error.code,
+      'Selected storage cannot accept this upload.', error.message,
     );
   }
-  if (fileSize <= limit.directThreshold || limit.supportsChunkUpload !== false) return null;
-  return helpers.jsonError(
-    context,
-    400,
-    'STORAGE_CHUNK_UNSUPPORTED',
-    'Selected storage does not support chunk upload.',
-    limit.message || 'Choose another storage backend for this file size.',
-  );
 }
 
 function createTask(options) {
