@@ -25,6 +25,18 @@ describe('Docker login rate limiting', function () {
     for (const [key, value] of Object.entries(originalEnv)) process.env[key] = value;
   });
 
+  it('prefers proxy-controlled client IP headers over forwarded input', function () {
+    const { getClientIp } = require('../server/lib/utils/client-ip');
+    const request = new Request('http://localhost', {
+      headers: {
+        'X-Forwarded-For': '198.51.100.1, 203.0.113.20',
+        'X-Real-IP': '203.0.113.20',
+      },
+    });
+
+    assert.strictEqual(getClientIp(request), '203.0.113.20');
+  });
+
   it('blocks subsequent attempts after five failures and resets after expiry', function () {
     const { LoginRateLimitService } = require('../server/lib/services/login-rate-limit-service');
     const fixture = createDatabase();
