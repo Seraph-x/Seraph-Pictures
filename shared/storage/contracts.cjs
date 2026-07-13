@@ -163,10 +163,15 @@ function normalizeDrivePath(value) {
 function normalizeDriveFolder(record = {}) {
   const path = normalizeDrivePath(record.path);
   const segments = path ? path.split('/') : [];
+  const optional = {};
+  for (const field of ['depth', 'fileCount', 'childCount']) {
+    if (record[field] != null) optional[field] = normalizedNumber(record[field], 0);
+  }
   return Object.freeze({
     path,
     name: String(record.name || segments.at(-1) || 'All Files'),
     parentPath: normalizeDrivePath(record.parentPath ?? segments.slice(0, -1).join('/')),
+    ...optional,
   });
 }
 
@@ -213,8 +218,11 @@ function normalizeDriveFile(record = {}) {
 }
 
 function normalizeDriveFileMutation(record = {}) {
-  const file = normalizeDriveFile(record);
-  return Object.freeze({ id: file.name, fileName: file.metadata.fileName });
+  const metadata = record.metadata && typeof record.metadata === 'object' ? record.metadata : record;
+  return Object.freeze({
+    id: requiredString(record.id ?? record.name, 'FILE_ID_REQUIRED'),
+    fileName: requiredString(metadata.fileName ?? metadata.file_name, 'FILE_NAME_REQUIRED'),
+  });
 }
 
 function breadcrumbs(pathValue) {

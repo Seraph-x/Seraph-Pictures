@@ -10,6 +10,7 @@ const { registerStatusRoutes } = require('./routes/status');
 const { registerUploadRoutes } = require('./routes/upload');
 const { registerFileRoutes } = require('./routes/files');
 const { registerManageRoutes } = require('./routes/manage');
+const { registerDriveRoutes } = require('./routes/drive');
 const { registerTelegramRoutes } = require('./routes/telegram');
 const { registerVisibilityRoutes } = require('./routes/visibility');
 const { registerShareRoutes } = require('./routes/shares');
@@ -105,6 +106,7 @@ function createApp() {
   registerUploadRoutes(app, container, helpers);
   registerFileRoutes(app, container, helpers);
   registerShareRoutes(app, container, helpers);
+  registerDriveRoutes(app, helpers);
   registerManageRoutes(app, container, helpers);
   registerVisibilityRoutes(app, container, helpers);
   registerTelegramRoutes(app, container, helpers);
