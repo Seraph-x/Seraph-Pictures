@@ -130,10 +130,11 @@ class S3CompatAdapter {
     });
   }
 
-  async testConnection() {
+  async testConnection(options = {}) {
     this.validate();
     const url = `${this.config.endpoint}/${this.config.bucket}?list-type=2&max-keys=1`;
-    const response = await this.signedFetch('GET', url);
+    const signed = await signRequest('GET', url, {}, null, this.getCredentials());
+    const response = await fetch(url, { headers: signed, signal: options.signal });
     return {
       connected: response.ok,
       status: response.status,

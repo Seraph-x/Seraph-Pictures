@@ -6,6 +6,7 @@ const { createRouteHelpers } = require('./routes/_shared');
 const { registerAuthRoutes } = require('./routes/auth');
 const { registerSettingsRoutes } = require('./routes/settings');
 const { registerStorageRoutes } = require('./routes/storage');
+const { registerStatusRoutes } = require('./routes/status');
 const { registerUploadRoutes } = require('./routes/upload');
 const { registerFileRoutes } = require('./routes/files');
 const { registerManageRoutes } = require('./routes/manage');
@@ -99,6 +100,7 @@ function createApp() {
 
   registerAuthRoutes(app, container, helpers);
   registerSettingsRoutes(app, container, helpers);
+  registerStatusRoutes(app, container, helpers);
   registerStorageRoutes(app, container, helpers);
   registerUploadRoutes(app, container, helpers);
   registerFileRoutes(app, container, helpers);

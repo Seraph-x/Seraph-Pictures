@@ -133,12 +133,13 @@ class DiscordStorageAdapter {
     }
   }
 
-  async testConnection() {
+  async testConnection(options = {}) {
     this.validate();
 
     if (this.config.botToken) {
       const botResponse = await fetch(`${DISCORD_API_BASE}/users/@me`, {
         headers: { Authorization: `Bot ${this.config.botToken}` },
+        signal: options.signal,
       });
       if (botResponse.ok) {
         return { connected: true, mode: 'bot' };
@@ -146,7 +147,7 @@ class DiscordStorageAdapter {
     }
 
     if (this.config.webhookUrl) {
-      const webhookResponse = await fetch(this.config.webhookUrl);
+      const webhookResponse = await fetch(this.config.webhookUrl, { signal: options.signal });
       if (webhookResponse.ok) {
         return { connected: true, mode: 'webhook' };
       }

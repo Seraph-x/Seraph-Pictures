@@ -46,11 +46,12 @@ class HuggingFaceStorageAdapter {
     };
   }
 
-  async testConnection() {
+  async testConnection(options = {}) {
     this.validate();
 
     const response = await fetch(`https://huggingface.co/api/datasets/${this.config.repo}`, {
       headers: this.authHeaders(),
+      signal: options.signal,
     });
 
     return {
