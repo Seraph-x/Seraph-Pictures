@@ -48,6 +48,8 @@ flowchart LR
     cf_routes[Pages Functions adapters]
     kv[(KV metadata and config)]
     r2[(R2 objects)]
+    coordinator[Coordinator Worker]
+    durable[(Durable Objects)]
   end
 
   subgraph docker[Docker]
@@ -70,11 +72,16 @@ flowchart LR
   upload_policy --> docker_routes
   cf_routes --> kv
   cf_routes --> r2
+  cf_routes --> coordinator
+  coordinator --> durable
+  coordinator --> r2
   docker_routes --> sqlite
   docker_routes --> stores
 ```
 
-Runtime-neutral policy modules contain only deterministic rules and injected dependencies. Cloudflare adapters own KV/R2 calls; Docker adapters own SQLite and storage-service calls. Contract tests execute the same cases against both adapters.
+Runtime-neutral policy modules contain only deterministic rules and injected dependencies. Cloudflare adapters own KV calls, while a small coordinator Worker serializes authentication state, guest quotas, share counters, and R2 multipart state in Durable Objects. Docker adapters use SQLite transactions and storage services. Contract tests execute the same cases against both adapters.
+
+The Cloudflare design targets the free plan: it requires only Pages, KV, R2, one Worker, and SQLite-backed Durable Objects. It does not require D1, Queues, Analytics Engine, Turnstile, or a paid Rate Limiting binding. Coordinator records contain only small metadata and are deleted by alarms after expiry; the default guest limits keep normal personal-image-host usage within published free allowances. Exceeding provider allowances remains an explicit operational condition, not a silent degradation path.
 
 ## Authentication and configuration state
 
@@ -82,16 +89,16 @@ Administrator credentials use three explicit states:
 
 | State | Condition | Behavior |
 |---|---|---|
-| Bootstrap | KV read succeeds and no initialization marker exists | Allow configured `BASIC_USER/BASIC_PASS` for first login only |
-| Initialized | Marker and valid hashed credential record exist | KV record is the sole credential source |
-| Unavailable | KV read fails, record is corrupt, or marker/record disagree | Return `AUTH_STATE_UNAVAILABLE` with HTTP 503 |
+| Bootstrap | The singleton auth Durable Object transaction finds no state row | Verify configured `BASIC_USER/BASIC_PASS` once |
+| Initialized | The Durable Object contains one valid `initialized` row | The hashed row is the sole credential source |
+| Unavailable | The coordinator is unavailable or the row is invalid | Return `AUTH_STATE_UNAVAILABLE` with HTTP 503 |
 
-Changing credentials writes the credential record and initialization marker, increments `credVersion`, issues a new current session, and invalidates older sessions. A transient KV failure must never reactivate an environment password.
+The first successful bootstrap login runs in the singleton auth Durable Object: its SQLite transaction rechecks absence, derives/writes one versioned `initialized` row, and only then creates a session. Concurrent bootstrap attempts serialize; only the winning credentials initialize state. Later credential changes transactionally replace that row and increment `credVersion`. Every administrator session check asks the auth object for the current version, so old sessions stop immediately rather than waiting for KV propagation. The auth object is never deleted by runtime cleanup; recovery requires an explicit authenticated backup restore or operator reset command, and runtime fallback is forbidden.
 
-Runtime storage configuration follows the same distinction:
+Runtime storage configuration remains encrypted in KV, while the coordinator stores its authoritative initialization/version state:
 
 - before initialization, environment secrets are accepted as bootstrap values;
-- after initialization, encrypted KV values are authoritative;
+- after initialization, encrypted KV values matching the coordinator version are authoritative;
 - KV read, schema, or decryption failures return explicit 503 errors;
 - blank secret fields preserve existing encrypted values;
 - R2/KV bindings and root encryption/session secrets remain dashboard-managed infrastructure.
@@ -119,6 +126,10 @@ Every file record gains immutable-origin metadata and explicit visibility:
 - Private file bytes require an administrator session or a valid expiring signed share link.
 - Authorization failures do not reveal whether a private identifier exists.
 
+Visibility changes use an administrator-only API and increment `accessVersion`; guest files cannot be changed to private until ownership is transferred by an administrator. A change to `accessVersion` invalidates existing private share links. Existing Legacy share slugs for public files remain aliases and do not claim private-access guarantees.
+
+New private share links use `/s/{shareId}?exp={unixMs}&sig={hmac}`. HMAC-SHA-256 covers `shareId`, file ID, expiry, and `accessVersion`. `FILE_SHARE_SECRET_CURRENT` is dashboard-managed; an optional previous key is accepted only during a bounded rotation window. TTL defaults to 24 hours, is at least 60 seconds, and is at most 30 days. The stored share record supports explicit revocation, optional password verification, and an optional maximum download count. Replay is allowed until expiry/revocation/count exhaustion; Cloudflare updates the counter atomically in the coordinator and Docker uses a SQLite transaction.
+
 Existing records are backed up and migrated once to explicit `public` visibility so current image-host links remain valid. After the migration marker is committed, a missing/invalid visibility value is a data error and is never interpreted as public.
 
 ## Guest upload policy
@@ -128,13 +139,15 @@ Guest uploads remain immediate but pass all server-side controls before storage 
 - guest uploads must be enabled in KV policy;
 - maximum size is 20 MiB;
 - MIME type, extension, declared size, and actual bytes must agree;
-- per-IP daily quota and request rate limit apply;
+- an exact daily quota and burst limit apply;
 - retention metadata is mandatory when retention is enabled;
 - guest objects use the dedicated guest storage channel;
 - management actions remain administrator-only;
 - errors use stable codes and never consume quota as a successful upload.
 
-IP-derived abuse keys store a keyed digest rather than the raw address where persistence is required.
+The default daily limit remains 10 completed uploads and the default burst limit is 5 initializations per 60 seconds. Cloudflare derives the client address only from `CF-Connecting-IP`; Docker uses its trusted-proxy parser. Persistence uses `HMAC-SHA-256(SESSION_SECRET, normalizedAddress)` rather than the raw address.
+
+Cloudflare sends the digest to one Durable Object, which atomically reserves a daily slot at initialization. Completion converts the reservation to consumed; cancellation or terminal failure releases it; an alarm releases abandoned reservations after one hour. Docker performs the same transitions in a SQLite transaction. Burst and daily limits are configurable, but a missing coordinator binding returns `GUEST_QUOTA_UNAVAILABLE` (503) instead of allowing an uncounted upload.
 
 ## Status API
 
@@ -154,33 +167,39 @@ It performs no storage probes and returns no provider names, endpoints, binding 
 sequenceDiagram
   actor Client
   participant API as Pages Function
-  participant KV
+  participant DO as Coordinator Durable Object
   participant R2
+  participant KV
 
   Client->>API: Initialize metadata and visibility
   API->>API: Authenticate and create server chunk plan
-  API->>R2: createMultipartUpload(randomKey)
-  R2-->>API: uploadId
-  API->>KV: Store task, owner, plan, expiry
+  API->>DO: Reserve quota and initialize task
+  DO->>R2: createMultipartUpload(randomKey)
+  R2-->>DO: uploadId
+  DO-->>API: taskId and upload state
   API-->>Client: taskId and fixed plan
 
   loop Each validated part
     Client->>API: part(taskId, index, exact bytes)
-    API->>R2: resumeMultipartUpload + uploadPart
-    R2-->>API: partNumber and ETag
-    API->>KV: Store independent part receipt
+    API->>DO: Idempotent part request and SHA-256
+    DO->>R2: resumeMultipartUpload + uploadPart
+    R2-->>DO: partNumber and ETag
+    DO->>DO: Commit part receipt
     API-->>Client: accepted part
   end
 
   Client->>API: Complete task
-  API->>KV: Read task and all expected receipts
-  API->>API: Verify order, count, total bytes, digest
-  API->>R2: complete(uploadedParts)
-  API->>KV: Persist file metadata and delete task state
+  API->>DO: Complete task
+  DO->>DO: Lock terminal state and verify receipts
+  DO->>R2: complete(uploadedParts)
+  DO->>KV: Persist file metadata
+  DO->>DO: Commit completed state and quota
   API-->>Client: Existing file response contract
 ```
 
-Non-final R2 parts are uniform and at least 5 MiB. Part receipts are independent KV keys so parallel uploads cannot overwrite a shared array. Cancellation and terminal failures call `abort()`. The bucket lifecycle aborts incomplete multipart uploads after one day as a final cleanup boundary. Multipart ETags are never treated as whole-file hashes; a separate SHA-256 is stored.
+Non-final R2 parts are uniform and at least 5 MiB. Each request includes SHA-256; the coordinator hashes the received bytes, rejects a mismatch, uploads those verified bytes to R2, and retains the digest with the returned ETag. The Workers multipart API is not treated as an independent checksum validator. The coordinator derives a clearly labeled multipart root digest from ordered part digests, not a whole-file SHA-256. Multipart ETags are never treated as whole-file hashes.
+
+The coordinator owns the task state machine: `created -> uploading -> completing -> completed` or `created/uploading -> aborting -> aborted`. `(taskId, partNumber, partDigest)` is the idempotency key. Repeating it returns the stored receipt; reusing a part number with different bytes returns 409. Completion atomically enters `completing`; duplicate completion observes the stored terminal result. Cancellation cannot overtake `completing`. A metadata-write failure leaves a recoverable `object-complete/publish-pending` state, retried by request or alarm, and does not expose the file early. Terminal failures call `abort()`, and the bucket lifecycle aborts incomplete multipart uploads after one day.
 
 Non-R2 backends declare capabilities and maximum safe sizes. Initialization rejects unsupported size/mode combinations before accepting bytes. Backends that cannot safely stream completion do not reconstruct unbounded files in memory.
 
@@ -212,16 +231,17 @@ The production pipeline is ordered:
 
 ```text
 install -> audit -> lint/static checks -> unit/contract tests
-        -> Playwright/visual checks -> production build -> Pages deploy
+        -> Playwright/visual checks -> production build
+        -> coordinator deploy/migration -> binding probe -> Pages deploy
 ```
 
-The deploy job depends on every gate and cannot start when a required check fails or is skipped unexpectedly.
+The deploy job depends on every gate and cannot start when a required check fails or is skipped unexpectedly. The coordinator Worker sets `workers_dev = false`, has no public route, and exports its Durable Object namespace only through the Pages binding with an explicit `script_name`. Its handlers accept only the narrow internal operation contract; no HTTP endpoint exposes credential, quota, share, or upload state publicly.
 
 ## Browser dependency and CSP policy
 
 Legacy browser dependencies are copied from locked packages into versioned `/vendor/` build output. Production pages no longer execute scripts from jsDelivr or another CDN.
 
-- Remove HTML event-handler attributes while preserving equivalent event listeners.
+- Remove HTML event-handler attributes while preserving equivalent event listeners; implementation markup may change, but rendered content and behavior may not.
 - Generate CSP hashes for remaining immutable inline bootstrap scripts.
 - Use `script-src 'self'` plus generated hashes; do not use `unsafe-eval`.
 - Allow images, previews, workers, and Office embedding only through documented directives required by current features.
@@ -260,12 +280,13 @@ Automated verification includes:
 
 Delivery is split into independently verifiable releases:
 
-1. **2A:** authentication/config fail-closed, visibility migration, guest policy, and minimal status.
-2. **2B:** R2 multipart, bounded alternate backends, Cloudflare Storage/Drive, and cross-runtime contracts.
-3. **2C:** dependency remediation and mandatory deployment gates.
-4. **2D:** self-hosted browser dependencies, CSP/headers, E2E, visual regression, and code governance.
+1. **2A0:** deploy the private coordinator and a minimal Pages authentication bridge; this becomes the secure rollback floor before auth initialization.
+2. **2A1:** configuration fail-closed, visibility migration, guest policy, and minimal status.
+3. **2B:** R2 multipart, bounded alternate backends, Cloudflare Storage/Drive, and cross-runtime contracts.
+4. **2C:** dependency remediation and mandatory deployment gates.
+5. **2D:** self-hosted browser dependencies, CSP/headers, E2E, visual regression, and code governance.
 
-Before 2A, export the affected KV credential, configuration, and metadata keys without logging their values. Each migration is idempotent and records a schema version. A failed migration stops deployment. Existing R2 objects and URLs are not rewritten. Rollback restores the previous code and metadata backup; it does not re-enable an environment-password fallback after credential initialization.
+Before 2A0, capture deterministic screenshots, routes, visible copy, and DOM-facing behavior as the immutable visual baseline, then export the affected KV credential, configuration, and metadata keys without logging their values. Deploy the empty coordinator schema, verify its private binding, and deploy the 2A0 Pages bridge before allowing bootstrap initialization. If initialization has not occurred, the pre-2A0 release remains a valid rollback; after the first successful initialization, 2A0 is the permanent rollback floor and older code must not be redeployed. Later rollbacks deploy Pages down to 2A0 first and retain the compatible coordinator. Each migration is idempotent and versioned; a failed migration or binding probe stops deployment. Existing R2 objects and URLs are not rewritten, and no rollback may reactivate environment-password fallback.
 
 ## Non-goals
 
