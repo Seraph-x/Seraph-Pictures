@@ -71,6 +71,7 @@ async function listExplorerPage(binding, options) {
     .map(driveFolderFromKey)
     .filter((folder) => folder.parentPath === options.filters.path);
   return Object.freeze({
+    currentPath: options.filters.path,
     folders: Object.freeze(folders),
     files: Object.freeze(files),
     nextCursor: page.list_complete ? null : normalizeNextCursor(page.cursor),

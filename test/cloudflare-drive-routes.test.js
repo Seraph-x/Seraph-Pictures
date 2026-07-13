@@ -153,9 +153,9 @@ describe('Cloudflare Drive API routes', function () {
     const result = await json(await routes.explorer.onRequestGet(context(
       '/api/drive/explorer?path=photos&visibility=private&search=alpha&listType=white&limit=100&includeStats=1', env,
     )));
-    assert.deepStrictEqual(result.files.map((file) => file.id), ['img:a']);
+    assert.deepStrictEqual(result.files.map((file) => file.name), ['img:a']);
     assert.deepStrictEqual(result.folders.map((folder) => folder.path), ['photos/2026']);
-    assert.strictEqual(result.files[0].visibility, 'private');
+    assert.strictEqual(result.files[0].metadata.visibility, 'private');
     assert.strictEqual(result.stats.files, 1);
     const unprefixedCalls = env.img_url.listCalls.filter((call) => !call.prefix);
     assert.strictEqual(unprefixedCalls.length, 1);

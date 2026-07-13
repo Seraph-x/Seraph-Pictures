@@ -182,30 +182,67 @@ function normalizeVisibility(value) {
   return visibility;
 }
 
+function inferFileType(metadata) {
+  if (metadata.fileType) return String(metadata.fileType);
+  const mimeType = String(metadata.mimeType ?? metadata.mime_type ?? '');
+  for (const type of ['image', 'video', 'audio']) {
+    if (mimeType.startsWith(`${type}/`)) return type;
+  }
+  return 'document';
+}
+
 function normalizeDriveFile(record = {}) {
   const metadata = record.metadata && typeof record.metadata === 'object' ? record.metadata : record;
   const id = requiredString(record.id ?? record.name, 'FILE_ID_REQUIRED');
   return Object.freeze({
-    id,
-    fileName: requiredString(metadata.fileName ?? metadata.file_name, 'FILE_NAME_REQUIRED'),
-    fileSize: normalizedNumber(metadata.fileSize ?? metadata.file_size, 0),
-    mimeType: String(metadata.mimeType ?? metadata.mime_type ?? ''),
-    storageType: String(metadata.storageType ?? metadata.storage_type ?? ''),
-    folderPath: normalizeDrivePath(metadata.folderPath ?? metadata.folder_path),
-    visibility: normalizeVisibility(metadata.visibility),
-    createdAt: normalizedNumber(metadata.createdAt ?? metadata.created_at ?? metadata.TimeStamp, null),
+    name: id,
+    metadata: Object.freeze({
+      fileName: requiredString(metadata.fileName ?? metadata.file_name, 'FILE_NAME_REQUIRED'),
+      fileSize: normalizedNumber(metadata.fileSize ?? metadata.file_size, 0),
+      mimeType: String(metadata.mimeType ?? metadata.mime_type ?? ''),
+      storageType: String(metadata.storageType ?? metadata.storage_type ?? ''),
+      folderPath: normalizeDrivePath(metadata.folderPath ?? metadata.folder_path),
+      visibility: normalizeVisibility(metadata.visibility),
+      TimeStamp: normalizedNumber(metadata.createdAt ?? metadata.created_at ?? metadata.TimeStamp, null),
+      ListType: String(metadata.ListType ?? metadata.listType ?? metadata.list_type ?? 'None'),
+      Label: String(metadata.Label ?? metadata.label ?? 'None'),
+      liked: Boolean(metadata.liked),
+      fileType: inferFileType(metadata),
+    }),
   });
 }
 
+function normalizeDriveFileMutation(record = {}) {
+  const file = normalizeDriveFile(record);
+  return Object.freeze({ id: file.name, fileName: file.metadata.fileName });
+}
+
+function breadcrumbs(pathValue) {
+  const path = normalizeDrivePath(pathValue);
+  const output = [{ path: '', name: 'All Files' }];
+  if (!path) return Object.freeze(output);
+  const segments = path.split('/');
+  segments.forEach((name, index) => {
+    output.push(Object.freeze({ path: segments.slice(0, index + 1).join('/'), name }));
+  });
+  return Object.freeze(output);
+}
+
 function explorerEnvelope(payload = {}) {
+  const files = Object.freeze((payload.files || payload.items || []).map(normalizeDriveFile));
+  const cursor = normalizeNextCursor(payload.nextCursor ?? payload.cursor);
   const folderCursor = Object.hasOwn(payload, 'folderCursor')
     ? { folderCursor: normalizeNextCursor(payload.folderCursor) }
     : {};
   return Object.freeze({
     success: true,
+    currentPath: normalizeDrivePath(payload.currentPath || ''),
+    breadcrumbs: breadcrumbs(payload.currentPath || ''),
     folders: Object.freeze((payload.folders || []).map(normalizeDriveFolder)),
-    files: Object.freeze((payload.files || payload.items || []).map(normalizeDriveFile)),
-    nextCursor: normalizeNextCursor(payload.nextCursor),
+    files,
+    cursor,
+    list_complete: typeof payload.list_complete === 'boolean' ? payload.list_complete : cursor === null,
+    pageCount: normalizedNumber(payload.pageCount, files.length),
     stats: Object.freeze({ ...(payload.stats || {}) }),
     ...folderCursor,
   });
@@ -217,7 +254,7 @@ function driveEnvelope(kind, payload = {}) {
     return Object.freeze({ success: true, nodes: Object.freeze((payload || []).map(normalizeDriveFolder)) });
   }
   if (kind === 'folder') return Object.freeze({ success: true, folder: normalizeDriveFolder(payload) });
-  if (kind === 'file') return Object.freeze({ success: true, file: normalizeDriveFile(payload) });
+  if (kind === 'file') return Object.freeze({ success: true, file: normalizeDriveFileMutation(payload) });
   if (kind === 'mutation' || kind === 'share') return Object.freeze({ ...payload, success: true });
   throw new ApiContractError('API_ENVELOPE_UNSUPPORTED', 500);
 }

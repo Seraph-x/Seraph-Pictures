@@ -60,10 +60,11 @@ export function replacePath(value, sourceValue, targetValue) {
 }
 
 export function fileMatches(file, filters, metadata = {}) {
-  if (filters.path !== file.folderPath) return false;
-  if (filters.storage !== 'all' && filters.storage !== file.storageType) return false;
-  if (filters.visibility !== 'all' && filters.visibility !== file.visibility) return false;
-  if (filters.search && !file.fileName.toLowerCase().includes(filters.search)) return false;
+  const normalized = file.metadata;
+  if (filters.path !== normalized.folderPath) return false;
+  if (filters.storage !== 'all' && filters.storage !== normalized.storageType) return false;
+  if (filters.visibility !== 'all' && filters.visibility !== normalized.visibility) return false;
+  if (filters.search && !normalized.fileName.toLowerCase().includes(filters.search)) return false;
   if (filters.listType !== 'all') {
     const listType = String(metadata.ListType || '').toLowerCase();
     if (listType !== filters.listType) return false;

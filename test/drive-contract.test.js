@@ -47,9 +47,13 @@ describe('shared Drive API contract', function () {
       },
     });
     assert.deepStrictEqual(file, {
-      id: 'r2:file.jpg', fileName: 'file.jpg', fileSize: 12,
-      mimeType: 'image/jpeg', storageType: 'r2', folderPath: 'photos',
-      visibility: 'private', createdAt: 100,
+      name: 'r2:file.jpg',
+      metadata: {
+        fileName: 'file.jpg', fileSize: 12, mimeType: 'image/jpeg',
+        storageType: 'r2', folderPath: 'photos', visibility: 'private',
+        TimeStamp: 100, ListType: 'None', Label: 'None', liked: false,
+        fileType: 'image',
+      },
     });
     assert.throws(
       () => contract.normalizeDriveFile({ id: 'one', fileName: 'one.jpg', visibility: 'hidden' }),
@@ -64,17 +68,25 @@ describe('shared Drive API contract', function () {
       limit: 25, cursor: 'opaque',
     });
     assert.deepStrictEqual(contract.driveEnvelope('explorer', {
+      currentPath: '',
       folders: [{ path: 'photos' }],
       files: [{ id: 'one', fileName: 'one.jpg', visibility: 'public' }],
       nextCursor: 'next-token', stats: { files: 1 },
     }), {
       success: true,
+      currentPath: '',
+      breadcrumbs: [{ path: '', name: 'All Files' }],
       folders: [{ path: 'photos', name: 'photos', parentPath: '' }],
       files: [{
-        id: 'one', fileName: 'one.jpg', fileSize: 0, mimeType: '',
-        storageType: '', folderPath: '', visibility: 'public', createdAt: null,
+        name: 'one',
+        metadata: {
+          fileName: 'one.jpg', fileSize: 0, mimeType: '', storageType: '',
+          folderPath: '', visibility: 'public', TimeStamp: null,
+          ListType: 'None', Label: 'None', liked: false, fileType: 'document',
+        },
       }],
-      nextCursor: 'next-token', stats: { files: 1 },
+      cursor: 'next-token', list_complete: false, pageCount: 1,
+      stats: { files: 1 },
     });
     assert.throws(
       () => pagination.normalizePageRequest({ limit: 1001 }), /PAGE_LIMIT_INVALID/,
