@@ -55,6 +55,7 @@ function cleanupExpiredState(db) {
   const now = Date.now();
   run(db, 'DELETE FROM sessions WHERE expires_at <= ?', [now]);
   run(db, 'DELETE FROM chunk_uploads WHERE expires_at <= ?', [now]);
+  run(db, 'DELETE FROM login_failures WHERE window_expires_at <= ?', [now]);
 }
 
 module.exports = {

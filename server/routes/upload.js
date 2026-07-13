@@ -165,15 +165,20 @@ function registerUploadRoutes(app, container, helpers) {
       }
     }
 
-    const init = chunkService.initTask({
-      fileName: body.fileName,
-      fileSize,
-      fileType: body.fileType,
-      totalChunks,
-      storageMode,
-      storageId: asString(body.storageId),
-      folderPath: normalizeFolderPath(body.folderPath || body.folder || ''),
-    });
+    let init;
+    try {
+      init = chunkService.initTask({
+        fileName: body.fileName,
+        fileSize,
+        fileType: body.fileType,
+        totalChunks,
+        storageMode,
+        storageId: asString(body.storageId),
+        folderPath: normalizeFolderPath(body.folderPath || body.folder || ''),
+      });
+    } catch (error) {
+      return jsonError(c, error.status || 400, error.code || 'INVALID_CHUNK_PLAN', error.message, error.message);
+    }
 
     return c.json({ success: true, ...init });
   });
@@ -204,7 +209,11 @@ function registerUploadRoutes(app, container, helpers) {
     }
 
     const buffer = await chunk.arrayBuffer();
-    chunkService.saveChunk({ uploadId, chunkIndex, buffer });
+    try {
+      await chunkService.saveChunk({ uploadId, chunkIndex, buffer });
+    } catch (error) {
+      return jsonError(c, error.status || 400, error.code || 'CHUNK_UPLOAD_FAILED', error.message, error.message);
+    }
 
     return c.json({ success: true, chunkIndex });
   });
@@ -221,8 +230,9 @@ function registerUploadRoutes(app, container, helpers) {
     try {
       result = await chunkService.complete(body.uploadId);
     } catch (error) {
-      const normalized = normalizeUploadError(c, error, 502);
-      return c.json({ ...normalized, traceId: getTraceId(c) }, 502);
+      const status = error.status || 502;
+      const normalized = normalizeUploadError(c, error, status);
+      return c.json({ ...normalized, traceId: getTraceId(c) }, status);
     }
 
     return c.json({

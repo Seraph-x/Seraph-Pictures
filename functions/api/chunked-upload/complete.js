@@ -9,6 +9,7 @@ import { hasHuggingFaceConfig, uploadToHuggingFace } from '../../utils/huggingfa
 import { hasWebDAVConfig, normalizeWebDAVPath, uploadToWebDAV } from '../../utils/webdav.js';
 import { hasGitHubConfig, normalizeGitHubStoragePath, uploadToGitHub } from '../../utils/github.js';
 import { resolveStorageEnv } from '../../utils/storage-config.js';
+import { createChunkPlan, validateChunkPart } from '../../utils/chunk-policy.js';
 import {
   buildTelegramDirectLink,
   buildTelegramBotApiUrl,
@@ -49,10 +50,12 @@ export async function onRequestPost(context) {
     if (!taskData) {
       return jsonResponse({ error: '上传任务不存在或已过期' }, 404);
     }
-    const totalChunks = Number(taskData.totalChunks || 0);
-    if (!Number.isFinite(totalChunks) || totalChunks <= 0) {
-      return jsonResponse({ error: 'Invalid totalChunks in upload task.' }, 400);
-    }
+    const plan = createChunkPlan({
+      fileSize: Number(taskData.fileSize),
+      chunkSize: Number(taskData.chunkSize),
+      totalChunks: Number(taskData.totalChunks),
+    });
+    const totalChunks = plan.totalChunks;
 
     const chunkBackend = resolveChunkBackend(taskData, env);
     const completionValidation = validateCompletionTarget(taskData.storageMode || 'telegram', Number(taskData.fileSize || 0));
@@ -75,12 +78,21 @@ export async function onRequestPost(context) {
     }
 
     const chunks = [];
+    let totalBytes = 0;
     for (let i = 0; i < totalChunks; i++) {
       const chunkData = await readChunkData(uploadId, i, chunkBackend, env);
       if (!chunkData) {
         return jsonResponse({ error: `分片 ${i} 数据缺失` }, 500);
       }
+      validateChunkPart({ plan, chunkIndex: i, byteLength: chunkData.byteLength });
       chunks.push(chunkData);
+      totalBytes += chunkData.byteLength;
+    }
+    if (totalBytes !== plan.fileSize) {
+      const error = new Error('Combined upload size does not match the declared file size.');
+      error.code = 'UPLOAD_SIZE_MISMATCH';
+      error.status = 400;
+      throw error;
     }
 
     const completeFile = new Blob(chunks, { type: taskData.fileType || 'application/octet-stream' });
@@ -261,8 +273,9 @@ export async function onRequestPost(context) {
       fileSize: taskData.fileSize,
     });
   } catch (error) {
-    console.error('Complete upload error:', error);
-    return jsonResponse({ error: error.message }, 500);
+    const status = error.status || 500;
+    if (status >= 500) console.error('Complete upload error:', error);
+    return jsonResponse({ error: error.message, code: error.code }, status);
   }
 }
 

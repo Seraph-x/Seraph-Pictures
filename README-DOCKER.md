@@ -14,8 +14,11 @@ Docker runtime 用于自托管 Seraph's Pictures。它提供 Node/Hono 后端、
 
 ```bash
 npm run docker:init-env
+# 编辑 .env，将 BASIC_PASS 替换为非示例密码
 docker compose up -d --build
 ```
+
+Docker 默认启用认证。生产环境若仍使用空凭据、示例密码或示例加密密钥，API 会拒绝启动。只有明确设置 `AUTH_DISABLED=true` 才会关闭认证，并在启动日志中输出警告。
 
 默认访问：
 

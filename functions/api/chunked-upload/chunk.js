@@ -3,6 +3,7 @@
  * POST /api/chunked-upload/chunk
  */
 import { checkAuthentication, isAuthRequired } from '../../utils/auth.js';
+import { createChunkPlan, validateChunkPart } from '../../utils/chunk-policy.js';
 
 const TEMP_CHUNK_PREFIX = 'chunk-upload';
 
@@ -23,10 +24,11 @@ export async function onRequestPost(context) {
 
     const formData = await request.formData();
     const uploadId = formData.get('uploadId');
-    const chunkIndex = parseInt(formData.get('chunkIndex'), 10);
+    const rawChunkIndex = formData.get('chunkIndex');
+    const chunkIndex = Number(rawChunkIndex);
     const chunk = formData.get('chunk');
 
-    if (!uploadId || Number.isNaN(chunkIndex) || !chunk) {
+    if (!uploadId || rawChunkIndex == null || String(rawChunkIndex).trim() === '' || !chunk) {
       return jsonResponse({ error: '缺少必要参数' }, 400);
     }
 
@@ -34,10 +36,12 @@ export async function onRequestPost(context) {
     if (!taskData) {
       return jsonResponse({ error: '上传任务不存在或已过期' }, 404);
     }
-    const totalChunks = Number(taskData.totalChunks || 0);
-    if (!Number.isFinite(totalChunks) || totalChunks <= 0) {
-      return jsonResponse({ error: 'Invalid totalChunks in upload task.' }, 400);
-    }
+    const plan = createChunkPlan({
+      fileSize: Number(taskData.fileSize),
+      chunkSize: Number(taskData.chunkSize),
+      totalChunks: Number(taskData.totalChunks),
+    });
+    const totalChunks = plan.totalChunks;
 
     const chunkBackend = resolveChunkBackend(taskData, env);
     const minimizeKvWrites = isKvWriteMinimized(env);
@@ -51,6 +55,7 @@ export async function onRequestPost(context) {
     }
 
     const chunkArrayBuffer = await chunk.arrayBuffer();
+    validateChunkPart({ plan, chunkIndex, byteLength: chunkArrayBuffer.byteLength });
 
     if (chunkBackend === 'r2') {
       if (!env.R2_BUCKET) {
@@ -100,8 +105,9 @@ export async function onRequestPost(context) {
       progress,
     });
   } catch (error) {
-    console.error('Chunk upload error:', error);
-    return jsonResponse({ error: error.message }, 500);
+    const status = error.status || 500;
+    if (status >= 500) console.error('Chunk upload error:', error);
+    return jsonResponse({ error: error.message, code: error.code }, status);
   }
 }
 
