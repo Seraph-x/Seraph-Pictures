@@ -25,6 +25,11 @@ const OPERATIONS = new Set([
   'passkeyMigrationStatus',
   'migrateLegacyPasskeys',
   'completeLegacyPasskeyCleanup',
+  'configReadAuthority',
+  'configBegin',
+  'configCommit',
+  'configAbort',
+  'configAbortStale',
 ]);
 
 function getStub(env) {
@@ -67,3 +72,5 @@ export async function callAuthCoordinator(env, operation, payload = {}) {
     throw new AuthCoordinatorError('AUTH_STATE_UNAVAILABLE', 503, error);
   }
 }
+
+export const callCoordinator = callAuthCoordinator;

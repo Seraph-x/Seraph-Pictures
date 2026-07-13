@@ -18,6 +18,15 @@ function isProfile(value) {
   return typeof value.username === 'string' && Number.isInteger(value.credVersion);
 }
 
+function isConfigAuthority(value) {
+  if (!isObject(value) || typeof value.initialized !== 'boolean') return false;
+  if (!value.initialized) return value.committedVersion === null && value.digest === null;
+  return Number.isInteger(value.committedVersion)
+    && value.committedVersion > 0
+    && typeof value.digest === 'string'
+    && value.digest.length > 0;
+}
+
 const VALIDATORS = Object.freeze({
   bootstrapLogin: (value) => isResult(value) && (!value.ok || isSession(value.session)),
   migrateLegacyLogin: (value) => isResult(value) && (!value.ok || isSession(value.session)),
@@ -46,6 +55,14 @@ const VALIDATORS = Object.freeze({
     && (value.cleanupRequired == null || typeof value.cleanupRequired === 'boolean'),
   migrateLegacyPasskeys: (value) => isResult(value) && (!value.ok || Array.isArray(value.items)),
   completeLegacyPasskeyCleanup: (value) => isObject(value) && value.ok === true,
+  configReadAuthority: isConfigAuthority,
+  configBegin: (value) => isResult(value)
+    && (!value.ok || Number.isInteger(value.version)),
+  configCommit: (value) => isObject(value)
+    && value.ok === true
+    && Number.isInteger(value.committedVersion),
+  configAbort: (value) => isObject(value) && typeof value.aborted === 'boolean',
+  configAbortStale: (value) => isObject(value) && typeof value.aborted === 'boolean',
 });
 
 export function isValidOperationResult(operation, value) {

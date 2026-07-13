@@ -25,6 +25,9 @@ async function handleGet(context) {
     return apiSuccess({ config, secretsPresent, schema: describeStorageSchema() });
   } catch (error) {
     console.error('[storage-config] GET failed:', error?.message || String(error));
+    if (error?.code === 'STORAGE_CONFIG_UNAVAILABLE') {
+      return apiError('STORAGE_CONFIG_UNAVAILABLE', '存储配置暂时不可用，请稍后重试。', 503);
+    }
     return apiError('STORAGE_CONFIG_READ_FAILED', '读取存储配置失败，请检查 KV 绑定与 Functions 日志。', 500, {
       detail: error?.message || String(error),
     });
@@ -50,6 +53,9 @@ async function handlePost(context) {
     const { config, secretsPresent } = await writeStorageConfig(context.env, patch || {});
     return apiSuccess({ config, secretsPresent });
   } catch (error) {
+    if (error?.code === 'STORAGE_CONFIG_UNAVAILABLE') {
+      return apiError('STORAGE_CONFIG_UNAVAILABLE', '存储配置暂时不可用，请稍后重试。', 503);
+    }
     if (error?.code === 'NO_ENC_KEY') {
       return apiError('NO_ENC_KEY', '未配置加密密钥，无法保存密钥字段。请在环境变量中设置 CONFIG_ENCRYPTION_KEY 或 SESSION_SECRET 后重新部署。', 500);
     }

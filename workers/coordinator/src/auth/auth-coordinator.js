@@ -1,6 +1,8 @@
 import { AuthRepository } from './auth-repository.js';
 import { AuthService } from './auth-service.js';
 import { createBootstrapCredentials, createPasswordService } from './password.js';
+import { ConfigStateRepository } from '../config/config-state-repository.js';
+import { ConfigStateService } from '../config/config-state-service.js';
 
 const OPERATION_METHODS = Object.freeze({
   bootstrapLogin: 'bootstrapLogin',
@@ -24,6 +26,11 @@ const OPERATION_METHODS = Object.freeze({
   passkeyMigrationStatus: 'passkeyMigrationStatus',
   migrateLegacyPasskeys: 'migrateLegacyPasskeys',
   completeLegacyPasskeyCleanup: 'completeLegacyPasskeyCleanup',
+  configReadAuthority: 'configReadAuthority',
+  configBegin: 'configBegin',
+  configCommit: 'configCommit',
+  configAbort: 'configAbort',
+  configAbortStale: 'configAbortStale',
 });
 
 function jsonResponse(body, status = 200) {
@@ -77,10 +84,35 @@ export class AuthCoordinator {
       clock: { now: () => Date.now() },
       bootstrapCredentials: createBootstrapCredentials(),
     };
-    this.service = new AuthService(dependencies);
+    const authService = new AuthService(dependencies);
+    const configService = new ConfigStateService({
+      repository: new ConfigStateRepository(ctx.storage),
+      clock: dependencies.clock,
+      alarms: { schedule: (timestamp) => ctx.storage.setAlarm(timestamp) },
+    });
+    this.service = Object.freeze({
+      ...bindMethods(authService, OPERATION_METHODS),
+      configReadAuthority: (payload) => configService.readAuthority(payload),
+      configBegin: (payload) => configService.begin(payload),
+      configCommit: (payload) => configService.commit(payload),
+      configAbort: (payload) => configService.abort(payload),
+      configAbortStale: (payload) => configService.abortStale(payload),
+    });
+    this.configService = configService;
   }
 
   fetch(request) {
     return routeAuthOperation({ request, service: this.service });
   }
+
+  alarm() {
+    return this.configService.abortStale({});
+  }
+}
+
+function bindMethods(service, operationMethods) {
+  const entries = Object.entries(operationMethods)
+    .filter(([operation]) => !operation.startsWith('config'))
+    .map(([operation, method]) => [operation, service[method].bind(service)]);
+  return Object.fromEntries(entries);
 }

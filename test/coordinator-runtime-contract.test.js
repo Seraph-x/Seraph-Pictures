@@ -20,6 +20,11 @@ function createService() {
     verifySession: async () => true,
     changeCredentials: async () => ({ ok: true }),
     logout: async () => ({ ok: true }),
+    configReadAuthority: async () => ({
+      initialized: false,
+      committedVersion: null,
+      digest: null,
+    }),
   });
 }
 
@@ -67,6 +72,21 @@ describe('coordinator runtime contract', function () {
     assert.strictEqual(response.status, 200);
     assert.deepStrictEqual(await response.json(), {
       data: { initialized: false, schemaVersion: 1 },
+    });
+  });
+
+  it('routes configuration authority operations through the private adapter', async function () {
+    const { routeAuthOperation } = await import(ADAPTER_URL);
+    const response = await routeAuthOperation({
+      request: new Request('https://internal/config/configReadAuthority', {
+        method: 'POST', body: '{}',
+      }),
+      service: createService(),
+    });
+
+    assert.strictEqual(response.status, 200);
+    assert.deepStrictEqual(await response.json(), {
+      data: { initialized: false, committedVersion: null, digest: null },
     });
   });
 

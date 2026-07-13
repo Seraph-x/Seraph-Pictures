@@ -112,11 +112,30 @@ async function parseJson(response) {
   return JSON.parse(await response.text());
 }
 
+function makeUninitializedCoordinator() {
+  const stub = {
+    async fetch(request) {
+      const operation = new URL(request.url).pathname.split('/').at(-1);
+      if (operation !== 'configReadAuthority') {
+        return Response.json({ error: { code: 'COORDINATOR_OPERATION_UNKNOWN' } }, { status: 404 });
+      }
+      return Response.json({
+        data: { initialized: false, committedVersion: null, digest: null },
+      });
+    },
+  };
+  return {
+    idFromName: () => 'coordinator-id',
+    get: () => stub,
+  };
+}
+
 async function createEnvAndToken(scopes = ['read'], tokenOptions = {}) {
   const { createApiToken } = await import('../functions/utils/api-token.js');
   const env = {
     img_url: new MemoryKV(),
     R2_BUCKET: new MemoryR2(),
+    AUTH_COORDINATOR: makeUninitializedCoordinator(),
   };
 
   const created = await createApiToken(
