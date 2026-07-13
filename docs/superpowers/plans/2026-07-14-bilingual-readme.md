@@ -27,11 +27,12 @@
 - Read: `shared/storage/r2-lifecycle.cjs`
 - Read: `shared/security/guest-policy.cjs`
 - Read: `functions/utils/guest.js`
+- Read: `functions/utils/telegram.js`
 - Read: `functions/services/guest-telegram-storage.js`
 - Read: `functions/services/guest-quota.js`
 - Read: `server/lib/config/**`
 - Read: `frontend/src/router/index.js`
-- Read: root `*.html` and `app/*/index.html` public interface files
+- Read: root `*.html`, `app/*.html`, and `app/*/index.html` public interface files
 - Read: `test/cloudflare-auth-failure.test.js`
 - Read: `test/guest-upload-handler.test.js`
 - Read: `test/guest-quota.test.js`
@@ -43,6 +44,10 @@
 - Read: `README-EN.md`
 - Read: `README-DOCKER.md`
 - Read: `README-DOCKER-EN.md`
+
+- [ ] **Step 0: Record the worktree baseline**
+
+Run `git status --short` before modifying any README. Save the exact output for the final comparison; pre-existing user changes must remain untouched.
 
 - [ ] **Step 1: Record runnable commands**
 
@@ -137,34 +142,41 @@ Confirm both root READMEs link to the matching-language Docker guide and the lin
 - Verify: `README-EN.md`
 - Verify: `README-DOCKER.md`
 - Verify: `README-DOCKER-EN.md`
-
-- [ ] **Step 0: Record the worktree baseline**
-
-Run: `git status --short`
-
-Expected: record all pre-existing changes verbatim and do not stage or modify them.
+- Create temporarily: `/tmp/seraph-readme-validate.cjs` (never stage or commit)
 
 - [ ] **Step 1: Validate formatting and links**
 
-Run a read-only `node -e` check over all four README files. Parse Markdown link targets that do not use a URI scheme or `#`, resolve them from the source file directory, and fail if a target is absent. Scan opening fences and fail when the language token is empty.
+Use `apply_patch` to create `/tmp/seraph-readme-validate.cjs`. The script accepts the worktree root as its only argument, reads the four README files, and performs Steps 1–3 without modifying the repository. Run it exactly as:
+
+```bash
+node /tmp/seraph-readme-validate.cjs "$PWD"
+```
+
+For links, parse Markdown targets, ignore URI schemes and `#`, strip optional anchors, resolve relative paths from each README, and fail when a target is absent. For fences, track opening/closing state and fail only when an opening fence has no language token.
 
 Expected: zero missing links and zero untyped fences.
 
 - [ ] **Step 2: Validate bilingual parity**
 
-Run a read-only `node -e` parity check with an explicit Chinese-to-English heading map. Assert mapped level-two headings are identical ordered sequences, fenced shell command inventories are exactly equal, and API endpoint, warning topic, and configuration topic sets match. Assert both files contain equivalent boundaries for quota 10, one-day retention, 20 MiB ceiling, 5 MiB default, coordinator-before-Pages ordering, fail-closed behavior, lifecycle read-add-read, and the Telegram remote-byte caveat. Parse both Mermaid blocks and compare normalized node and edge sets.
+In the temporary validator, define explicit canonical maps for Chinese/English level-two headings, warning topics, and configuration topics. Assert mapped headings are identical ordered sequences; mapped warning/configuration IDs and API endpoint sets match; and fenced shell command inventories are exactly equal after whitespace normalization. Assert both files contain equivalent boundaries for quota 10, one-day retention, 20 MiB ceiling, 5 MiB default, coordinator-before-Pages ordering, fail-closed behavior, lifecycle read-add-read, and the Telegram remote-byte caveat. Parse Mermaid using stable node IDs and compare only node-ID and edge sets, never localized labels.
 
 Expected: equivalent sets in Chinese and English.
 
 - [ ] **Step 3: Search for stale or sensitive content**
 
-Use a read-only Node command to extract current Pages/Worker names, every KV ID, bucket name, `script_name`, RP ID/origin, and migration audience from both Wrangler files. Fail if any extracted repository-specific value appears in the four README files. Separately use `rg` for incomplete Storage/Drive claims, guest fallback, adjustable daily quota, zero-day retention, TODO markers, 32-character hexadecimal IDs, `*.pages.dev` deployment URLs, and repository-specific domains. Allow only the documented angle-bracket placeholders.
+In the same temporary validator, strip JSONC comments and parse both Wrangler files. Extract current Pages/Worker names, every KV ID, bucket name, `script_name`, RP ID/origin, and migration audience recursively. Fail if any extracted repository-specific value appears in the four README files. Separately run:
+
+```bash
+rg -n "API.*(未完成|incomplete)|回退.*主.*bot|fallback.*main.*bot|0 *= *永不|0 *= *never|TODO|[0-9a-f]{32}|https://[^ )]+\.pages\.dev" README.md README-EN.md README-DOCKER.md README-DOCKER-EN.md
+```
+
+Expected: no match. The validator allows only the documented angle-bracket placeholders.
 
 Expected: no stale claims, secrets, or repository-specific deployment values in generic instructions.
 
 - [ ] **Step 4: Validate documented commands**
 
-Cross-check every `npm run` command against the applicable package manifest. Execute `npm run frontend:build` and `perl -e 'alarm 60; exec @ARGV' npm test -- --reporter dot`. Verify `test:storage-e2e`, `test:auth-e2e`, and `test:visual` exist without running browser E2E for this documentation-only change. If a Markdown lint binary is already installed, run it with `.markdownlint.json`; do not download a new dependency. Run `npx wrangler pages deploy --help`, `npx wrangler deploy --help`, `npx wrangler r2 bucket lifecycle list --help`, and `npx wrangler r2 bucket lifecycle add --help` only; do not deploy or mutate Cloudflare resources.
+Have the temporary validator parse all npm invocation forms: `npm test`, `npm start`, `npm run <script>`, and `npm --prefix <dir> run <script>`, then verify each against the applicable manifest. Execute `npm run frontend:build` and `perl -e 'alarm 60; exec @ARGV' npm test -- --reporter dot`. Verify `test:storage-e2e`, `test:auth-e2e`, and `test:visual` exist without running browser E2E for this documentation-only change. If a Markdown lint binary is already installed, run it with `.markdownlint.json`; do not download a new dependency. Run `npx wrangler pages deploy --help`, `npx wrangler deploy --help`, `npx wrangler r2 bucket lifecycle list --help`, and `npx wrangler r2 bucket lifecycle add --help` only; do not deploy or mutate Cloudflare resources.
 
 Expected: commands exist; build and the timeout-bounded test suite pass; Wrangler help exposes the documented syntax; no external resource changes occur.
 
