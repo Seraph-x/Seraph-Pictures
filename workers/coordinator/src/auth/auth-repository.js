@@ -14,6 +14,19 @@ const CREATE_SCHEMA = `
     created_at INTEGER NOT NULL,
     expires_at INTEGER NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS auth_passkeys (
+    id TEXT PRIMARY KEY,
+    record_json TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS auth_challenges (
+    kind TEXT PRIMARY KEY,
+    challenge TEXT NOT NULL,
+    expires_at INTEGER NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS auth_metadata (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
 `;
 
 function mapState(row) {
@@ -85,5 +98,49 @@ export class AuthRepository {
 
   deleteAllSessions() {
     this.sql.exec('DELETE FROM auth_sessions');
+  }
+
+  listPasskeys() {
+    return this.sql.exec('SELECT record_json FROM auth_passkeys ORDER BY id').toArray()
+      .map((row) => Object.freeze(JSON.parse(row.record_json)));
+  }
+
+  readPasskey(id) {
+    const row = this.sql.exec('SELECT record_json FROM auth_passkeys WHERE id = ?', id).toArray()[0];
+    return row ? Object.freeze(JSON.parse(row.record_json)) : null;
+  }
+
+  writePasskey(record) {
+    this.sql.exec(
+      'INSERT OR REPLACE INTO auth_passkeys (id, record_json) VALUES (?, ?)',
+      record.id, JSON.stringify(record)
+    );
+  }
+
+  deletePasskey(id) {
+    const exists = Boolean(this.readPasskey(id));
+    if (exists) this.sql.exec('DELETE FROM auth_passkeys WHERE id = ?', id);
+    return exists;
+  }
+
+  writeChallenge(record) {
+    this.sql.exec(
+      'INSERT OR REPLACE INTO auth_challenges (kind, challenge, expires_at) VALUES (?, ?, ?)',
+      record.kind, record.challenge, record.expiresAt
+    );
+  }
+
+  takeChallenge(kind) {
+    const row = this.sql.exec('SELECT * FROM auth_challenges WHERE kind = ?', kind).toArray()[0];
+    if (row) this.sql.exec('DELETE FROM auth_challenges WHERE kind = ?', kind);
+    return row ? Object.freeze({ kind: row.kind, challenge: row.challenge, expiresAt: row.expires_at }) : null;
+  }
+
+  readMetadata(key) {
+    return this.sql.exec('SELECT value FROM auth_metadata WHERE key = ?', key).toArray()[0]?.value || null;
+  }
+
+  writeMetadata(key, value) {
+    this.sql.exec('INSERT OR REPLACE INTO auth_metadata (key, value) VALUES (?, ?)', key, value);
   }
 }

@@ -12,12 +12,6 @@
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["AuthCoordinator"] }
   ],
-  "kv_namespaces": [
-    { "binding": "img_url", "id": "1dd5b18021224616b0cd017ec1f3f455" }
-  ],
-  "r2_buckets": [
-    { "binding": "R2_BUCKET", "bucket_name": "k-vault-files" }
-  ],
   "env": {
     "production": {
       "name": "k-vault-coordinator",
@@ -25,13 +19,7 @@
         "bindings": [
           { "name": "AUTH_COORDINATOR", "class_name": "AuthCoordinator" }
         ]
-      },
-      "kv_namespaces": [
-        { "binding": "img_url", "id": "1dd5b18021224616b0cd017ec1f3f455" }
-      ],
-      "r2_buckets": [
-        { "binding": "R2_BUCKET", "bucket_name": "k-vault-files" }
-      ]
+      }
     }
   }
 }

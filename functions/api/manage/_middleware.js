@@ -2,11 +2,14 @@ import {
   checkAuthentication,
   isAuthRequired 
 } from '../../utils/auth.js';
+import { createAuthErrorResponse } from '../../utils/auth/http-errors.js';
 
 async function errorHandling(context) {
     try {
       return await context.next();
     } catch (err) {
+      const authError = createAuthErrorResponse(err);
+      if (authError) return authError;
       console.error('Unhandled error in manage API:', err);
       return new Response('Internal Server Error', { status: 500 });
     }

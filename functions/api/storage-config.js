@@ -1,6 +1,7 @@
 import { checkAuthentication, isAuthRequired } from '../utils/auth.js';
 import { apiError, apiSuccess } from '../utils/api-v1.js';
 import { readStorageConfig, writeStorageConfig, describeStorageSchema } from '../utils/storage-config.js';
+import { withAuthErrorResponse } from '../utils/auth/http-errors.js';
 
 async function requireAdmin(context) {
   if (!isAuthRequired(context.env)) return null;
@@ -15,7 +16,7 @@ export async function onRequestOptions() {
   return new Response(null, { status: 204 });
 }
 
-export async function onRequestGet(context) {
+async function handleGet(context) {
   const unauthorized = await requireAdmin(context);
   if (unauthorized) return unauthorized;
 
@@ -30,7 +31,7 @@ export async function onRequestGet(context) {
   }
 }
 
-export async function onRequestPost(context) {
+async function handlePost(context) {
   const unauthorized = await requireAdmin(context);
   if (unauthorized) return unauthorized;
 
@@ -61,3 +62,6 @@ export async function onRequestPost(context) {
     });
   }
 }
+
+export const onRequestGet = withAuthErrorResponse(handleGet);
+export const onRequestPost = withAuthErrorResponse(handlePost);

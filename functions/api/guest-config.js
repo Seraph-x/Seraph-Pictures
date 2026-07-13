@@ -1,5 +1,6 @@
 import { checkAuthentication, isAuthRequired } from '../utils/auth.js';
 import { apiError, apiSuccess } from '../utils/api-v1.js';
+import { withAuthErrorResponse } from '../utils/auth/http-errors.js';
 import {
   GUEST_CONFIG_KEY,
   KV_BINDING_CANDIDATES,
@@ -74,7 +75,7 @@ export async function onRequestGet(context) {
   });
 }
 
-export async function onRequestPost(context) {
+async function handlePost(context) {
   const kv = resolveKvBinding(context.env);
   if (!kv) {
     console.error('[guest-config] KV binding missing. Expected one of:', KV_BINDING_CANDIDATES.join(', '));
@@ -118,3 +119,5 @@ export async function onRequestPost(context) {
     binding: kv.name,
   });
 }
+
+export const onRequestPost = withAuthErrorResponse(handlePost);

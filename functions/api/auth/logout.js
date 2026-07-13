@@ -8,6 +8,7 @@ import {
   createClearSessionCookieHeader,
   createLegacyClearSessionCookieHeaders,
 } from "../../utils/auth.js";
+import { createAuthErrorResponse } from "../../utils/auth/http-errors.js";
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -34,6 +35,8 @@ export async function onRequestPost(context) {
       { headers }
     );
   } catch (error) {
+    const authError = createAuthErrorResponse(error);
+    if (authError) return authError;
     console.error("Logout error:", error);
     return new Response(
       JSON.stringify({

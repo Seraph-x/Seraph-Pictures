@@ -92,7 +92,9 @@ export async function onRequestPost(context) {
     const changed = await changeAdminCredentials({ sessionToken, ...next }, context.env);
     if (!changed.ok) return json({ success: false, message: '需要登录' }, 401);
     return json({ success: true, message: '账号已更新', username: next.username }, 200, {
-      'Set-Cookie': createSessionCookieHeader(changed.session.token),
+      'Set-Cookie': createSessionCookieHeader(changed.session.token, {
+        secure: context.env.APP_ENV !== 'local',
+      }),
     });
   } catch (error) {
     return mapError(error);

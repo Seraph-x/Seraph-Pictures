@@ -7,6 +7,11 @@ import {
   getSessionFromCookie,
 } from './auth/cookies.js';
 import { AuthCoordinatorError } from './auth/errors.js';
+import {
+  deleteLegacyCredential,
+  readLegacyCredential,
+  verifyLegacyCredential,
+} from './auth/legacy-credentials.js';
 
 export {
   AuthCoordinatorError,
@@ -45,16 +50,36 @@ function timingSafeEqual(left, right) {
 export async function loginWithCredentials(username, password, env) {
   const status = await callAuthCoordinator(env, 'status');
   if (status.initialized) {
-    return callAuthCoordinator(env, 'bootstrapLogin', { username, password });
+    const result = await callAuthCoordinator(env, 'bootstrapLogin', { username, password });
+    if (result.ok && status.legacyCleanupRequired) await completeLegacyCleanup(env);
+    return result;
+  }
+  const legacy = await readLegacyCredential(env);
+  if (legacy) {
+    if (!await verifyLegacyCredential({ username, password }, legacy)) return failure();
+    const result = await callAuthCoordinator(env, 'migrateLegacyLogin', {
+      ...legacy, username, password, migrationAuthorized: true,
+    });
+    if (result.ok) await completeLegacyCleanup(env);
+    return result;
   }
   const seedMatches = timingSafeEqual(username, env.BASIC_USER)
     && timingSafeEqual(password, env.BASIC_PASS);
-  if (!seedMatches) return Object.freeze({ ok: false, code: 'INVALID_CREDENTIALS' });
+  if (!seedMatches) return failure();
   return callAuthCoordinator(env, 'bootstrapLogin', {
     username,
     password,
     bootstrapAuthorized: true,
   });
+}
+
+async function completeLegacyCleanup(env) {
+  await deleteLegacyCredential(env);
+  await callAuthCoordinator(env, 'completeLegacyCredentialCleanup');
+}
+
+function failure() {
+  return Object.freeze({ ok: false, code: 'INVALID_CREDENTIALS' });
 }
 
 export function verifySession(sessionToken, env) {

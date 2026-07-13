@@ -4,6 +4,7 @@
  */
 import { checkAuthentication, isAuthRequired } from '../../utils/auth.js';
 import { createChunkPlan, validateChunkPart } from '../../utils/chunk-policy.js';
+import { createAuthErrorResponse } from '../../utils/auth/http-errors.js';
 
 const TEMP_CHUNK_PREFIX = 'chunk-upload';
 
@@ -105,6 +106,8 @@ export async function onRequestPost(context) {
       progress,
     });
   } catch (error) {
+    const authError = createAuthErrorResponse(error);
+    if (authError) return authError;
     const status = error.status || 500;
     if (status >= 500) console.error('Chunk upload error:', error);
     return jsonResponse({ error: error.message, code: error.code }, status);

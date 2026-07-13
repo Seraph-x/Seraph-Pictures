@@ -10,6 +10,7 @@ import { hasWebDAVConfig, normalizeWebDAVPath, uploadToWebDAV } from '../../util
 import { hasGitHubConfig, normalizeGitHubStoragePath, uploadToGitHub } from '../../utils/github.js';
 import { resolveStorageEnv } from '../../utils/storage-config.js';
 import { createChunkPlan, validateChunkPart } from '../../utils/chunk-policy.js';
+import { createAuthErrorResponse } from '../../utils/auth/http-errors.js';
 import {
   buildTelegramDirectLink,
   buildTelegramBotApiUrl,
@@ -273,6 +274,8 @@ export async function onRequestPost(context) {
       fileSize: taskData.fileSize,
     });
   } catch (error) {
+    const authError = createAuthErrorResponse(error);
+    if (authError) return authError;
     const status = error.status || 500;
     if (status >= 500) console.error('Complete upload error:', error);
     return jsonResponse({ error: error.message, code: error.code }, status);

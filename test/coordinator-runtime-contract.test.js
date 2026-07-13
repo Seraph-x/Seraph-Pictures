@@ -31,6 +31,8 @@ describe('coordinator runtime contract', function () {
 
     assert.strictEqual(config.workers_dev, false);
     assert.ok(!('routes' in config));
+    assert.ok(!('kv_namespaces' in config));
+    assert.ok(!('r2_buckets' in config));
     assert.strictEqual(binding.class_name, 'AuthCoordinator');
     assert.ok(sqliteClasses.includes('AuthCoordinator'));
     assert.match(fs.readFileSync(INDEX_PATH, 'utf8'), /export \{ AuthCoordinator \}/);

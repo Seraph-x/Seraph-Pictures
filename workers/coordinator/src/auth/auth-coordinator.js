@@ -4,6 +4,8 @@ import { createBootstrapCredentials, createPasswordService } from './password.js
 
 const OPERATION_METHODS = Object.freeze({
   bootstrapLogin: 'bootstrapLogin',
+  migrateLegacyLogin: 'migrateLegacyLogin',
+  completeLegacyCredentialCleanup: 'completeLegacyCredentialCleanup',
   verifyCredentials: 'verifyCredentials',
   verifySession: 'verifySession',
   issueSession: 'issueSession',
@@ -12,6 +14,16 @@ const OPERATION_METHODS = Object.freeze({
   changeCredentials: 'changeCredentials',
   logout: 'logout',
   status: 'status',
+  listPasskeys: 'listPasskeys',
+  putPasskeyChallenge: 'putPasskeyChallenge',
+  takePasskeyChallenge: 'takePasskeyChallenge',
+  savePasskey: 'savePasskey',
+  updatePasskeyCounter: 'updatePasskeyCounter',
+  renamePasskey: 'renamePasskey',
+  deletePasskey: 'deletePasskey',
+  passkeyMigrationStatus: 'passkeyMigrationStatus',
+  migrateLegacyPasskeys: 'migrateLegacyPasskeys',
+  completeLegacyPasskeyCleanup: 'completeLegacyPasskeyCleanup',
 });
 
 function jsonResponse(body, status = 200) {

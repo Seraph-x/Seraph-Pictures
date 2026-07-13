@@ -67,16 +67,33 @@ describe('CI workflow contract', function () {
     assert.match(config, /"name"\s*:\s*"AUTH_COORDINATOR"[\s\S]*?"class_name"\s*:\s*"AuthCoordinator"[\s\S]*?"script_name"\s*:\s*"k-vault-coordinator"/);
   });
 
-  it('deploys coordinator, probes a preview, then deploys production Pages', function () {
+  it('deploys coordinator and probes both preview and production Pages', function () {
     const workflow = readPagesWorkflow();
-    const coordinatorIndex = workflow.indexOf('wrangler deploy --config workers/coordinator/wrangler.jsonc');
+    const coordinatorIndex = workflow.lastIndexOf('wrangler deploy --config workers/coordinator/wrangler.jsonc');
     const previewIndex = workflow.indexOf('--branch=security-2a0-candidate');
-    const probeIndex = workflow.indexOf('probe-coordinator-binding.mjs');
+    const previewProbeIndex = workflow.indexOf('probe-coordinator-binding.mjs');
     const productionIndex = workflow.indexOf('--branch=main');
+    const productionProbeIndex = workflow.indexOf('probe-coordinator-binding.mjs', previewProbeIndex + 1);
 
     assert.ok(coordinatorIndex >= 0, 'coordinator deploy must exist');
     assert.ok(previewIndex > coordinatorIndex, 'preview deploy must follow coordinator');
-    assert.ok(probeIndex > previewIndex, 'runtime probe must follow preview deploy');
-    assert.ok(productionIndex > probeIndex, 'production deploy must follow the preview probe');
+    assert.ok(previewProbeIndex > previewIndex, 'runtime probe must follow preview deploy');
+    assert.ok(productionIndex > previewProbeIndex, 'production deploy must follow preview probe');
+    assert.ok(productionProbeIndex > productionIndex, 'runtime probe must follow production deploy');
+  });
+
+  it('blocks production mutation behind tests, dry-runs, E2E, and encrypted backup', function () {
+    const workflow = readPagesWorkflow();
+    const unitIndex = workflow.indexOf('run: npm test');
+    const authE2eIndex = workflow.indexOf('run: npm run test:auth-e2e');
+    const dryRunIndex = workflow.indexOf('--dry-run');
+    const backupIndex = workflow.indexOf('backup-kv-state.mjs --environment production');
+    const artifactIndex = workflow.indexOf('actions/upload-artifact@v4');
+    const coordinatorIndex = workflow.lastIndexOf('wrangler deploy --config workers/coordinator/wrangler.jsonc');
+
+    for (const gate of [unitIndex, authE2eIndex, dryRunIndex, backupIndex, artifactIndex]) {
+      assert.ok(gate >= 0 && gate < coordinatorIndex, 'every verification and backup gate must precede deploy');
+    }
+    assert.match(workflow, /BACKUP_ENCRYPTION_KEY:\s*\$\{\{ secrets\.BACKUP_ENCRYPTION_KEY \}\}/);
   });
 });

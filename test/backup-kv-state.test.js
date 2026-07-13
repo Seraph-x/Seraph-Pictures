@@ -102,4 +102,20 @@ describe('encrypted KV recovery backup', function () {
     assert.throws(() => validateOptions({ environment: 'preview', output: '/tmp/backup.json' }), /PRODUCTION_ENVIRONMENT_REQUIRED/);
     assert.throws(() => validateOptions({ environment: 'production', output: '/tmp/backup.json' }), /BACKUP_ENCRYPTION_KEY_REQUIRED/);
   });
+
+  it('permits explicit Wrangler OAuth without requiring a copied API token', async function () {
+    const { validateOptions } = await import('../scripts/security/backup-kv-state.mjs');
+    const repoRoot = path.resolve(__dirname, '..');
+    const options = validateOptions({
+      environment: 'production',
+      output: '/tmp/backup.json',
+      repoRoot,
+      accountId: 'account',
+      namespaceId: 'namespace',
+      encryptionKey: 'backup-key',
+      wranglerOauth: true,
+    });
+
+    assert.strictEqual(options.wranglerOauth, true);
+  });
 });

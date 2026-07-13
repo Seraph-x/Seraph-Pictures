@@ -10,6 +10,7 @@ import {
   summarizeRecords,
 } from './backup-lib.mjs';
 import { createCloudflareKvSource } from './cloudflare-kv-source.mjs';
+import { createWranglerKvSource } from './wrangler-kv-source.mjs';
 
 function readValue(argv, index, option) {
   const value = argv[index + 1];
@@ -22,6 +23,7 @@ export function parseOptions(argv, environment = process.env) {
   for (let index = 0; index < argv.length; index += 1) {
     const option = argv[index];
     if (option === '--dry-run') parsed.dryRun = true;
+    if (option === '--wrangler-oauth') parsed.wranglerOauth = true;
     if (option === '--help') parsed.help = true;
     if (option === '--environment') parsed.environment = readValue(argv, index++, option);
     if (option === '--output') parsed.output = readValue(argv, index++, option);
@@ -48,7 +50,7 @@ export function validateOptions(options) {
   if (!options.dryRun && !options.encryptionKey) throw new Error('BACKUP_ENCRYPTION_KEY_REQUIRED');
   if (!options.accountId) throw new Error('CLOUDFLARE_ACCOUNT_ID_REQUIRED');
   if (!options.namespaceId) throw new Error('KV_NAMESPACE_ID_REQUIRED');
-  if (!options.apiToken) throw new Error('CLOUDFLARE_API_TOKEN_REQUIRED');
+  if (!options.apiToken && !options.wranglerOauth) throw new Error('CLOUDFLARE_API_TOKEN_REQUIRED');
   return Object.freeze({ ...options, output: options.output ? path.resolve(options.output) : null });
 }
 
@@ -72,7 +74,10 @@ async function writeVerifiedBackup({ options, source, logger }) {
 
 export async function executeBackup(rawOptions, dependencies = {}) {
   const options = validateOptions(rawOptions);
-  const source = dependencies.source || createCloudflareKvSource(options);
+  const defaultSource = options.wranglerOauth
+    ? createWranglerKvSource(options)
+    : createCloudflareKvSource(options);
+  const source = dependencies.source || defaultSource;
   const logger = dependencies.logger || console.log;
   if (options.dryRun) {
     logger(JSON.stringify(summarizeRecords(await collectKeyInventory(source))));
@@ -82,7 +87,7 @@ export async function executeBackup(rawOptions, dependencies = {}) {
 }
 
 function printHelp() {
-  process.stdout.write('Usage: node scripts/security/backup-kv-state.mjs --environment production [--dry-run | --output /absolute/path]\n');
+  process.stdout.write('Usage: node scripts/security/backup-kv-state.mjs --environment production [--wrangler-oauth] [--dry-run | --output /absolute/path]\n');
 }
 
 async function main() {

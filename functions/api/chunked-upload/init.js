@@ -5,6 +5,7 @@
 import { checkAuthentication, isAuthRequired } from '../../utils/auth.js';
 import { checkGuestUpload } from '../../utils/guest.js';
 import { createChunkPlan } from '../../utils/chunk-policy.js';
+import { createAuthErrorResponse } from '../../utils/auth/http-errors.js';
 
 const CHUNK_SIZE = 5 * 1024 * 1024;
 const MAX_FILE_SIZE = 100 * 1024 * 1024;
@@ -82,6 +83,8 @@ export async function onRequestPost(context) {
       chunkBackend,
     });
   } catch (error) {
+    const authError = createAuthErrorResponse(error);
+    if (authError) return authError;
     const status = error.status || 500;
     if (status >= 500) console.error('Init upload error:', error);
     return jsonResponse({ error: error.message, code: error.code }, status);

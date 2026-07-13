@@ -1,5 +1,6 @@
 import { checkAuthentication, isAuthRequired } from '../utils/auth.js';
 import { apiError, apiSuccess } from '../utils/api-v1.js';
+import { withAuthErrorResponse } from '../utils/auth/http-errors.js';
 
 const UI_CONFIG_KEY = 'ui_config';
 const KV_BINDING_CANDIDATES = ['img_url', 'KV', 'UI_CONFIG_KV'];
@@ -139,7 +140,7 @@ export async function onRequestGet(context) {
   });
 }
 
-export async function onRequestPost(context) {
+async function handlePost(context) {
   const kv = resolveKvBinding(context.env);
   if (!kv) {
     console.error('[ui-config] KV binding missing. Expected one of:', KV_BINDING_CANDIDATES.join(', '));
@@ -183,3 +184,5 @@ export async function onRequestPost(context) {
     binding: kv.name,
   });
 }
+
+export const onRequestPost = withAuthErrorResponse(handlePost);

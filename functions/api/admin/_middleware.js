@@ -1,7 +1,8 @@
 import { checkAuthentication, isAuthRequired } from '../../utils/auth.js';
 import { apiError } from '../../utils/api-v1.js';
+import { withAuthErrorResponse } from '../../utils/auth/http-errors.js';
 
-export async function onRequest(context) {
+async function handleRequest(context) {
   if (!context.env?.img_url) {
     return apiError(
       'SERVER_MISCONFIGURED',
@@ -21,3 +22,5 @@ export async function onRequest(context) {
 
   return apiError('UNAUTHORIZED', 'You need to login.', 401);
 }
+
+export const onRequest = withAuthErrorResponse(handleRequest);

@@ -1,4 +1,5 @@
 const assert = require('node:assert');
+const crypto = require('node:crypto');
 
 function createNamespace(handler) {
   return {
@@ -30,13 +31,44 @@ function createKv() {
   };
 }
 
+function createLegacyRecord(password) {
+  const salt = Buffer.alloc(16).toString('base64');
+  const iterations = 100_000;
+  const passwordHash = crypto.pbkdf2Sync(password, Buffer.from(salt, 'base64'), iterations, 32, 'sha256').toString('base64');
+  return { username: 'legacy-admin', passwordHash, salt, iterations, credVersion: 4 };
+}
+
 describe('Cloudflare auth coordinator bridge', function () {
+  it('keeps production cookies Secure and permits explicit local HTTP testing', async function () {
+    const { createSessionCookieHeader } = await import('../functions/utils/auth.js');
+
+    assert.match(createSessionCookieHeader('token'), /; Secure;/);
+    assert.doesNotMatch(createSessionCookieHeader('token', { secure: false }), /; Secure;/);
+  });
+
   it('fails closed with 503 semantics when the binding is absent', async function () {
     const { checkAuthentication } = await import('../functions/utils/auth.js');
 
     await assert.rejects(
       checkAuthentication({ request: new Request('https://vault.example/api/auth/check'), env: {} }),
       (error) => error.code === 'AUTH_STATE_UNAVAILABLE' && error.status === 503
+    );
+  });
+
+  it('rejects malformed successful session responses instead of treating them as authenticated', async function () {
+    const { checkAuthentication } = await import('../functions/utils/auth.js');
+    const env = {
+      AUTH_COORDINATOR: createNamespace((operation) => (
+        operation === 'status' ? { initialized: true, schemaVersion: 1 } : {}
+      )),
+    };
+    const request = new Request('https://vault.example/api/manage/list', {
+      headers: { Cookie: 'seraph_pictures_session=attacker-controlled' },
+    });
+
+    await assert.rejects(
+      checkAuthentication({ request, env }),
+      (error) => error.code === 'AUTH_COORDINATOR_RESPONSE_INVALID' && error.status === 503
     );
   });
 
@@ -68,6 +100,7 @@ describe('Cloudflare auth coordinator bridge', function () {
     const env = {
       AUTH_COORDINATOR: createNamespace((operation) => {
         operations.push(operation);
+        if (operation === 'status') return { initialized: true, schemaVersion: 1 };
         if (operation === 'verifySession') return false;
         return { ok: true, credVersion: 2 };
       }),
@@ -107,6 +140,7 @@ describe('Cloudflare auth coordinator bridge', function () {
         body: JSON.stringify({ username: 'admin', password: 'password' }),
       }),
       env: {
+        APP_ENV: 'local',
         BASIC_USER: 'admin',
         BASIC_PASS: 'password',
         img_url: createKv(),
@@ -146,6 +180,33 @@ describe('Cloudflare auth coordinator bridge', function () {
       code: 'INVALID_CREDENTIALS',
     });
     assert.deepStrictEqual(operations, ['status']);
+  });
+
+  it('migrates a valid legacy KV credential before considering the environment seed', async function () {
+    const { loginWithCredentials } = await import('../functions/utils/auth.js');
+    const legacy = createLegacyRecord('current-production-password');
+    const operations = [];
+    const deleted = [];
+    const env = {
+      BASIC_USER: 'obsolete-env-admin',
+      BASIC_PASS: 'obsolete-env-password',
+      img_url: {
+        async get(name) { return name === 'admin_credentials' ? legacy : null; },
+        async delete(name) { deleted.push(name); },
+      },
+      AUTH_COORDINATOR: createNamespace((operation, payload) => {
+        operations.push({ operation, payload });
+        if (operation === 'status') return { initialized: false, schemaVersion: 1 };
+        return { ok: true, session: { token: 'migrated-session' } };
+      }),
+    };
+
+    const result = await loginWithCredentials('legacy-admin', 'current-production-password', env);
+
+    assert.strictEqual(result.session.token, 'migrated-session');
+    assert.strictEqual(operations[1].operation, 'migrateLegacyLogin');
+    assert.strictEqual(operations[1].payload.passwordHash, legacy.passwordHash);
+    assert.deepStrictEqual(deleted, ['admin_credentials']);
   });
 
   it('maps missing coordinator binding to an explicit 503 auth check', async function () {

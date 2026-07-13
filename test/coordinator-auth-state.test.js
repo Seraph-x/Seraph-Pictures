@@ -10,6 +10,9 @@ class MemoryAuthRepository {
   constructor() {
     this.state = null;
     this.sessions = new Map();
+    this.passkeys = new Map();
+    this.challenges = new Map();
+    this.metadata = new Map();
     this.queue = Promise.resolve();
   }
 
@@ -26,6 +29,18 @@ class MemoryAuthRepository {
   writeSession(session) { this.sessions.set(session.token, Object.freeze({ ...session })); }
   deleteSession(token) { this.sessions.delete(token); }
   deleteAllSessions() { this.sessions.clear(); }
+  listPasskeys() { return [...this.passkeys.values()]; }
+  readPasskey(id) { return this.passkeys.get(id) || null; }
+  writePasskey(record) { this.passkeys.set(record.id, Object.freeze({ ...record })); }
+  deletePasskey(id) { return this.passkeys.delete(id); }
+  writeChallenge(record) { this.challenges.set(record.kind, Object.freeze({ ...record })); }
+  takeChallenge(kind) {
+    const record = this.challenges.get(kind) || null;
+    this.challenges.delete(kind);
+    return record;
+  }
+  readMetadata(key) { return this.metadata.get(key) || null; }
+  writeMetadata(key, value) { this.metadata.set(key, value); }
 }
 
 function createHarness() {
@@ -133,5 +148,50 @@ describe('auth coordinator state service', function () {
       username: 'admin',
       credVersion: 1,
     });
+  });
+
+  it('migrates a legacy credential record once without reverting to the environment seed', async function () {
+    const { AuthService } = await import(SERVICE_URL);
+    const { repository, dependencies } = createHarness();
+    const service = new AuthService(dependencies);
+    const migrated = await service.migrateLegacyLogin({
+      username: 'legacy-admin', password: 'legacy-password', passwordHash: 'hash:legacy-password',
+      salt: 'legacy-salt', iterations: 100_000, credVersion: 7, migrationAuthorized: true,
+    });
+
+    assert.strictEqual(migrated.ok, true);
+    assert.strictEqual(repository.readAuthState().username, 'legacy-admin');
+    assert.strictEqual(repository.readAuthState().credVersion, 7);
+    assert.strictEqual(service.status().legacyCleanupRequired, true);
+    assert.deepStrictEqual(service.completeLegacyCredentialCleanup(), { ok: true });
+    assert.strictEqual(service.status().legacyCleanupRequired, undefined);
+    assert.strictEqual((await service.bootstrapLogin({
+      username: 'legacy-admin', password: 'legacy-password',
+    })).ok, true);
+  });
+
+  it('owns passkey records and consumes each challenge exactly once', async function () {
+    const { AuthService } = await import(SERVICE_URL);
+    const { dependencies } = createHarness();
+    const service = new AuthService(dependencies);
+    const credential = { id: 'credential-1', publicKey: 'base64', counter: 0, name: 'Laptop' };
+
+    assert.deepStrictEqual(service.passkeyMigrationStatus(), { migrated: false });
+    assert.deepStrictEqual(await service.migrateLegacyPasskeys({
+      items: [credential], migrationAuthorized: true,
+    }), { ok: true, items: [credential] });
+    assert.deepStrictEqual(service.passkeyMigrationStatus(), { migrated: true, cleanupRequired: true });
+    assert.deepStrictEqual(service.completeLegacyPasskeyCleanup(), { ok: true });
+    assert.deepStrictEqual(service.passkeyMigrationStatus(), { migrated: true });
+    assert.deepStrictEqual(service.listPasskeys(), { items: [credential] });
+    assert.deepStrictEqual(service.putPasskeyChallenge({ kind: 'auth', challenge: 'challenge-1' }), { ok: true });
+    assert.deepStrictEqual(await service.takePasskeyChallenge({ kind: 'auth' }), { challenge: 'challenge-1' });
+    assert.deepStrictEqual(await service.takePasskeyChallenge({ kind: 'auth' }), { challenge: null });
+    assert.deepStrictEqual(await service.updatePasskeyCounter({
+      id: credential.id, counter: 2, lastUsedAt: 1_700_000_000_000,
+    }), { ok: true });
+    assert.strictEqual(service.listPasskeys().items[0].counter, 2);
+    assert.deepStrictEqual(await service.deletePasskey({ id: credential.id }), { ok: true });
+    assert.deepStrictEqual(service.listPasskeys(), { items: [] });
   });
 });

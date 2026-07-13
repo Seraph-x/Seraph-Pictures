@@ -71,7 +71,7 @@ export async function onRequestPost({ request, env }) {
     }
     await clearFailedAttempts(env, clientIp);
     return json({ success: true, message: '登录成功' }, 200, {
-      'Set-Cookie': createSessionCookieHeader(result.session.token),
+      'Set-Cookie': createSessionCookieHeader(result.session.token, { secure: env.APP_ENV !== 'local' }),
     });
   } catch (error) {
     return mapLoginError(error);

@@ -2,6 +2,7 @@ node_modules/*
 .pnpm-store/*
 !node_modules/.mf/*
 .wrangler/*
+workers/**/.wrangler/
 data/*
 tmpclaude*
 server/node_modules/*

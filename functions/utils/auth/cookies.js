@@ -15,8 +15,10 @@ export function getSessionFromCookie(request) {
   return null;
 }
 
-export function createSessionCookieHeader(token, maxAge = SESSION_DURATION_SECONDS) {
-  return `${SESSION_COOKIE_NAME}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAge}`;
+export function createSessionCookieHeader(token, options = {}) {
+  const maxAge = options.maxAge ?? SESSION_DURATION_SECONDS;
+  const secure = options.secure === false ? '' : ' Secure;';
+  return `${SESSION_COOKIE_NAME}=${token}; Path=/; HttpOnly;${secure} SameSite=Strict; Max-Age=${maxAge}`;
 }
 
 export function createClearSessionCookieHeader() {

@@ -1,5 +1,6 @@
 ﻿import { checkAuthentication, isAuthRequired } from "../utils/auth.js";
 import { checkGuestUpload, incrementGuestCount, readGuestConfig, getClientIP } from "../utils/guest.js";
+import { createAuthErrorResponse } from "../utils/auth/http-errors.js";
 import { createS3Client } from "../utils/s3client.js";
 import { uploadToDiscord } from "../utils/discord.js";
 import { hasHuggingFaceConfig, uploadToHuggingFace } from "../utils/huggingface.js";
@@ -147,6 +148,8 @@ export async function onRequestPost(context) {
     }
     return telegramResponse;
   } catch (error) {
+    const authError = createAuthErrorResponse(error);
+    if (authError) return authError;
     console.error("URL upload error:", error);
     return jsonResponse({ error: `Server error: ${error.message}` }, 500);
   }
@@ -155,12 +158,8 @@ export async function onRequestPost(context) {
 async function isUserAuthenticated(context) {
   const { env } = context;
   if (!isAuthRequired(env)) return true;
-  try {
-    const auth = await checkAuthentication(context);
-    return auth.authenticated;
-  } catch {
-    return false;
-  }
+  const auth = await checkAuthentication(context);
+  return auth.authenticated;
 }
 
 async function fetchRemote(url, env = {}) {
