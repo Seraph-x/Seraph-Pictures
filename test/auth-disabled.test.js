@@ -15,23 +15,21 @@ class MemoryKV {
 }
 
 describe('AUTH_DISABLED authentication switch', function () {
-  it('requires auth by default even when Basic env credentials are absent', async function () {
+  it('requires auth by default and fails closed when coordinator is absent', async function () {
     const { isAuthRequired, checkAuthentication } = await import('../functions/utils/auth.js');
     const env = {};
 
     assert.strictEqual(isAuthRequired(env), true);
 
-    const result = await checkAuthentication({
-      request: new Request('https://vault.example/api/manage/list'),
-      env,
-    });
-
-    assert.deepStrictEqual(result, { authenticated: false });
+    await assert.rejects(
+      checkAuthentication({ request: new Request('https://vault.example/api/manage/list'), env }),
+      (error) => error.code === 'AUTH_STATE_UNAVAILABLE' && error.status === 503
+    );
   });
 
-  it('disables auth only when AUTH_DISABLED is explicitly true', async function () {
+  it('disables auth only in explicit local mode', async function () {
     const { isAuthRequired, checkAuthentication } = await import('../functions/utils/auth.js');
-    const env = { AUTH_DISABLED: 'true' };
+    const env = { AUTH_DISABLED: 'true', APP_ENV: 'local' };
 
     assert.strictEqual(isAuthRequired(env), false);
 
@@ -44,11 +42,11 @@ describe('AUTH_DISABLED authentication switch', function () {
     assert.strictEqual(result.reason, 'auth-disabled');
   });
 
-  it('still requires auth when KV credentials exist without Basic env credentials', async function () {
-    const { ADMIN_CREDENTIALS_KEY, isAuthRequired } = await import('../functions/utils/auth.js');
+  it('still requires auth when legacy KV credentials exist', async function () {
+    const { isAuthRequired } = await import('../functions/utils/auth.js');
     const env = {
       img_url: new MemoryKV({
-        [ADMIN_CREDENTIALS_KEY]: JSON.stringify({
+        admin_credentials: JSON.stringify({
           username: 'admin',
           passwordHash: 'hash',
           salt: 'salt',

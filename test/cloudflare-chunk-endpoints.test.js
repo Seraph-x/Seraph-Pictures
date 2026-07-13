@@ -49,7 +49,7 @@ describe('Cloudflare chunk endpoint boundaries', function () {
         method: 'POST',
         body: JSON.stringify({ fileName: 'x.bin', fileSize: 11, totalChunks: 2, storageMode: 'r2' }),
       }),
-      env: { AUTH_DISABLED: 'true', img_url: new BinaryKV() },
+      env: { AUTH_DISABLED: 'true', APP_ENV: 'local', img_url: new BinaryKV() },
     });
 
     assert.strictEqual(response.status, 400);
@@ -73,7 +73,7 @@ describe('Cloudflare chunk endpoint boundaries', function () {
 
     const response = await onRequestPost({
       request: new Request('https://vault.example/api/chunked-upload/chunk', { method: 'POST', body: form }),
-      env: { AUTH_DISABLED: 'true', img_url: kv },
+      env: { AUTH_DISABLED: 'true', APP_ENV: 'local', img_url: kv },
     });
 
     assert.strictEqual(response.status, 400);
@@ -97,7 +97,7 @@ describe('Cloudflare chunk endpoint boundaries', function () {
 
     const response = await onRequestPost({
       request: new Request('https://vault.example/api/chunked-upload/chunk', { method: 'POST', body: form }),
-      env: { AUTH_DISABLED: 'true', img_url: kv },
+      env: { AUTH_DISABLED: 'true', APP_ENV: 'local', img_url: kv },
     });
 
     assert.strictEqual(response.status, 400);
@@ -127,7 +127,7 @@ describe('Cloudflare chunk endpoint boundaries', function () {
         method: 'POST',
         body: JSON.stringify({ uploadId: 'u2' }),
       }),
-      env: { AUTH_DISABLED: 'true', img_url: kv, R2_BUCKET: r2 },
+      env: { AUTH_DISABLED: 'true', APP_ENV: 'local', img_url: kv, R2_BUCKET: r2 },
     });
 
     assert.strictEqual(response.status, 400);

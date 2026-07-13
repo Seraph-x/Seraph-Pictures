@@ -40,11 +40,11 @@ export class AuthService {
   }
 
   successWithSession(state) {
-    const session = this.issueSession(state);
+    const session = this.createSessionRecord(state);
     return Object.freeze({ ok: true, session, credVersion: state.credVersion });
   }
 
-  issueSession(state) {
+  createSessionRecord(state) {
     const createdAt = this.clock.now();
     const session = Object.freeze({
       token: this.tokens.create(),
@@ -59,6 +59,41 @@ export class AuthService {
 
   verifySession(input) {
     return this.repository.transaction(() => this.verifySessionRecord(input.token));
+  }
+
+  verifyCredentials(input) {
+    return this.repository.transaction(async () => {
+      const state = this.repository.readAuthState();
+      if (!state || input.username !== state.username) return failure();
+      const ok = await this.passwords.verify(input, state);
+      return Object.freeze({ ok, credVersion: ok ? state.credVersion : null });
+    });
+  }
+
+  issueSession(input) {
+    return this.repository.transaction(() => {
+      const state = this.repository.readAuthState();
+      if (!state || input.username !== state.username) return failure('PROFILE_MISMATCH');
+      return this.successWithSession(state);
+    });
+  }
+
+  readProfile() {
+    const state = this.repository.readAuthState();
+    if (!state) return Object.freeze({ initialized: false });
+    return Object.freeze({
+      initialized: true,
+      username: state.username,
+      credVersion: state.credVersion,
+    });
+  }
+
+  getProfile(input) {
+    return this.repository.transaction(() => {
+      if (!this.verifySessionRecord(input.token)) return failure('SESSION_INVALID');
+      const profile = this.readProfile();
+      return Object.freeze({ ok: true, username: profile.username, credVersion: profile.credVersion });
+    });
   }
 
   verifySessionRecord(token) {

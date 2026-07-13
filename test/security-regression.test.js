@@ -57,7 +57,7 @@ describe('security regressions', function () {
           method: 'POST',
           body: JSON.stringify({ url }),
         }),
-        env: { AUTH_DISABLED: 'true' },
+        env: { AUTH_DISABLED: 'true', APP_ENV: 'local' },
       });
 
       assert.strictEqual(response.status, 400, url);
@@ -98,7 +98,7 @@ describe('security regressions', function () {
         method: 'POST',
         body: JSON.stringify({ url: 'https://files.example/public.png' }),
       }),
-      env: { AUTH_DISABLED: 'true' },
+      env: { AUTH_DISABLED: 'true', APP_ENV: 'local' },
     });
 
     assert.strictEqual(response.status, 400);
@@ -117,7 +117,7 @@ describe('security regressions', function () {
         method: 'POST',
         body: JSON.stringify({ url: 'https://files.example/public.png' }),
       }),
-      env: { AUTH_DISABLED: 'true', URL_UPLOAD_ALLOWED_HOSTS: 'files.example' },
+      env: { AUTH_DISABLED: 'true', APP_ENV: 'local', URL_UPLOAD_ALLOWED_HOSTS: 'files.example' },
     });
 
     assert.strictEqual(response.status, 400);

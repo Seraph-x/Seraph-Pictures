@@ -114,4 +114,24 @@ describe('auth coordinator state service', function () {
     assert.strictEqual(await service.verifySession({ token: login.session.token }), false);
     assert.deepStrictEqual(service.status(), { initialized: true, schemaVersion: 1 });
   });
+
+  it('verifies credentials and issues trusted sessions without exposing password state', async function () {
+    const { AuthService } = await import(SERVICE_URL);
+    const { dependencies } = createHarness();
+    const service = new AuthService(dependencies);
+    await service.bootstrapLogin({ username: 'admin', password: 'first' });
+
+    assert.deepStrictEqual(
+      await service.verifyCredentials({ username: 'admin', password: 'first' }),
+      { ok: true, credVersion: 1 }
+    );
+    assert.deepStrictEqual(await service.getProfile({ token: 'missing' }), { ok: false, code: 'SESSION_INVALID' });
+    const trusted = await service.issueSession({ username: 'admin' });
+    assert.strictEqual(await service.verifySession({ token: trusted.session.token }), true);
+    assert.deepStrictEqual(await service.getProfile({ token: trusted.session.token }), {
+      ok: true,
+      username: 'admin',
+      credVersion: 1,
+    });
+  });
 });

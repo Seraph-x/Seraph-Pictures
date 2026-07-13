@@ -4,7 +4,11 @@ import { createBootstrapCredentials, createPasswordService } from './password.js
 
 const OPERATION_METHODS = Object.freeze({
   bootstrapLogin: 'bootstrapLogin',
+  verifyCredentials: 'verifyCredentials',
   verifySession: 'verifySession',
+  issueSession: 'issueSession',
+  readProfile: 'readProfile',
+  getProfile: 'getProfile',
   changeCredentials: 'changeCredentials',
   logout: 'logout',
   status: 'status',
