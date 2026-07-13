@@ -10,6 +10,7 @@ const { registerUploadRoutes } = require('./routes/upload');
 const { registerFileRoutes } = require('./routes/files');
 const { registerManageRoutes } = require('./routes/manage');
 const { registerTelegramRoutes } = require('./routes/telegram');
+const { registerVisibilityRoutes } = require('./routes/visibility');
 
 const CORS_ALLOW_METHODS = 'GET,POST,PUT,PATCH,DELETE,OPTIONS';
 const CORS_ALLOW_HEADERS = 'Content-Type, Authorization, Range, X-Seraph-Client, Accept';
@@ -101,6 +102,7 @@ function createApp() {
   registerUploadRoutes(app, container, helpers);
   registerFileRoutes(app, container, helpers);
   registerManageRoutes(app, container, helpers);
+  registerVisibilityRoutes(app, container, helpers);
   registerTelegramRoutes(app, container, helpers);
 
   return app;

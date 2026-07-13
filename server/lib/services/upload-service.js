@@ -1,5 +1,6 @@
 const { buildPublicFileId, normalizeStorageType } = require('../storage/common');
 const { normalizeFolderPath } = require('../repos/file-repo');
+const { createAccessMetadata } = require('../../../shared/security/file-metadata.cjs');
 const { defaultRequestRemote, defaultResolveHostname } = require('../utils/remote-fetch');
 const {
   assertPublicHostname,
@@ -10,6 +11,20 @@ const {
 
 const URL_FETCH_TIMEOUT_MS = 30000;
 const DEFAULT_URL_UPLOAD_LIMIT = 20 * 1024 * 1024;
+
+function uploadTarget({ storageType, fileName, mimeType, folderPath }) {
+  const publicId = buildPublicFileId(storageType, fileName, mimeType);
+  const prefix = storageType === 'huggingface' ? 'uploads/' : '';
+  const directory = folderPath ? `${folderPath}/` : '';
+  return Object.freeze({ publicId, adapterStorageKey: `${prefix}${directory}${publicId}` });
+}
+
+function remoteFileName(parsedUrl, contentType) {
+  const candidate = decodeURIComponent(parsedUrl.pathname.split('/').pop() || '').trim();
+  const extension = String(contentType).split('/')[1]?.split(';')[0] || 'bin';
+  if (!candidate) return `url_${Date.now()}.${extension}`;
+  return candidate.includes('.') ? candidate : `${candidate}.${extension}`;
+}
 
 class UploadService {
   constructor({
@@ -34,29 +49,18 @@ class UploadService {
     return storageConfig;
   }
 
-  async uploadFile({
-    fileName,
-    mimeType,
-    fileSize,
-    buffer,
-    storageId,
-    storageMode,
-    folderPath,
-  }) {
+  async uploadFile(options) {
+    const {
+      fileName, mimeType, fileSize, buffer, storageId, storageMode, folderPath,
+      uploadSource = 'image-host', visibility,
+    } = options;
     const storageConfig = this.resolveStorage({ storageId, storageMode });
     const adapter = this.storageFactory.createAdapter(storageConfig);
     const storageType = normalizeStorageType(storageConfig.type);
     const normalizedFolderPath = normalizeFolderPath(folderPath);
-
-    const publicId = buildPublicFileId(storageType, fileName, mimeType);
-
-    let adapterStorageKey = normalizedFolderPath ? `${normalizedFolderPath}/${publicId}` : publicId;
-    if (storageType === 'huggingface') {
-      adapterStorageKey = normalizedFolderPath
-        ? `uploads/${normalizedFolderPath}/${publicId}`
-        : `uploads/${publicId}`;
-    }
-
+    const { publicId, adapterStorageKey } = uploadTarget({
+      storageType, fileName, mimeType, folderPath: normalizedFolderPath,
+    });
     const uploadResult = await adapter.upload({
       storageKey: adapterStorageKey,
       fileName,
@@ -65,17 +69,17 @@ class UploadService {
       buffer,
     });
 
-    const storageKey = uploadResult.storageKey || adapterStorageKey;
-
+    const access = createAccessMetadata({ uploadSource, requestedVisibility: visibility });
     const fileRecord = this.fileRepo.create({
       id: publicId,
       storageConfigId: storageConfig.id,
       storageType,
-      storageKey,
+      storageKey: uploadResult.storageKey || adapterStorageKey,
       fileName,
       fileSize,
       mimeType,
       folderPath: normalizedFolderPath,
+      ...access,
       extra: uploadResult.metadata || {},
     });
 
@@ -90,19 +94,34 @@ class UploadService {
     };
   }
 
-  async uploadFromUrl({
-    url,
-    storageId,
-    storageMode,
-    folderPath,
-    maxBytes = DEFAULT_URL_UPLOAD_LIMIT,
-  }) {
+  async uploadFromUrl(options) {
+    const {
+      url, storageId, storageMode, folderPath, uploadSource = 'image-host', visibility,
+      maxBytes = DEFAULT_URL_UPLOAD_LIMIT,
+    } = options;
     const parsedUrl = parseSafeRemoteUrl(url);
     await this.assertPublicResolvedHost(parsedUrl);
+    const response = await this.requestRemoteFile(parsedUrl, maxBytes);
+    const contentType = response.headers.get('content-type') || 'application/octet-stream';
+    const arrayBuffer = await readLimitedBody(response, maxBytes);
+    if (arrayBuffer.byteLength === 0) throw new Error('Target URL returned empty body.');
+    return this.uploadFile({
+      fileName: remoteFileName(parsedUrl, contentType),
+      mimeType: contentType,
+      fileSize: arrayBuffer.byteLength,
+      buffer: arrayBuffer,
+      storageId,
+      storageMode,
+      folderPath,
+      uploadSource,
+      visibility,
+    });
+  }
+
+  async requestRemoteFile(parsedUrl, maxBytes) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), URL_FETCH_TIMEOUT_MS);
     let response;
-
     try {
       response = await this.requestRemote(parsedUrl, {
         signal: controller.signal,
@@ -114,7 +133,6 @@ class UploadService {
     } finally {
       clearTimeout(timeout);
     }
-
     if (isRedirectStatus(response.status)) {
       const redirectUrl = assertPublicRedirect(response, parsedUrl.toString());
       await this.assertPublicResolvedHost(redirectUrl);
@@ -126,37 +144,9 @@ class UploadService {
     if (!response.ok) {
       throw new Error(`Target URL responded with ${response.status}.`);
     }
-
-    const contentType = response.headers.get('content-type') || 'application/octet-stream';
-    const arrayBuffer = await readLimitedBody(response, maxBytes);
-
-    if (arrayBuffer.byteLength === 0) {
-      throw new Error('Target URL returned empty body.');
-    }
-
-    if (arrayBuffer.byteLength > maxBytes) {
-      throw new Error(`Remote file exceeds size limit (${Math.floor(maxBytes / 1024 / 1024)}MB).`);
-    }
-
-    let fileName = decodeURIComponent(parsedUrl.pathname.split('/').pop() || '').trim();
-    if (!fileName) {
-      fileName = `url_${Date.now()}`;
-    }
-
-    if (!fileName.includes('.')) {
-      const ext = String(contentType).split('/')[1]?.split(';')[0] || 'bin';
-      fileName = `${fileName}.${ext}`;
-    }
-
-    return this.uploadFile({
-      fileName,
-      mimeType: contentType,
-      fileSize: arrayBuffer.byteLength,
-      buffer: arrayBuffer,
-      storageId,
-      storageMode,
-      folderPath,
-    });
+    const contentLength = parseContentLength(response.headers.get('content-length'));
+    assertBodySize(contentLength, maxBytes);
+    return response;
   }
 
   async assertPublicResolvedHost(parsedUrl) {
@@ -200,11 +190,7 @@ class UploadService {
     const storageConfig = this.storageRepo.getById(file.storage_config_id, true);
     if (storageConfig) {
       const adapter = this.storageFactory.createAdapter(storageConfig);
-      try {
-        await adapter.delete({ storageKey: file.storage_key, metadata: file.metadata });
-      } catch (error) {
-        // best-effort cleanup on remote storage
-      }
+      await adapter.delete({ storageKey: file.storage_key, metadata: file.metadata });
     }
 
     this.fileRepo.delete(fileId);

@@ -4,7 +4,7 @@ const { AuthService } = require('./utils/auth');
 const { GuestService } = require('./utils/guest');
 const { StorageFactory } = require('./storage/factory');
 const { StorageConfigRepository } = require('./repos/storage-config-repo');
-const { FileRepository } = require('./repos/file-repo');
+const { VisibilityFileRepository } = require('./repos/visibility-file-repo');
 const { UploadService } = require('./services/upload-service');
 const { ChunkUploadService } = require('./services/chunk-service');
 const { LoginRateLimitService } = require('./services/login-rate-limit-service');
@@ -15,7 +15,7 @@ function createContainer(env = process.env) {
   const db = initDatabase(config.dbPath);
 
   const storageRepo = new StorageConfigRepository(db, config);
-  const fileRepo = new FileRepository(db);
+  const fileRepo = new VisibilityFileRepository(db);
   const storageFactory = new StorageFactory();
   const settingsStore = createSettingsStore({ db, config });
 

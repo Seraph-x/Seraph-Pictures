@@ -6,6 +6,8 @@ const { run, get, all } = require('../../db');
 const { normalizeFolderPath } = require('../repos/file-repo');
 const { createChunkPlan, validateChunkPart } = require('./chunk-policy');
 
+const CHUNK_TASK_TTL_MS = 60 * 60 * 1000;
+
 class ChunkUploadService {
   constructor({ db, config, uploadService }) {
     this.db = db;
@@ -20,6 +22,8 @@ class ChunkUploadService {
     this.ensureColumn(columns, 'folder_path', "TEXT NOT NULL DEFAULT ''");
     this.ensureColumn(columns, 'chunk_size', 'INTEGER NOT NULL DEFAULT 0');
     this.ensureColumn(columns, 'received_bytes', 'INTEGER NOT NULL DEFAULT 0');
+    this.ensureColumn(columns, 'upload_source', "TEXT NOT NULL DEFAULT 'image-host'");
+    this.ensureColumn(columns, 'visibility', "TEXT NOT NULL DEFAULT 'public'");
   }
 
   ensureColumn(columns, name, definition) {
@@ -27,19 +31,24 @@ class ChunkUploadService {
     run(this.db, `ALTER TABLE chunk_uploads ADD COLUMN ${name} ${definition}`);
   }
 
-  initTask({ fileName, fileSize, fileType, totalChunks, storageMode, storageId, folderPath }) {
+  initTask(options) {
+    const {
+      fileName, fileSize, fileType, totalChunks, storageMode, storageId, folderPath,
+      uploadSource = 'image-host', visibility = 'public',
+    } = options;
     const plan = createChunkPlan({ fileSize, chunkSize: this.config.chunkSize, totalChunks });
     const uploadId = crypto.randomUUID();
     const now = Date.now();
-    const expiresAt = now + 60 * 60 * 1000;
+    const expiresAt = now + CHUNK_TASK_TTL_MS;
     const normalizedFolderPath = normalizeFolderPath(folderPath);
 
     run(
       this.db,
       `INSERT INTO chunk_uploads(
          upload_id, file_name, file_size, file_type, total_chunks, chunk_size,
-         received_bytes, storage_mode, storage_config_id, folder_path, created_at, expires_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         received_bytes, storage_mode, storage_config_id, upload_source, visibility,
+         folder_path, created_at, expires_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         uploadId,
         fileName,
@@ -50,6 +59,8 @@ class ChunkUploadService {
         0,
         storageMode || null,
         storageId || null,
+        uploadSource,
+        visibility,
         normalizedFolderPath,
         now,
         expiresAt,
@@ -134,6 +145,8 @@ class ChunkUploadService {
       storageMode: task.storage_mode,
       storageId: task.storage_config_id,
       folderPath: normalizeFolderPath(task.folder_path),
+      uploadSource: task.upload_source,
+      visibility: task.visibility,
     });
 
     await this.cleanupTask(uploadId);
