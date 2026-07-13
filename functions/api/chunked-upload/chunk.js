@@ -24,10 +24,11 @@ export async function onRequestPost(context) {
 
     const formData = await request.formData();
     const uploadId = formData.get('uploadId');
-    const chunkIndex = Number(formData.get('chunkIndex'));
+    const rawChunkIndex = formData.get('chunkIndex');
+    const chunkIndex = Number(rawChunkIndex);
     const chunk = formData.get('chunk');
 
-    if (!uploadId || Number.isNaN(chunkIndex) || !chunk) {
+    if (!uploadId || rawChunkIndex == null || String(rawChunkIndex).trim() === '' || !chunk) {
       return jsonResponse({ error: '缺少必要参数' }, 400);
     }
 

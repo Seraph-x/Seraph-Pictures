@@ -81,6 +81,29 @@ describe('Cloudflare chunk endpoint boundaries', function () {
     assert.strictEqual(await kv.get('chunk:u1:3'), null);
   });
 
+  it('rejects a missing chunk index instead of treating it as zero', async function () {
+    const { onRequestPost } = await import('../functions/api/chunked-upload/chunk.js');
+    const kv = new BinaryKV();
+    await kv.put('upload:u-missing', JSON.stringify({
+      fileSize: 1,
+      totalChunks: 1,
+      chunkSize: 1,
+      uploadedChunks: [],
+      chunkBackend: 'kv',
+    }));
+    const form = new FormData();
+    form.append('uploadId', 'u-missing');
+    form.append('chunk', new File([Uint8Array.of(1)], 'part'));
+
+    const response = await onRequestPost({
+      request: new Request('https://vault.example/api/chunked-upload/chunk', { method: 'POST', body: form }),
+      env: { AUTH_DISABLED: 'true', img_url: kv },
+    });
+
+    assert.strictEqual(response.status, 400);
+    assert.strictEqual(await kv.get('chunk:u-missing:0'), null);
+  });
+
   it('rejects an aggregate size mismatch before final storage upload', async function () {
     const { onRequestPost } = await import('../functions/api/chunked-upload/complete.js');
     const kv = new BinaryKV();
