@@ -27,6 +27,26 @@ function isConfigAuthority(value) {
     && value.digest.length > 0;
 }
 
+function isShareRecord(value) {
+  return isObject(value)
+    && typeof value.shareId === 'string'
+    && value.shareId.length > 0
+    && typeof value.fileId === 'string'
+    && value.fileId.length > 0
+    && Number.isFinite(value.expiresAt)
+    && Number.isInteger(value.accessVersion)
+    && value.accessVersion >= 1
+    && typeof value.revoked === 'boolean'
+    && (value.passwordHash === null || typeof value.passwordHash === 'string')
+    && (value.maxDownloads === null
+      || (Number.isInteger(value.maxDownloads) && value.maxDownloads >= 1))
+    && Number.isInteger(value.downloadCount)
+    && value.downloadCount >= 0
+    && Number.isFinite(value.createdAt)
+    && value.createdAt >= 0
+    && value.expiresAt > value.createdAt;
+}
+
 const VALIDATORS = Object.freeze({
   bootstrapLogin: (value) => isResult(value) && (!value.ok || isSession(value.session)),
   migrateLegacyLogin: (value) => isResult(value) && (!value.ok || isSession(value.session)),
@@ -63,6 +83,14 @@ const VALIDATORS = Object.freeze({
     && Number.isInteger(value.committedVersion),
   configAbort: (value) => isObject(value) && typeof value.aborted === 'boolean',
   configAbortStale: (value) => isObject(value) && typeof value.aborted === 'boolean',
+  shareCreate: (value) => isResult(value) && (!value.ok || isShareRecord(value.record)),
+  shareRead: (value) => isObject(value)
+    && (value.record === null || isShareRecord(value.record)),
+  shareConsume: (value) => isResult(value) && (!value.ok || isShareRecord(value.record)),
+  shareRevoke: (value) => isObject(value) && typeof value.revoked === 'boolean',
+  shareLeaseRead: (value) => isObject(value) && typeof value.allowed === 'boolean',
+  shareConsumeStartLease: (value) => isResult(value),
+  shareLeaseAdvance: (value) => isResult(value),
 });
 
 export function isValidOperationResult(operation, value) {

@@ -1,6 +1,8 @@
 import { onRequestPost as uploadInternal } from '../../upload.js';
 import { apiError, apiSuccess, buildAbsoluteUrl } from '../../utils/api-v1.js';
 import fileMetadataPolicy from '../../../shared/security/file-metadata.cjs';
+import sharePolicy from '../../../shared/security/share-policy.cjs';
+import { createCloudflareShare } from '../../services/share-access.js';
 import {
   applyApiUploadMetadata,
   extractUploadResultId,
@@ -12,6 +14,7 @@ import {
 } from '../../services/api-upload-metadata.js';
 
 const { createAccessMetadata } = fileMetadataPolicy;
+const { normalizeShareRequest } = sharePolicy;
 
 function readOptions(formData, url) {
   const read = (formName, queryName = formName) => String(
@@ -35,6 +38,19 @@ function validateOptions(options) {
   }
   if (options.slug && !sanitizeSlug(options.slug)) {
     return apiError('VALIDATION_ERROR', '字段 "slug" 只能包含字母、数字、下划线或短横线。', 400);
+  }
+  if (options.visibility === 'private') {
+    try {
+      normalizeShareRequest({
+        fileId: 'validation',
+        accessVersion: 1,
+        ttlSeconds: options.expiresIn ? Number(options.expiresIn) : undefined,
+        maxDownloads: options.maxDownloads ? Number(options.maxDownloads) : null,
+        nowMs: 0,
+      });
+    } catch (error) {
+      return apiError(error.code, '私有分享的有效期或下载次数无效。', 400);
+    }
   }
   return null;
 }
@@ -73,13 +89,28 @@ async function updateMetadata(env, publicId, options) {
     originalMetadata: lookup.record?.metadata || {},
     options: { ...options, slug: sanitizeSlug(options.slug) },
   });
-  return Object.freeze({ lookup, metadata });
+  const privateShare = options.visibility === 'private'
+    ? await createCloudflareShare({
+        env,
+        fileId: lookup.key,
+        accessVersion: metadata.accessVersion,
+        ttlSeconds: options.expiresIn ? Number(options.expiresIn) : undefined,
+        password: options.password,
+        maxDownloads: options.maxDownloads ? Number(options.maxDownloads) : null,
+      })
+    : null;
+  return Object.freeze({ lookup, metadata, privateShare });
 }
 
-function successResponse({ request, file, publicId, lookup, metadata, options }) {
+function successResponse(options) {
+  const {
+    request, file, publicId, lookup, metadata, privateShare, options: requestOptions,
+  } = options;
   const canonicalId = lookup?.key || publicId;
   const fileName = metadata.fileName || file.name || canonicalId;
-  const shareId = sanitizeSlug(metadata.shareSlug || '') || sanitizeSlug(options.slug) || publicId;
+  const legacyShareId = sanitizeSlug(metadata.shareSlug || '')
+    || sanitizeSlug(requestOptions.slug) || publicId;
+  const sharePath = privateShare?.sharePath || `/s/${encodeURIComponent(legacyShareId)}`;
   return apiSuccess({
     file: {
       id: canonicalId,
@@ -91,7 +122,7 @@ function successResponse({ request, file, publicId, lookup, metadata, options })
     },
     links: {
       download: buildAbsoluteUrl(request, `/file/${encodeURIComponent(publicId)}`),
-      share: buildAbsoluteUrl(request, `/s/${encodeURIComponent(shareId)}`),
+      share: buildAbsoluteUrl(request, sharePath),
       delete: buildAbsoluteUrl(request, `/api/v1/file/${encodeURIComponent(canonicalId)}`),
     },
   });

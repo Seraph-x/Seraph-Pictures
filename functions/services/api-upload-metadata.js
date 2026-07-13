@@ -111,9 +111,12 @@ export async function applyApiUploadMetadata({ env, key, originalMetadata, optio
     ...(originalMetadata || {}),
     ...createAccessMetadata({ uploadSource: 'api', requestedVisibility: options.visibility }),
   };
-  const limitedMetadata = applyLimits(accessMetadata, options);
-  const protectedMetadata = await applyPassword(limitedMetadata, String(options.password || ''));
-  const slug = sanitizeSlug(options.slug);
+  const privateUpload = options.visibility === 'private';
+  const limitedMetadata = privateUpload ? accessMetadata : applyLimits(accessMetadata, options);
+  const protectedMetadata = privateUpload
+    ? limitedMetadata
+    : await applyPassword(limitedMetadata, String(options.password || ''));
+  const slug = privateUpload ? '' : sanitizeSlug(options.slug);
   const metadata = Object.freeze({
     ...protectedMetadata,
     ...(slug ? { shareSlug: slug } : {}),

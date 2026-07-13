@@ -62,6 +62,16 @@ export async function authorizeFileRequest(options) {
   });
 }
 
+export async function resolveFileAccessMetadata(options) {
+  const migration = typeof options.migrationComplete === 'boolean'
+    ? Object.freeze({ complete: options.migrationComplete })
+    : await readVisibilityMigrationState(options.env);
+  return resolveStoredAccessMetadata({
+    metadata: options.metadata,
+    migrationComplete: migration.complete,
+  });
+}
+
 export function fileAccessErrorResponse(error) {
   const status = error?.status || 500;
   const code = error?.code || 'FILE_VISIBILITY_INVALID';

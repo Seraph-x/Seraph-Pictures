@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const repoRoot = path.resolve(__dirname, '..');
-const keyTargets = ['CONFIG_ENCRYPTION_KEY', 'SESSION_SECRET'];
+const keyTargets = ['CONFIG_ENCRYPTION_KEY', 'SESSION_SECRET', 'FILE_SHARE_SECRET_CURRENT'];
 
 const placeholderValues = new Set([
   'replace_with_a_long_random_secret',
@@ -169,7 +169,7 @@ function run() {
   if (generatedKeys.length > 0) {
     console.log(`[bootstrap-env] Generated secure values for: ${generatedKeys.join(', ')}.`);
   } else {
-    console.log('[bootstrap-env] CONFIG_ENCRYPTION_KEY and SESSION_SECRET already configured, no changes made.');
+    console.log('[bootstrap-env] Required encryption and signing secrets are already configured.');
   }
 }
 

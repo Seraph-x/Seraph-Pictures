@@ -42,6 +42,35 @@ CREATE INDEX IF NOT EXISTS idx_files_created_at ON files(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_files_storage_type ON files(storage_type);
 CREATE INDEX IF NOT EXISTS idx_files_list_type ON files(list_type);
 
+CREATE TABLE IF NOT EXISTS private_shares (
+  share_id TEXT PRIMARY KEY,
+  file_id TEXT NOT NULL,
+  expires_at INTEGER NOT NULL,
+  access_version INTEGER NOT NULL,
+  revoked INTEGER NOT NULL DEFAULT 0,
+  password_hash TEXT,
+  max_downloads INTEGER,
+  download_count INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY(file_id) REFERENCES files(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_private_shares_expiry ON private_shares(expires_at);
+
+CREATE TABLE IF NOT EXISTS share_range_leases (
+  lease_id TEXT PRIMARY KEY,
+  share_id TEXT NOT NULL,
+  token_hash TEXT NOT NULL,
+  next_offset INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  FOREIGN KEY(share_id) REFERENCES private_shares(share_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_share_range_leases_expiry
+ON share_range_leases(expires_at);
+CREATE INDEX IF NOT EXISTS idx_share_range_leases_share
+ON share_range_leases(share_id);
+
 CREATE TABLE IF NOT EXISTS virtual_folders (
   path TEXT PRIMARY KEY,
   created_at INTEGER NOT NULL,

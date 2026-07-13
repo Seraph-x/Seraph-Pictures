@@ -30,6 +30,13 @@ const OPERATIONS = new Set([
   'configCommit',
   'configAbort',
   'configAbortStale',
+  'shareCreate',
+  'shareRead',
+  'shareConsume',
+  'shareRevoke',
+  'shareLeaseRead',
+  'shareConsumeStartLease',
+  'shareLeaseAdvance',
 ]);
 
 function getStub(env) {

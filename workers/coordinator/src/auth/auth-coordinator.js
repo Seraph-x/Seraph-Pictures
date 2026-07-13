@@ -3,6 +3,8 @@ import { AuthService } from './auth-service.js';
 import { createBootstrapCredentials, createPasswordService } from './password.js';
 import { ConfigStateRepository } from '../config/config-state-repository.js';
 import { ConfigStateService } from '../config/config-state-service.js';
+import { ShareRepository } from '../share/share-repository.js';
+import { ShareCoordinatorService } from '../share/share-coordinator.js';
 
 const OPERATION_METHODS = Object.freeze({
   bootstrapLogin: 'bootstrapLogin',
@@ -31,6 +33,13 @@ const OPERATION_METHODS = Object.freeze({
   configCommit: 'configCommit',
   configAbort: 'configAbort',
   configAbortStale: 'configAbortStale',
+  shareCreate: 'shareCreate',
+  shareRead: 'shareRead',
+  shareConsume: 'shareConsume',
+  shareRevoke: 'shareRevoke',
+  shareLeaseRead: 'shareLeaseRead',
+  shareConsumeStartLease: 'shareConsumeStartLease',
+  shareLeaseAdvance: 'shareLeaseAdvance',
 });
 
 function jsonResponse(body, status = 200) {
@@ -90,6 +99,9 @@ export class AuthCoordinator {
       clock: dependencies.clock,
       alarms: { schedule: (timestamp) => ctx.storage.setAlarm(timestamp) },
     });
+    const shareService = new ShareCoordinatorService({
+      repository: new ShareRepository(ctx.storage),
+    });
     this.service = Object.freeze({
       ...bindMethods(authService, OPERATION_METHODS),
       configReadAuthority: (payload) => configService.readAuthority(payload),
@@ -97,6 +109,13 @@ export class AuthCoordinator {
       configCommit: (payload) => configService.commit(payload),
       configAbort: (payload) => configService.abort(payload),
       configAbortStale: (payload) => configService.abortStale(payload),
+      shareCreate: (payload) => shareService.create(payload),
+      shareRead: (payload) => shareService.read(payload),
+      shareConsume: (payload) => shareService.consume(payload),
+      shareRevoke: (payload) => shareService.revoke(payload),
+      shareLeaseRead: (payload) => shareService.leaseRead(payload),
+      shareConsumeStartLease: (payload) => shareService.consumeStartLease(payload),
+      shareLeaseAdvance: (payload) => shareService.leaseAdvance(payload),
     });
     this.configService = configService;
   }
@@ -112,7 +131,7 @@ export class AuthCoordinator {
 
 function bindMethods(service, operationMethods) {
   const entries = Object.entries(operationMethods)
-    .filter(([operation]) => !operation.startsWith('config'))
+    .filter(([operation]) => !operation.startsWith('config') && !operation.startsWith('share'))
     .map(([operation, method]) => [operation, service[method].bind(service)]);
   return Object.fromEntries(entries);
 }

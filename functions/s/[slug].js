@@ -1,3 +1,5 @@
+import { readCloudflareShare } from '../services/share-access.js';
+
 const SHARE_SLUG_KEY_PREFIX = 'share_slug:';
 
 function decodePathParam(rawValue = '') {
@@ -22,6 +24,18 @@ export async function onRequest(context) {
   }
 
   let targetId = '';
+  const sourceUrl = new URL(request.url);
+  const signature = sourceUrl.searchParams.get('sig') || '';
+  const expiresAt = sourceUrl.searchParams.get('exp') || '';
+  if (signature && expiresAt) {
+    const { record } = await readCloudflareShare(env, rawValue);
+    if (!record) return new Response('Not found', { status: 404 });
+    const redirectUrl = new URL(`/file/${encodeURIComponent(record.fileId)}`, request.url);
+    redirectUrl.searchParams.set('share', record.shareId);
+    redirectUrl.searchParams.set('exp', expiresAt);
+    redirectUrl.searchParams.set('sig', signature);
+    return Response.redirect(redirectUrl.toString(), 302);
+  }
   const normalizedSlug = normalizeSlug(rawValue);
 
   if (normalizedSlug && env?.img_url) {
@@ -37,7 +51,6 @@ export async function onRequest(context) {
   }
 
   const redirectUrl = new URL(`/file/${encodeURIComponent(targetId)}`, request.url);
-  const sourceUrl = new URL(request.url);
   sourceUrl.searchParams.forEach((value, key) => {
     redirectUrl.searchParams.set(key, value);
   });

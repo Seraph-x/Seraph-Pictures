@@ -4,7 +4,12 @@ import {
   authorizeFileRequest,
   fileAccessErrorResponse,
   readVisibilityMigrationState,
+  resolveFileAccessMetadata,
 } from '../services/file-access.js';
+import {
+  authorizeCloudflareShare,
+  finalizeCloudflareShare,
+} from '../services/share-access.js';
 import { deliverFile } from '../services/file-delivery.js';
 import {
   errorResponse,
@@ -48,34 +53,47 @@ function scheduleLegacyCount(context, access, response) {
   }
 }
 
-async function handleFileRequest(context) {
-  const fileId = context.params.id;
-  if (!fileId) return errorResponse('Missing file id', 400);
-  const signed = await parseSignedTelegramFileId(fileId, context.env);
-  if (signed) {
-    const migration = await readVisibilityMigrationState(context.env);
-    const found = await ensureSignedTelegramRecord({
-      env: context.env,
-      signed,
-      migrationComplete: migration.complete,
-    });
-    if (!found.record?.metadata) return errorResponse('File not found', 404);
-    const access = await authorizeFileRequest({
-      context,
-      metadata: found.record?.metadata || {},
-      migrationComplete: migration.complete,
-    });
-    return access.allowed
-      ? handleSignedTelegramFile(context, signed)
-      : errorResponse('File not found', 404);
-  }
+async function handleSignedRequest(context, signed) {
+  const migration = await readVisibilityMigrationState(context.env);
+  const found = await ensureSignedTelegramRecord({
+    env: context.env,
+    signed,
+    migrationComplete: migration.complete,
+  });
+  if (!found.record?.metadata) return errorResponse('File not found', 404);
+  const access = await authorizeFileRequest({
+    context,
+    metadata: found.record.metadata,
+    migrationComplete: migration.complete,
+  });
+  return access.allowed
+    ? handleSignedTelegramFile(context, signed)
+    : errorResponse('File not found', 404);
+}
+
+async function handleStoredRequest(context, fileId) {
   const found = await getRecordWithKey(context.env, fileId);
   if (context.env.img_url && !found.record?.metadata) {
     return errorResponse('File not found', 404);
   }
+  const migration = await readVisibilityMigrationState(context.env);
+  const metadata = await resolveFileAccessMetadata({
+    env: context.env,
+    metadata: found.record?.metadata || {},
+    migrationComplete: migration.complete,
+  });
+  const shareAuthorization = metadata.visibility === 'private'
+    ? await authorizeCloudflareShare({
+        context,
+        fileId: found.kvKey,
+        accessVersion: metadata.accessVersion,
+      })
+    : null;
   const access = await authorizeFileRequest({
     context,
     metadata: found.record?.metadata || {},
+    share: shareAuthorization?.access || null,
+    migrationComplete: migration.complete,
   });
   if (!access.allowed) return errorResponse('File not found', 404);
   const legacyShare = await verifyLegacyShareAccess(
@@ -85,8 +103,20 @@ async function handleFileRequest(context) {
   );
   if (legacyShare.response) return legacyShare.response;
   const response = await deliverFile({ context, fileId, record: found.record });
-  scheduleLegacyCount(context, legacyShare, response);
-  return applyResponseCache(context.env, fileId, response);
+  const finalized = await finalizeCloudflareShare({
+    context, authorization: shareAuthorization, response,
+  });
+  scheduleLegacyCount(context, legacyShare, finalized);
+  return applyResponseCache(context.env, fileId, finalized);
+}
+
+async function handleFileRequest(context) {
+  const fileId = context.params.id;
+  if (!fileId) return errorResponse('Missing file id', 400);
+  const signed = await parseSignedTelegramFileId(fileId, context.env);
+  return signed
+    ? handleSignedRequest(context, signed)
+    : handleStoredRequest(context, fileId);
 }
 
 function boundaryError(error) {
@@ -95,7 +125,13 @@ function boundaryError(error) {
   if (String(error?.code || '').startsWith('FILE_VISIBILITY_')) {
     return fileAccessErrorResponse(error);
   }
-  if (error?.code === 'STORAGE_CONFIG_UNAVAILABLE') {
+  const unavailable = new Set([
+    'STORAGE_CONFIG_UNAVAILABLE',
+    'SHARE_SECRET_UNAVAILABLE',
+    'SHARE_SECRET_INVALID',
+    'SHARE_STATE_UNAVAILABLE',
+  ]);
+  if (unavailable.has(error?.code)) {
     return Response.json({ error: { code: error.code } }, { status: 503 });
   }
   console.error('file route error:', error);
