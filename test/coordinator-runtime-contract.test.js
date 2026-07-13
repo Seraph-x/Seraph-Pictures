@@ -32,18 +32,22 @@ function createService() {
 }
 
 describe('coordinator runtime contract', function () {
-  it('defines a private SQLite-backed Durable Object migration', function () {
+  it('defines private SQLite-backed auth and upload Durable Object migrations', function () {
     const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
     const binding = config.durable_objects.bindings.find((item) => item.name === 'AUTH_COORDINATOR');
+    const uploadBinding = config.durable_objects.bindings.find((item) => item.name === 'UPLOAD_COORDINATOR');
     const sqliteClasses = config.migrations.flatMap((migration) => migration.new_sqlite_classes || []);
 
     assert.strictEqual(config.workers_dev, false);
     assert.ok(!('routes' in config));
-    assert.ok(!('kv_namespaces' in config));
-    assert.ok(!('r2_buckets' in config));
     assert.strictEqual(binding.class_name, 'AuthCoordinator');
+    assert.strictEqual(uploadBinding.class_name, 'UploadCoordinator');
     assert.ok(sqliteClasses.includes('AuthCoordinator'));
+    assert.ok(sqliteClasses.includes('UploadCoordinator'));
+    assert.deepStrictEqual(config.kv_namespaces.map((item) => item.binding), ['FILE_METADATA']);
+    assert.deepStrictEqual(config.r2_buckets.map((item) => item.binding), ['UPLOAD_BUCKET']);
     assert.match(fs.readFileSync(INDEX_PATH, 'utf8'), /export \{ AuthCoordinator \}/);
+    assert.match(fs.readFileSync(INDEX_PATH, 'utf8'), /export \{ UploadCoordinator \}/);
     assert.match(fs.readFileSync(INDEX_PATH, 'utf8'), /export\s+default\s+\{\s*\}/);
     assert.doesNotMatch(fs.readFileSync(INDEX_PATH, 'utf8'), /\bfetch\s*\(/);
   });
