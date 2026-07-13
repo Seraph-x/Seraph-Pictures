@@ -1,4 +1,5 @@
 const { timingSafeStringEqual } = require('../lib/utils/auth');
+const { getClientIp } = require('../lib/utils/client-ip');
 
 function registerAuthRoutes(app, container, helpers) {
   const { getServices, jsonError, firstNonEmpty, authResult } = helpers;
@@ -16,10 +17,23 @@ function registerAuthRoutes(app, container, helpers) {
   });
 
   app.post('/api/auth/login', async (c) => {
-    const { authService } = getServices(c);
+    const { authService, loginRateLimitService } = getServices(c);
 
     if (!authService.isAuthRequired()) {
       return c.json({ success: true, authRequired: false, message: 'No login required.' });
+    }
+
+    const clientIp = getClientIp(c.req.raw);
+    const limit = loginRateLimitService.check(clientIp);
+    if (limit.blocked) {
+      c.header('Retry-After', String(limit.retryAfter));
+      return jsonError(
+        c,
+        429,
+        'LOGIN_RATE_LIMITED',
+        'Too many failed login attempts.',
+        'Wait before trying again.'
+      );
     }
 
     const body = await c.req.json().catch(() => ({}));
@@ -38,6 +52,7 @@ function registerAuthRoutes(app, container, helpers) {
 
     if (!timingSafeStringEqual(username, container.config.basicUser)
       || !timingSafeStringEqual(password, container.config.basicPass)) {
+      loginRateLimitService.recordFailure(clientIp);
       return jsonError(
         c,
         401,
@@ -48,6 +63,7 @@ function registerAuthRoutes(app, container, helpers) {
     }
 
     const session = authService.createSession(username);
+    loginRateLimitService.clear(clientIp);
     c.header('Set-Cookie', authService.createSessionCookie(session.token));
 
     return c.json({ success: true, message: 'Login successful.' });

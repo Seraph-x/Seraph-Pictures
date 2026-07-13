@@ -7,6 +7,7 @@ const { StorageConfigRepository } = require('./repos/storage-config-repo');
 const { FileRepository } = require('./repos/file-repo');
 const { UploadService } = require('./services/upload-service');
 const { ChunkUploadService } = require('./services/chunk-service');
+const { LoginRateLimitService } = require('./services/login-rate-limit-service');
 const { createSettingsStore } = require('./settings/factory');
 
 function createContainer(env = process.env) {
@@ -35,12 +36,14 @@ function createContainer(env = process.env) {
 
   const authService = new AuthService(db, config);
   const guestService = new GuestService(db, config);
+  const loginRateLimitService = new LoginRateLimitService({ db });
 
   return {
     config,
     db,
     authService,
     guestService,
+    loginRateLimitService,
     storageRepo,
     fileRepo,
     storageFactory,
