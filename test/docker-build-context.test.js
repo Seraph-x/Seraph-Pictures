@@ -24,4 +24,13 @@ describe('Docker API build context', function () {
       assert.ok(dockerignore.split(/\r?\n/).includes(pattern), `.dockerignore must exclude ${pattern}`);
     }
   });
+
+  it('builds architecture-independent frontend assets on the native runner', function () {
+    const dockerfile = read('frontend/Dockerfile');
+
+    assert.match(
+      dockerfile,
+      /^FROM --platform=\$BUILDPLATFORM node:22-alpine AS build$/m,
+    );
+  });
 });

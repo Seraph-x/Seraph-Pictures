@@ -1,8 +1,10 @@
 # syntax=docker/dockerfile:1.7
 
 # Stage 1: build the canonical frontend bundle (legacy root pages + Vue /app/),
-# the exact same artifact deployed to Cloudflare Pages (frontend/dist).
-FROM node:22-alpine AS build
+# the exact same artifact deployed to Cloudflare Pages (frontend/dist). Build
+# it on the native runner because the output is architecture-independent; this
+# avoids executing npm tooling through QEMU during multi-platform image builds.
+FROM --platform=$BUILDPLATFORM node:22-alpine AS build
 WORKDIR /repo
 COPY . .
 # `npm run build` installs frontend deps (prefrontend:build hook), runs vite,
