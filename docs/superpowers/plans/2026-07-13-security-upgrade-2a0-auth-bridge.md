@@ -13,7 +13,7 @@
 ## File map
 
 - Create: `workers/coordinator/wrangler.jsonc` — 私有 Worker、DO migration、R2/KV bindings。
-- Create: `workers/coordinator/src/index.js` — 仅导出 DO class，无公开 fetch handler。
+- Create: `workers/coordinator/src/index.js` — 导出 DO class，并提供 Wrangler 要求的空 module default；不注册公开 fetch handler。
 - Create: `workers/coordinator/src/auth/auth-coordinator.js` — DO request adapter。
 - Create: `workers/coordinator/src/auth/auth-service.js` — 小于 300 行的认证状态机。
 - Create: `workers/coordinator/src/auth/auth-repository.js` — SQLite statements/transactions。
@@ -130,13 +130,14 @@ Expected: FAIL because coordinator configuration and adapter are missing.
 
 - [ ] **Step 3: Implement the runtime adapter**
 
-`workers/coordinator/src/index.js` only exports the class:
+`workers/coordinator/src/index.js` exports the class plus Wrangler's empty module marker:
 
 ```js
 export { AuthCoordinator } from './auth/auth-coordinator.js';
+export default {};
 ```
 
-Route internal operations by an explicit allowlist. Keep handler functions under 50 lines and never expose a default public `fetch` export.
+Route internal operations by an explicit allowlist. Keep handler functions under 50 lines and never register a default public `fetch` handler; `workers_dev=false` and no routes remain mandatory.
 
 - [ ] **Step 4: Run GREEN and local Wrangler validation**
 

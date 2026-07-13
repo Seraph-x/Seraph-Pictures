@@ -235,7 +235,7 @@ install -> audit -> lint/static checks -> unit/contract tests
         -> coordinator deploy/migration -> binding probe -> Pages deploy
 ```
 
-The deploy job depends on every gate and cannot start when a required check fails or is skipped unexpectedly. The coordinator Worker sets `workers_dev = false`, has no public route, and exports its Durable Object namespace only through the Pages binding with an explicit `script_name`. Its handlers accept only the narrow internal operation contract; no HTTP endpoint exposes credential, quota, share, or upload state publicly.
+The deploy job depends on every gate and cannot start when a required check fails or is skipped unexpectedly. The coordinator Worker sets `workers_dev = false`, has no public route, and exports its Durable Object namespace only through the Pages binding with an explicit `script_name`. Its entrypoint includes Wrangler's required empty module default export but registers no default `fetch` handler. Its handlers accept only the narrow internal operation contract; no HTTP endpoint exposes credential, quota, share, or upload state publicly.
 
 ## Browser dependency and CSP policy
 
