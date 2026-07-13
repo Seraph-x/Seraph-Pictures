@@ -33,6 +33,9 @@ function publicResult(record) {
     customMetadata: record.customMetadata,
     phase: record.state.phase,
     expiresAt: record.plan.expiresAt,
+    uploadedParts: record.state.parts.length,
+    fileName: record.plan.fileName,
+    fileSize: record.plan.expectedSize,
   });
 }
 

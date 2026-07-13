@@ -4563,10 +4563,49 @@
           },
 
           // 分片上传（大文件 >=20MB）
+          async sha256Hex(value) {
+            const hash = await crypto.subtle.digest("SHA-256", value);
+            return Array.from(new Uint8Array(hash), (byte) =>
+              byte.toString(16).padStart(2, "0"),
+            ).join("");
+          },
+
+          async createMultipartDigestPlan(file, chunkSize) {
+            const partDigests = [];
+            const totalParts = Math.ceil(file.size / chunkSize);
+            for (let index = 0; index < totalParts; index++) {
+              const start = index * chunkSize;
+              const chunk = file.slice(start, Math.min(file.size, start + chunkSize));
+              partDigests.push(await this.sha256Hex(await chunk.arrayBuffer()));
+            }
+            const manifest = new TextEncoder().encode(partDigests.join(":"));
+            return {
+              partDigests,
+              rootDigest: await this.sha256Hex(manifest),
+            };
+          },
+
+          async cancelMultipartUpload(uploadId) {
+            const response = await fetch(
+              `${this.baseURL}/api/chunked-upload/cancel`,
+              {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ uploadId }),
+                credentials: "include",
+              },
+            );
+            if (!response.ok) {
+              const body = await response.json();
+              throw new Error(body.error || "MULTIPART_CANCEL_FAILED");
+            }
+          },
+
           async chunkedUpload(item) {
             const file = item.file;
             const chunkSize = this.uploadConfig.chunkSize;
             const totalChunks = Math.ceil(file.size / chunkSize);
+            const digests = await this.createMultipartDigestPlan(file, chunkSize);
 
             // 1. 初始化上传
             const initResponse = await fetch(
@@ -4579,6 +4618,7 @@
                   fileSize: file.size,
                   fileType: file.type,
                   totalChunks: totalChunks,
+                  rootDigest: digests.rootDigest,
                   storageMode: this.getItemStorageMode(item),
                   folderPath: this.getItemFolderPath(item),
                 }),
@@ -4593,6 +4633,7 @@
 
             const uploadId = initData.uploadId;
 
+            try {
             // 2. 上传分片
             for (let i = 0; i < totalChunks; i++) {
               const start = i * chunkSize;
@@ -4603,6 +4644,7 @@
               formData.append("chunk", chunk);
               formData.append("uploadId", uploadId);
               formData.append("chunkIndex", i);
+              formData.append("digest", digests.partDigests[i]);
 
               const chunkResponse = await fetch(
                 `${this.baseURL}/api/chunked-upload/chunk`,
@@ -4641,6 +4683,14 @@
             item.status = "success";
             item.progress = 100;
             this.handleUploadSuccess(item, completeData.src);
+            } catch (error) {
+              try {
+                await this.cancelMultipartUpload(uploadId);
+              } catch (cleanupError) {
+                throw new Error(`${error.message}; cleanup: ${cleanupError.message}`);
+              }
+              throw error;
+            }
           },
 
           // 处理上传成功

@@ -6,7 +6,7 @@ const BASE = Object.freeze({
   owner: 'owner-1',
   visibility: 'private',
   expectedSize: 10,
-  rootDigest: 'root-digest',
+  rootDigest: 'a'.repeat(64),
   expiresAt: 10_000,
 });
 

@@ -3,6 +3,7 @@ export const MIN_PART_SIZE = 5 * MIB;
 export const MAX_PART_SIZE = (5 * 1024 * MIB) - MIN_PART_SIZE;
 export const MAX_PARTS = 10_000;
 const VISIBILITIES = new Set(['public', 'private']);
+const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 
 function planError(code) {
   const error = new Error(code);
@@ -17,6 +18,13 @@ function requireString(value) {
 
 function requireInteger(value) {
   if (!Number.isSafeInteger(value) || value <= 0) throw planError('MULTIPART_PLAN_INVALID');
+  return value;
+}
+
+function requireDigest(value) {
+  if (typeof value !== 'string' || !SHA256_PATTERN.test(value)) {
+    throw planError('MULTIPART_PLAN_INVALID');
+  }
   return value;
 }
 
@@ -35,7 +43,7 @@ export function validateMultipartPlan(input) {
     uploadId: requireString(input.uploadId),
     owner: requireString(input.owner),
     visibility: input.visibility,
-    rootDigest: requireString(input.rootDigest),
+    rootDigest: requireDigest(input.rootDigest),
     fileName: requireString(input.fileName),
     fileType: requireString(input.fileType),
     folderPath: String(input.folderPath || ''),

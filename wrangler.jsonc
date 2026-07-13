@@ -24,6 +24,11 @@
         "name": "AUTH_COORDINATOR",
         "class_name": "AuthCoordinator",
         "script_name": "k-vault-coordinator"
+      },
+      {
+        "name": "UPLOAD_COORDINATOR",
+        "class_name": "UploadCoordinator",
+        "script_name": "k-vault-coordinator"
       }
     ]
   },

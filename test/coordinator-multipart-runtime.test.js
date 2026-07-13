@@ -67,7 +67,7 @@ function baseRequest(overrides = {}) {
   return {
     uploadId: 'upload-1', owner: 'admin', visibility: 'private',
     expectedSize: (2 * PART_SIZE) + 3, partSize: PART_SIZE, totalParts: 3,
-    rootDigest: 'root-digest', fileName: 'photo.png', fileType: 'image/png',
+    rootDigest: 'a'.repeat(64), fileName: 'photo.png', fileType: 'image/png',
     folderPath: '', createdAt: 1_000, expiresAt: 100_000, ...overrides,
   };
 }
@@ -138,7 +138,7 @@ describe('R2 multipart coordinator runtime', function () {
     assert.deepStrictEqual(partCalls.map((call) => call.value), chunks);
     assert.strictEqual(initialized.objectKey, 'multipart/upload-1');
     assert.deepStrictEqual(initialized.customMetadata, {
-      uploadId: 'upload-1', rootDigest: 'root-digest', expectedSize: String((2 * PART_SIZE) + 3),
+      uploadId: 'upload-1', rootDigest: 'a'.repeat(64), expectedSize: String((2 * PART_SIZE) + 3),
     });
     assert.strictEqual(harness.r2.calls.some((call) => call.method === 'get'), false);
   });
@@ -215,7 +215,7 @@ describe('R2 multipart coordinator runtime', function () {
     await uploadAll(harness);
     harness.r2.completeFailure = new Error('timeout after commit');
     harness.r2.objectMetadataOverride = {
-      uploadId: 'different-upload', rootDigest: 'root-digest',
+      uploadId: 'different-upload', rootDigest: 'a'.repeat(64),
       expectedSize: String((2 * PART_SIZE) + 3),
     };
     await assert.rejects(
