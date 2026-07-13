@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { syncDirectory } from './sync-directory.mjs';
 
 const rootDir = path.resolve(process.cwd(), '..');
 const distDir = path.resolve(process.cwd(), 'dist');
@@ -131,7 +132,7 @@ const distAppDir = path.resolve(distDir, 'app');
 const rootAppDir = path.resolve(projectRoot, 'app');
 
 if (fs.existsSync(distAppDir)) {
-  fs.cpSync(distAppDir, rootAppDir, { recursive: true, force: true });
+  syncDirectory(distAppDir, rootAppDir);
   console.log('[frontend] app/ directory synced to project root');
 }
 
