@@ -20,6 +20,7 @@ test-login.json
 .serena/
 .claude/
 .DS_Store
+.worktrees/
 
 # Internal planning / scratch docs (local working notes, not for the public repo)
 docs/*-plan.md
