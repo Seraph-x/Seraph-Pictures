@@ -71,6 +71,8 @@ CREATE TABLE IF NOT EXISTS chunk_uploads (
   file_size INTEGER NOT NULL,
   file_type TEXT,
   total_chunks INTEGER NOT NULL,
+  chunk_size INTEGER NOT NULL DEFAULT 0,
+  received_bytes INTEGER NOT NULL DEFAULT 0,
   storage_mode TEXT,
   storage_config_id TEXT,
   folder_path TEXT NOT NULL DEFAULT '',
