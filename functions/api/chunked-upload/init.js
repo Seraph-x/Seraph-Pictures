@@ -4,6 +4,7 @@
  */
 import { checkAuthentication, isAuthRequired } from '../../utils/auth.js';
 import { checkGuestUpload } from '../../utils/guest.js';
+import { createChunkPlan } from '../../utils/chunk-policy.js';
 
 const CHUNK_SIZE = 5 * 1024 * 1024;
 const MAX_FILE_SIZE = 100 * 1024 * 1024;
@@ -45,6 +46,11 @@ export async function onRequestPost(context) {
     if (!validation.ok) {
       return jsonResponse({ error: validation.message, code: validation.code }, validation.status);
     }
+    const plan = createChunkPlan({
+      fileSize: normalizedFileSize,
+      chunkSize: CHUNK_SIZE,
+      totalChunks: normalizedTotalChunks,
+    });
 
     const uploadId = generateUploadId();
 
@@ -53,9 +59,10 @@ export async function onRequestPost(context) {
     const uploadTask = {
       uploadId,
       fileName,
-      fileSize: normalizedFileSize,
+      fileSize: plan.fileSize,
       fileType,
-      totalChunks: normalizedTotalChunks,
+      totalChunks: plan.totalChunks,
+      chunkSize: plan.chunkSize,
       storageMode: normalizedStorage,
       folderPath,
       chunkBackend,
@@ -75,8 +82,9 @@ export async function onRequestPost(context) {
       chunkBackend,
     });
   } catch (error) {
-    console.error('Init upload error:', error);
-    return jsonResponse({ error: error.message }, 500);
+    const status = error.status || 500;
+    if (status >= 500) console.error('Init upload error:', error);
+    return jsonResponse({ error: error.message, code: error.code }, status);
   }
 }
 
