@@ -17,6 +17,8 @@ test-login.json
 .wrangler-pages-test/
 .playwright-cli/
 .playwright-mcp/
+/playwright-report/
+/test-results/
 .serena/
 .claude/
 .DS_Store
