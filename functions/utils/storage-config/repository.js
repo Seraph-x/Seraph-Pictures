@@ -6,7 +6,7 @@ import { unavailable } from './errors.js';
 
 const KV_BINDING_CANDIDATES = Object.freeze(['img_url', 'KV', 'UI_CONFIG_KV']);
 
-function resolveKvBinding(env) {
+export function resolveStorageConfigBinding(env) {
   for (const name of KV_BINDING_CANDIDATES) {
     const binding = env?.[name];
     if (binding?.get && binding?.put) return binding;
@@ -26,7 +26,7 @@ async function readJson(binding, key) {
 }
 
 export function createStorageConfigRepository(env) {
-  const binding = resolveKvBinding(env);
+  const binding = resolveStorageConfigBinding(env);
   return Object.freeze({
     readLegacy: () => readJson(binding, LEGACY_STORAGE_CONFIG_KEY),
     readVersion: (version) => readJson(binding, versionedStorageConfigKey(version)),

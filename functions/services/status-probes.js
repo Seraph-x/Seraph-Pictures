@@ -145,6 +145,24 @@ async function safeProbe(operation) {
   }
 }
 
+const STORAGE_PROBES = Object.freeze({
+  telegram: telegramProbe,
+  r2: r2Probe,
+  s3: s3Probe,
+  discord: discordProbe,
+  huggingface: huggingFaceProbe,
+  webdav: webDavProbe,
+  github: githubProbe,
+});
+
+export async function probeCloudflareStorage({ type, env }) {
+  const probe = STORAGE_PROBES[type];
+  if (!probe) throw Object.assign(new Error('STORAGE_BACKEND_UNSUPPORTED'), {
+    code: 'STORAGE_BACKEND_UNSUPPORTED', status: 400,
+  });
+  return safeProbe((signal) => probe(env, signal));
+}
+
 async function runBatches(entries) {
   const output = {};
   for (let index = 0; index < entries.length; index += PROBE_BATCH_SIZE) {

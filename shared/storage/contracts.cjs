@@ -110,6 +110,11 @@ function mergeStorageConfig(typeValue, currentValue, patchValue) {
   return Object.freeze({ ...current, ...patch });
 }
 
+function storageSecretFields(typeValue) {
+  const type = validateStorageType(typeValue);
+  return STORAGE_SECRET_FIELDS[type];
+}
+
 function normalizeStorageItem(record) {
   const id = requiredString(record?.id, 'STORAGE_ID_REQUIRED');
   const type = validateStorageType(record?.type);
@@ -221,6 +226,7 @@ module.exports = Object.freeze({
   driveOperation,
   maskStorageConfig,
   mergeStorageConfig,
+  storageSecretFields,
   normalizeStorageItem,
   normalizeDrivePath,
   normalizeDriveFolder,
