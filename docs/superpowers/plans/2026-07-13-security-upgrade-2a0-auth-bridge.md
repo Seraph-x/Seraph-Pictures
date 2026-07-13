@@ -165,6 +165,7 @@ In `test/cloudflare-auth-bridge.test.js`, inject a coordinator stub and assert:
 
 - absent binding returns `AUTH_STATE_UNAVAILABLE`/503;
 - initialized coordinator never reads `BASIC_PASS`;
+- uninitialized Pages compares the env seed in constant time and sends a private bootstrap authorization marker;
 - bootstrap login returns a session only after coordinator success;
 - changed `credVersion` rejects an old cookie immediately;
 - Basic Auth uses coordinator verification;
@@ -216,7 +217,7 @@ Expected: FAIL because binding/deployment steps are absent.
 
 - [ ] **Step 3: Add binding and probe script**
 
-The probe calls an authenticated internal status operation through Pages and requires `{ initialized: boolean, schemaVersion: 1 }`. Configure the same coordinator binding for preview and production Pages environments. It prints no credentials or state values.
+The probe calls the public auth-check adapter, whose fail-closed path always invokes the private coordinator status operation, and requires a successful stable auth envelope with no error. Configure the same coordinator binding for preview and production Pages environments. It prints only `{ "binding": "ok" }`, never credentials or coordinator state.
 
 - [ ] **Step 4: Run GREEN**
 
@@ -267,7 +268,7 @@ Run `npx wrangler deploy --config workers/coordinator/wrangler.jsonc --env produ
 
 - [ ] **Step 4: Deploy and probe a preview candidate**
 
-Deploy the exact built artifact with `npx wrangler pages deploy frontend/dist --project-name k-vault --branch security-2a0-candidate`, capture the preview URL, then run `node scripts/probe-coordinator-binding.mjs --base-url "$PAGES_PREVIEW_URL"`. Require coordinator schema version 1 and `initialized=false`. If deployment or the runtime binding probe fails, stop; do not change the production branch.
+Deploy the exact built artifact with `npx wrangler pages deploy frontend/dist --project-name k-vault --branch security-2a0-candidate`, capture the preview URL, then run `node scripts/probe-coordinator-binding.mjs --base-url "$PAGES_PREVIEW_URL"`. Require `{ "binding": "ok" }`; the public response must not expose initialization state. If deployment or the runtime binding probe fails, stop; do not change the production branch.
 
 - [ ] **Step 5: Promote the verified artifact and initialize once**
 

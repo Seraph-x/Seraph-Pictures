@@ -19,6 +19,7 @@ test-login.json
 .playwright-mcp/
 /playwright-report/
 /test-results/
+/_worker.bundle
 .serena/
 .claude/
 .DS_Store

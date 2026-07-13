@@ -18,6 +18,15 @@
       "bucket_name": "k-vault-files"
     }
   ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "AUTH_COORDINATOR",
+        "class_name": "AuthCoordinator",
+        "script_name": "k-vault-coordinator"
+      }
+    ]
+  },
   // Passkey/WebAuthn 规范域名(明文 vars，非机密)。锁定后 passkey 只在该域名生效。
   // 本地 npm start 用 --binding 覆盖回 localhost(见 package.json)。
   "vars": {

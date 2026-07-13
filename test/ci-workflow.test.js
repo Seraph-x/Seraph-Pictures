@@ -13,6 +13,14 @@ function readNodeVersion() {
   return fs.readFileSync(path.join(repoRoot, '.node-version'), 'utf8').trim();
 }
 
+function readPagesWorkflow() {
+  return fs.readFileSync(path.join(repoRoot, '.github', 'workflows', 'pages-deploy.yml'), 'utf8');
+}
+
+function readPagesConfig() {
+  return fs.readFileSync(path.join(repoRoot, 'wrangler.jsonc'), 'utf8');
+}
+
 describe('CI workflow contract', function () {
   it('runs on pull requests and pushes to main', function () {
     const workflow = readWorkflow();
@@ -51,5 +59,24 @@ describe('CI workflow contract', function () {
     assert.match(workflow, /node-version-file:\s*['"]?\.node-version['"]?/);
     assert.doesNotMatch(workflow, /node-version:\s*['"]?20['"]?/);
     assert.strictEqual(nodeVersion, NODE_SQLITE_MAJOR_VERSION);
+  });
+
+  it('binds Pages to the external auth coordinator namespace', function () {
+    const config = readPagesConfig();
+
+    assert.match(config, /"name"\s*:\s*"AUTH_COORDINATOR"[\s\S]*?"class_name"\s*:\s*"AuthCoordinator"[\s\S]*?"script_name"\s*:\s*"k-vault-coordinator"/);
+  });
+
+  it('deploys coordinator, probes a preview, then deploys production Pages', function () {
+    const workflow = readPagesWorkflow();
+    const coordinatorIndex = workflow.indexOf('wrangler deploy --config workers/coordinator/wrangler.jsonc');
+    const previewIndex = workflow.indexOf('--branch=security-2a0-candidate');
+    const probeIndex = workflow.indexOf('probe-coordinator-binding.mjs');
+    const productionIndex = workflow.indexOf('--branch=main');
+
+    assert.ok(coordinatorIndex >= 0, 'coordinator deploy must exist');
+    assert.ok(previewIndex > coordinatorIndex, 'preview deploy must follow coordinator');
+    assert.ok(probeIndex > previewIndex, 'runtime probe must follow preview deploy');
+    assert.ok(productionIndex > probeIndex, 'production deploy must follow the preview probe');
   });
 });

@@ -107,9 +107,12 @@ describe('Cloudflare auth coordinator bridge', function () {
         body: JSON.stringify({ username: 'admin', password: 'password' }),
       }),
       env: {
+        BASIC_USER: 'admin',
+        BASIC_PASS: 'password',
         img_url: createKv(),
         AUTH_COORDINATOR: createNamespace((operation, payload) => {
           operations.push({ operation, payload });
+          if (operation === 'status') return { initialized: false, schemaVersion: 1 };
           return { ok: true, session: { token: 'new-session' } };
         }),
       },
@@ -117,10 +120,32 @@ describe('Cloudflare auth coordinator bridge', function () {
 
     assert.strictEqual(response.status, 200);
     assert.match(response.headers.get('set-cookie'), /seraph_pictures_session=new-session/);
-    assert.deepStrictEqual(operations, [{
-      operation: 'bootstrapLogin',
-      payload: { username: 'admin', password: 'password' },
-    }]);
+    assert.deepStrictEqual(operations, [
+      { operation: 'status', payload: {} },
+      {
+        operation: 'bootstrapLogin',
+        payload: { username: 'admin', password: 'password', bootstrapAuthorized: true },
+      },
+    ]);
+  });
+
+  it('does not invoke bootstrap when uninitialized credentials miss the env seed', async function () {
+    const { loginWithCredentials } = await import('../functions/utils/auth.js');
+    const operations = [];
+    const env = {
+      BASIC_USER: 'admin',
+      BASIC_PASS: 'seed-password',
+      AUTH_COORDINATOR: createNamespace((operation) => {
+        operations.push(operation);
+        return { initialized: false, schemaVersion: 1 };
+      }),
+    };
+
+    assert.deepStrictEqual(await loginWithCredentials('attacker', 'wrong', env), {
+      ok: false,
+      code: 'INVALID_CREDENTIALS',
+    });
+    assert.deepStrictEqual(operations, ['status']);
   });
 
   it('maps missing coordinator binding to an explicit 503 auth check', async function () {

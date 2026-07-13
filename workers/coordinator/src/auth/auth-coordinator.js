@@ -63,10 +63,7 @@ export class AuthCoordinator {
       passwords: createPasswordService({ cryptoImpl: crypto }),
       tokens: createTokenService(crypto),
       clock: { now: () => Date.now() },
-      bootstrapCredentials: createBootstrapCredentials({
-        username: env.BASIC_USER,
-        password: env.BASIC_PASS,
-      }),
+      bootstrapCredentials: createBootstrapCredentials(),
     };
     this.service = new AuthService(dependencies);
   }

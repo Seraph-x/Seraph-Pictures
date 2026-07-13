@@ -73,10 +73,10 @@ export function createPasswordService({ cryptoImpl }) {
   });
 }
 
-export function createBootstrapCredentials({ username, password }) {
+export function createBootstrapCredentials() {
   return Object.freeze({
     verify(input) {
-      return timingSafeEqual(input.username, username) && timingSafeEqual(input.password, password);
+      return input.bootstrapAuthorized === true;
     },
   });
 }

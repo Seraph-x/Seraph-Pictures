@@ -31,8 +31,30 @@ export function verifyCredentials(username, password, env) {
   return callAuthCoordinator(env, 'verifyCredentials', { username, password });
 }
 
-export function loginWithCredentials(username, password, env) {
-  return callAuthCoordinator(env, 'bootstrapLogin', { username, password });
+function timingSafeEqual(left, right) {
+  const a = String(left ?? '');
+  const b = String(right ?? '');
+  const length = Math.max(a.length, b.length, 1);
+  let mismatch = a.length === b.length ? 0 : 1;
+  for (let index = 0; index < length; index += 1) {
+    mismatch |= (a.charCodeAt(index) | 0) ^ (b.charCodeAt(index) | 0);
+  }
+  return mismatch === 0;
+}
+
+export async function loginWithCredentials(username, password, env) {
+  const status = await callAuthCoordinator(env, 'status');
+  if (status.initialized) {
+    return callAuthCoordinator(env, 'bootstrapLogin', { username, password });
+  }
+  const seedMatches = timingSafeEqual(username, env.BASIC_USER)
+    && timingSafeEqual(password, env.BASIC_PASS);
+  if (!seedMatches) return Object.freeze({ ok: false, code: 'INVALID_CREDENTIALS' });
+  return callAuthCoordinator(env, 'bootstrapLogin', {
+    username,
+    password,
+    bootstrapAuthorized: true,
+  });
 }
 
 export function verifySession(sessionToken, env) {
