@@ -154,7 +154,11 @@ describe('Cloudflare explicit file visibility', function () {
     const middleware = await import('../functions/_middleware.js');
     const context = {
       request: new Request('https://vault.example/upload', { method: 'POST' }),
-      env: { img_url: { async put() {} } },
+      env: {
+        img_url: { async put() {} },
+        AUTH_DISABLED: 'true',
+        APP_ENV: 'local',
+      },
       async next() {
         await this.env.img_url.put('file-1', '', {
           metadata: {

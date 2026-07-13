@@ -5,6 +5,10 @@ const { AuthService } = require('./utils/auth');
 const { GuestService } = require('./utils/guest');
 const { StorageFactory } = require('./storage/factory');
 const { StorageConfigRepository } = require('./repos/storage-config-repo');
+const { GuestStorageRepository } = require('./repos/guest-storage-repo');
+const { GuestQuotaRepository } = require('./repos/guest-quota-repo');
+const { GuestQuotaService } = require('../../shared/security/guest-quota-service.cjs');
+const { randomId } = require('./utils/crypto');
 const { VisibilityFileRepository } = require('./repos/visibility-file-repo');
 const { ShareRepository } = require('./repos/share-repo');
 const { UploadService } = require('./services/upload-service');
@@ -19,12 +23,17 @@ function createContainer(env = process.env) {
   const db = initDatabase(config.dbPath);
 
   const storageRepo = new StorageConfigRepository(db, config);
+  const guestStorageRepo = new GuestStorageRepository({
+    storageRepo,
+    bootstrap: config.bootstrapDefaultStorage.telegramGuest,
+  });
   const fileRepo = new VisibilityFileRepository(db);
   const shareRepo = new ShareRepository(db);
   const storageFactory = new StorageFactory();
   const settingsStore = createSettingsStore({ db, config });
 
   storageRepo.ensureBootstrapStorage();
+  guestStorageRepo.ensureBootstrap();
   cleanupExpiredState(db);
 
   const uploadService = new UploadService({
@@ -40,7 +49,17 @@ function createContainer(env = process.env) {
   });
 
   const authService = new AuthService(db, config);
-  const guestService = new GuestService(db, config);
+  const guestQuota = new GuestQuotaService({
+    repository: new GuestQuotaRepository(db),
+    clock: { now: () => Date.now() },
+    ids: { create: () => randomId('gq') },
+  });
+  const guestService = new GuestService({
+    quota: guestQuota,
+    storageRepo: guestStorageRepo,
+    config,
+    clock: { now: () => Date.now() },
+  });
   const loginRateLimitService = new LoginRateLimitService({ db });
   const shareService = new ShareService({
     repository: shareRepo,
@@ -54,6 +73,7 @@ function createContainer(env = process.env) {
     db,
     authService,
     guestService,
+    guestStorageRepo,
     loginRateLimitService,
     storageRepo,
     fileRepo,

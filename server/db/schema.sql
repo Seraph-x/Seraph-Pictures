@@ -97,16 +97,6 @@ CREATE TABLE IF NOT EXISTS login_failures (
 
 CREATE INDEX IF NOT EXISTS idx_login_failures_expires ON login_failures(window_expires_at);
 
-CREATE TABLE IF NOT EXISTS guest_upload_counters (
-  id TEXT PRIMARY KEY,
-  ip TEXT NOT NULL,
-  day TEXT NOT NULL,
-  count INTEGER NOT NULL DEFAULT 0,
-  updated_at INTEGER NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_guest_upload_counters_day ON guest_upload_counters(day);
-
 CREATE TABLE IF NOT EXISTS chunk_uploads (
   upload_id TEXT PRIMARY KEY,
   file_name TEXT NOT NULL,

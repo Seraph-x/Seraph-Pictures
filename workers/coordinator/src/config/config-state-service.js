@@ -125,4 +125,11 @@ export class ConfigStateService {
       return Object.freeze({ aborted: true });
     });
   }
+
+  nextAlarmAt() {
+    const state = this.repository.readState() || emptyState();
+    return state.pendingVersion === null
+      ? null
+      : state.pendingStartedAt + PENDING_TIMEOUT_MS;
+  }
 }

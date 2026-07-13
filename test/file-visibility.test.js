@@ -150,11 +150,15 @@ describe('explicit file visibility metadata', function () {
       buffer: new Uint8Array([1, 2, 3, 4]),
       uploadSource: 'guest',
       visibility: 'public',
+      expiresAt: 1_800_000_000_000,
+      retentionDays: 3,
     });
 
     assert.strictEqual(created.visibility, 'public');
     assert.strictEqual(created.uploadSource, 'guest');
     assert.strictEqual(created.accessVersion, 1);
+    assert.strictEqual(created.expiresAt, 1_800_000_000_000);
+    assert.strictEqual(created.extra.retentionDays, 3);
   });
 
 });

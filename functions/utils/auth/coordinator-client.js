@@ -37,6 +37,10 @@ const OPERATIONS = new Set([
   'shareLeaseRead',
   'shareConsumeStartLease',
   'shareLeaseAdvance',
+  'quotaReserve',
+  'quotaComplete',
+  'quotaCancel',
+  'quotaReleaseExpired',
 ]);
 
 function getStub(env) {

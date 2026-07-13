@@ -91,6 +91,15 @@ const VALIDATORS = Object.freeze({
   shareLeaseRead: (value) => isObject(value) && typeof value.allowed === 'boolean',
   shareConsumeStartLease: (value) => isResult(value),
   shareLeaseAdvance: (value) => isResult(value),
+  quotaReserve: (value) => isResult(value)
+    && (!value.ok || (typeof value.reservationId === 'string'
+      && Number.isFinite(value.expiresAt))),
+  quotaComplete: (value) => isObject(value)
+    && value.ok === true && typeof value.completed === 'boolean',
+  quotaCancel: (value) => isObject(value)
+    && value.ok === true && typeof value.cancelled === 'boolean',
+  quotaReleaseExpired: (value) => isObject(value)
+    && Number.isInteger(value.released) && value.released >= 0,
 });
 
 export function isValidOperationResult(operation, value) {

@@ -1,5 +1,7 @@
 ﻿const path = require('node:path');
 
+const { createStorageBootstrap } = require('./config/storage-bootstrap');
+
 const PLACEHOLDER_VALUES = new Set([
   'change_this_password',
   'replace_with_a_long_random_secret',
@@ -79,13 +81,7 @@ function loadConfig(env = process.env) {
   const dataDir = env.DATA_DIR
     ? path.resolve(normalizeEnvString(env.DATA_DIR))
     : resolveDataPath('data');
-  const telegramToken = pickEnvAlias(env, ['TG_BOT_TOKEN', 'TG_Bot_Token']);
-  const telegramChatId = pickEnvAlias(env, ['TG_CHAT_ID', 'TG_Chat_ID']);
   const telegramApiBase = pickEnvAlias(env, ['CUSTOM_BOT_API_URL'], 'https://api.telegram.org');
-  const huggingFaceToken = pickEnvAlias(env, ['HF_TOKEN', 'HUGGINGFACE_TOKEN', 'HF_API_TOKEN']);
-  const huggingFaceRepo = pickEnvAlias(env, ['HF_REPO', 'HUGGINGFACE_REPO', 'HF_DATASET_REPO']);
-  const githubToken = pickEnvAlias(env, ['GITHUB_TOKEN', 'GH_TOKEN', 'GITHUB_PAT']);
-  const githubRepo = pickEnvAlias(env, ['GITHUB_REPO', 'GH_REPO', 'GITHUB_REPOSITORY']);
 
   const config = {
     port: toInt(env.PORT, 8787),
@@ -102,6 +98,8 @@ function loadConfig(env = process.env) {
     guestUploadEnabled: toBool(env.GUEST_UPLOAD, false),
     guestMaxFileSize: toInt(env.GUEST_MAX_FILE_SIZE, 5 * 1024 * 1024),
     guestDailyLimit: toInt(env.GUEST_DAILY_LIMIT, 10),
+    guestRetentionDays: toInt(env.GUEST_RETENTION_DAYS, 3),
+    trustProxy: toBool(env.TRUST_PROXY, false),
 
     uploadMaxSize: toInt(env.UPLOAD_MAX_SIZE, 100 * 1024 * 1024),
     uploadSmallFileThreshold: toInt(env.UPLOAD_SMALL_FILE_THRESHOLD, 20 * 1024 * 1024),
@@ -120,67 +118,9 @@ function loadConfig(env = process.env) {
 
     telegramApiBase: telegramApiBase.value,
 
-    // Optional bootstrap default storage from env.
-    bootstrapDefaultStorage: {
-      type: (env.DEFAULT_STORAGE_TYPE || 'telegram').toLowerCase(),
-      telegram: {
-        botToken: telegramToken.value || '',
-        chatId: telegramChatId.value || '',
-        apiBase: telegramApiBase.value || 'https://api.telegram.org',
-        envSource: {
-          botToken: telegramToken.source || 'none',
-          chatId: telegramChatId.source || 'none',
-          apiBase: telegramApiBase.source || 'default',
-        },
-      },
-      r2: {
-        endpoint: normalizeEnvString(env.R2_ENDPOINT) || normalizeEnvString(env.S3_ENDPOINT) || '',
-        region: normalizeEnvString(env.R2_REGION) || normalizeEnvString(env.S3_REGION) || 'auto',
-        bucket: normalizeEnvString(env.R2_BUCKET) || normalizeEnvString(env.S3_BUCKET) || '',
-        accessKeyId: normalizeEnvString(env.R2_ACCESS_KEY_ID) || normalizeEnvString(env.S3_ACCESS_KEY_ID) || '',
-        secretAccessKey: normalizeEnvString(env.R2_SECRET_ACCESS_KEY) || normalizeEnvString(env.S3_SECRET_ACCESS_KEY) || '',
-      },
-      s3: {
-        endpoint: normalizeEnvString(env.S3_ENDPOINT),
-        region: normalizeEnvString(env.S3_REGION, 'us-east-1'),
-        bucket: normalizeEnvString(env.S3_BUCKET),
-        accessKeyId: normalizeEnvString(env.S3_ACCESS_KEY_ID),
-        secretAccessKey: normalizeEnvString(env.S3_SECRET_ACCESS_KEY),
-      },
-      discord: {
-        webhookUrl: normalizeEnvString(env.DISCORD_WEBHOOK_URL),
-        botToken: normalizeEnvString(env.DISCORD_BOT_TOKEN),
-        channelId: normalizeEnvString(env.DISCORD_CHANNEL_ID),
-      },
-      huggingface: {
-        token: huggingFaceToken.value || '',
-        repo: huggingFaceRepo.value || '',
-        envSource: {
-          token: huggingFaceToken.source || 'none',
-          repo: huggingFaceRepo.source || 'none',
-        },
-      },
-      webdav: {
-        baseUrl: normalizeEnvString(env.WEBDAV_BASE_URL),
-        username: normalizeEnvString(env.WEBDAV_USERNAME),
-        password: normalizeEnvString(env.WEBDAV_PASSWORD),
-        bearerToken: normalizeEnvString(env.WEBDAV_BEARER_TOKEN) || normalizeEnvString(env.WEBDAV_TOKEN) || '',
-        rootPath: normalizeEnvString(env.WEBDAV_ROOT_PATH),
-      },
-      github: {
-        repo: githubRepo.value || '',
-        token: githubToken.value || '',
-        mode: normalizeEnvString(env.GITHUB_MODE, 'releases').toLowerCase(),
-        prefix: normalizeEnvString(env.GITHUB_PREFIX) || normalizeEnvString(env.GITHUB_PATH) || '',
-        releaseTag: normalizeEnvString(env.GITHUB_RELEASE_TAG),
-        branch: normalizeEnvString(env.GITHUB_BRANCH),
-        apiBase: normalizeEnvString(env.GITHUB_API_BASE, 'https://api.github.com'),
-        envSource: {
-          repo: githubRepo.source || 'none',
-          token: githubToken.source || 'none',
-        },
-      },
-    },
+    bootstrapDefaultStorage: createStorageBootstrap({
+      env, normalize: normalizeEnvString, pick: pickEnvAlias,
+    }),
   };
   return validateProductionConfig(config);
 }

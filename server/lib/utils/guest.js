@@ -1,95 +1,98 @@
-﻿const { run, get } = require('../../db');
+const { createHmac } = require('node:crypto');
 
-const { getClientIp } = require('./client-ip');
+const {
+  GUEST_LIMITS,
+  detectImageMime,
+  validateGuestUpload,
+} = require('../../../shared/security/guest-policy.cjs');
 
-function todayKey() {
-  return new Date().toISOString().slice(0, 10);
+const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
+
+class GuestUploadError extends Error {
+  constructor(code, status, message = code) {
+    super(message);
+    this.code = code;
+    this.status = status;
+  }
+}
+
+function trustedClientAddress(request, trustProxy) {
+  if (!trustProxy) throw new GuestUploadError('GUEST_TRUST_PROXY_REQUIRED', 503);
+  return request.headers.get('cf-connecting-ip')
+    || request.headers.get('x-real-ip')
+    || request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    || 'unknown';
+}
+
+function subjectHash(secret, address) {
+  if (String(secret || '').length < 32) {
+    throw new GuestUploadError('GUEST_QUOTA_SECRET_UNAVAILABLE', 503);
+  }
+  return createHmac('sha256', secret).update(address).digest('hex');
+}
+
+function assertPolicy(config, descriptor) {
+  const buffer = descriptor.buffer;
+  const result = validateGuestUpload({
+    fileName: descriptor.fileName,
+    mimeType: descriptor.mimeType,
+    detectedMimeType: detectImageMime(buffer),
+    declaredBytes: descriptor.declaredBytes,
+    actualBytes: buffer.byteLength,
+    maximumFileBytes: config.guestMaxFileSize,
+    retentionDays: config.guestRetentionDays,
+  });
+  if (!result.allowed) throw new GuestUploadError(result.code, result.status);
 }
 
 class GuestService {
-  constructor(db, config) {
-    this.db = db;
-    this.config = config;
+  constructor(options) {
+    this.quota = options.quota;
+    this.storageRepo = options.storageRepo;
+    this.config = options.config;
+    this.clock = options.clock;
   }
 
   getConfig() {
     if (!this.config.guestUploadEnabled) {
-      return { enabled: false, maxFileSize: 0, dailyLimit: 0 };
+      return Object.freeze({ enabled: false, maxFileSize: 0, dailyLimit: 0 });
     }
-    return {
+    return Object.freeze({
       enabled: true,
-      maxFileSize: this.config.guestMaxFileSize,
-      dailyLimit: this.config.guestDailyLimit,
-    };
+      maxFileSize: Math.min(this.config.guestMaxFileSize, GUEST_LIMITS.maximumFileBytes),
+      dailyLimit: GUEST_LIMITS.dailyUploads,
+    });
   }
 
-  checkUploadAllowed(request, fileSize = 0) {
+  async reserveUpload({ request, descriptor }) {
     if (!this.config.guestUploadEnabled) {
-      return {
-        allowed: false,
-        status: 401,
-        reason: 'Guest upload disabled. Please login first.',
-      };
+      throw new GuestUploadError('GUEST_UPLOAD_DISABLED', 401);
     }
-
-    if (fileSize > this.config.guestMaxFileSize) {
-      return {
-        allowed: false,
-        status: 413,
-        reason: `Guest upload file size limit exceeded (${Math.ceil(this.config.guestMaxFileSize / 1024 / 1024)}MB).`,
-      };
-    }
-
-    const ip = getClientIp(request);
-    const day = todayKey();
-    const row = get(this.db, 'SELECT count FROM guest_upload_counters WHERE id = ?', [`${ip}:${day}`]);
-    const current = row ? Number(row.count) : 0;
-
-    if (current >= this.config.guestDailyLimit) {
-      return {
-        allowed: false,
-        status: 429,
-        reason: `Guest daily upload limit reached (${this.config.guestDailyLimit}).`,
-        remaining: 0,
-      };
-    }
-
-    return {
-      allowed: true,
-      remaining: this.config.guestDailyLimit - current,
-    };
+    assertPolicy(this.config, descriptor);
+    const storage = this.storageRepo.resolveGuestStorage();
+    if (!storage) throw new GuestUploadError('GUEST_STORAGE_UNAVAILABLE', 503);
+    const address = trustedClientAddress(request, this.config.trustProxy);
+    const hash = subjectHash(this.config.sessionSecret, address);
+    const reservation = await this.quota.reserve({ subjectHash: hash });
+    if (!reservation.ok) throw new GuestUploadError(reservation.code, 429);
+    const retentionDays = this.config.guestRetentionDays;
+    return Object.freeze({
+      ...reservation,
+      storageId: storage.id,
+      retentionDays,
+      fileExpiresAt: this.clock.now() + retentionDays * MILLISECONDS_PER_DAY,
+    });
   }
 
-  incrementUsage(request) {
-    if (!this.config.guestUploadEnabled) return;
+  async completeUpload(reservationId) {
+    const result = await this.quota.complete({ reservationId });
+    if (!result.completed) throw new GuestUploadError('GUEST_RESERVATION_INVALID', 409);
+    return result;
+  }
 
-    const ip = getClientIp(request);
-    const day = todayKey();
-    const id = `${ip}:${day}`;
-    const now = Date.now();
-
-    const existing = get(this.db, 'SELECT count FROM guest_upload_counters WHERE id = ?', [id]);
-    if (!existing) {
-      run(
-        this.db,
-        `INSERT INTO guest_upload_counters(id, ip, day, count, updated_at)
-         VALUES (?, ?, ?, ?, ?)`,
-        [id, ip, day, 1, now]
-      );
-      return;
-    }
-
-    run(
-      this.db,
-      `UPDATE guest_upload_counters
-       SET count = ?, updated_at = ?
-       WHERE id = ?`,
-      [Number(existing.count) + 1, now, id]
-    );
+  cancelUpload(reservationId) {
+    return this.quota.cancel({ reservationId });
   }
 }
 
-module.exports = {
-  GuestService,
-  getClientIp,
-};
+module.exports = { GuestService, GuestUploadError, trustedClientAddress };

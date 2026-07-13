@@ -1,21 +1,62 @@
 const { normalizeFolderPath } = require('../lib/repos/file-repo');
+const { GUEST_LIMITS } = require('../../shared/security/guest-policy.cjs');
 
-async function performRemoteUpload({ context, payload, auth, service, container, helpers }) {
+function remoteLimit(container, authenticated) {
+  const configured = Math.min(
+    container.config.uploadSmallFileThreshold,
+    container.config.uploadMaxSize,
+  );
+  if (authenticated) return configured;
+  const guestMaximum = container.config.guestMaxFileSize > 0
+    ? container.config.guestMaxFileSize
+    : GUEST_LIMITS.maximumFileBytes;
+  return Math.min(configured, guestMaximum, GUEST_LIMITS.maximumFileBytes);
+}
+
+async function reserveGuest({ auth, services, request, prepared }) {
+  if (auth.authenticated) return null;
+  return services.guestService.reserveUpload({
+    request,
+    descriptor: Object.freeze({
+      fileName: prepared.fileName,
+      mimeType: prepared.mimeType,
+      declaredBytes: prepared.fileSize,
+      buffer: new Uint8Array(prepared.buffer),
+    }),
+  });
+}
+
+async function uploadPrepared(options) {
+  const { payload, auth, prepared, reservation, services } = options;
+  let result;
   try {
-    return await service.uploadFromUrl({
-      url: payload.url,
-      storageMode: helpers.asString(payload.storageMode || payload.storage),
-      storageId: helpers.asString(payload.storageId || payload.storage_config_id),
+    result = await services.uploadService.uploadFile({
+      ...prepared,
+      storageMode: payload.storageMode || payload.storage,
+      storageId: reservation?.storageId || payload.storageId || payload.storage_config_id,
       folderPath: normalizeFolderPath(payload.folderPath || payload.folder || ''),
-      maxBytes: Math.min(container.config.uploadSmallFileThreshold, container.config.uploadMaxSize),
       uploadSource: auth.authenticated ? 'image-host' : 'guest',
       visibility: 'public',
+      expiresAt: reservation?.fileExpiresAt,
+      retentionDays: reservation?.retentionDays,
     });
   } catch (error) {
-    const status = error?.status || 502;
-    const normalized = helpers.normalizeUploadError(context, error, status);
-    return context.json({ ...normalized, traceId: helpers.getTraceId(context) }, status);
+    if (reservation) await services.guestService.cancelUpload(reservation.reservationId);
+    throw error;
   }
+  if (reservation) await services.guestService.completeUpload(reservation.reservationId);
+  return result;
+}
+
+async function executeRemoteUpload({ context, container, payload, auth, services }) {
+  const prepared = await services.uploadService.prepareRemoteFile({
+    url: payload.url,
+    maxBytes: remoteLimit(container, auth.authenticated),
+  });
+  const reservation = await reserveGuest({
+    auth, services, request: context.req.raw, prepared,
+  });
+  return uploadPrepared({ payload, auth, prepared, reservation, services });
 }
 
 async function handleRemoteUpload(context, container, helpers) {
@@ -25,21 +66,14 @@ async function handleRemoteUpload(context, container, helpers) {
   if (!payload.url) {
     return helpers.jsonError(context, 400, 'URL_REQUIRED', 'url is required.', 'Missing url.');
   }
-  if (!auth.authenticated) {
-    const guest = services.guestService.checkUploadAllowed(context.req.raw, 0);
-    if (!guest.allowed) return helpers.jsonError(context, guest.status || 403, 'GUEST_REJECTED', 'Guest upload is not allowed.', guest.reason);
+  try {
+    const result = await executeRemoteUpload({ context, container, payload, auth, services });
+    return helpers.uploadSuccessResponse(context, result);
+  } catch (error) {
+    const status = error?.status || 502;
+    const normalized = helpers.normalizeUploadError(context, error, status);
+    return context.json({ ...normalized, traceId: helpers.getTraceId(context) }, status);
   }
-  const result = await performRemoteUpload({
-    context,
-    payload,
-    auth,
-    service: services.uploadService,
-    container,
-    helpers,
-  });
-  if (result instanceof Response) return result;
-  if (!auth.authenticated) services.guestService.incrementUsage(context.req.raw);
-  return helpers.uploadSuccessResponse(context, result);
 }
 
 function registerRemoteUploadRoute(app, container, helpers) {

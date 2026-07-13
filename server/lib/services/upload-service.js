@@ -52,7 +52,7 @@ class UploadService {
   async uploadFile(options) {
     const {
       fileName, mimeType, fileSize, buffer, storageId, storageMode, folderPath,
-      uploadSource = 'image-host', visibility,
+      uploadSource = 'image-host', visibility, expiresAt, retentionDays,
     } = options;
     const storageConfig = this.resolveStorage({ storageId, storageMode });
     const adapter = this.storageFactory.createAdapter(storageConfig);
@@ -80,7 +80,11 @@ class UploadService {
       mimeType,
       folderPath: normalizedFolderPath,
       ...access,
-      extra: uploadResult.metadata || {},
+      expiresAt,
+      extra: {
+        ...(uploadResult.metadata || {}),
+        ...(retentionDays ? { retentionDays } : {}),
+      },
     });
 
     return {
@@ -99,22 +103,24 @@ class UploadService {
       url, storageId, storageMode, folderPath, uploadSource = 'image-host', visibility,
       maxBytes = DEFAULT_URL_UPLOAD_LIMIT,
     } = options;
+    const prepared = await this.prepareRemoteFile({ url, maxBytes });
+    return this.uploadFile({
+      ...prepared, storageId, storageMode, folderPath, uploadSource, visibility,
+    });
+  }
+
+  async prepareRemoteFile({ url, maxBytes = DEFAULT_URL_UPLOAD_LIMIT }) {
     const parsedUrl = parseSafeRemoteUrl(url);
     await this.assertPublicResolvedHost(parsedUrl);
     const response = await this.requestRemoteFile(parsedUrl, maxBytes);
     const contentType = response.headers.get('content-type') || 'application/octet-stream';
     const arrayBuffer = await readLimitedBody(response, maxBytes);
     if (arrayBuffer.byteLength === 0) throw new Error('Target URL returned empty body.');
-    return this.uploadFile({
+    return Object.freeze({
       fileName: remoteFileName(parsedUrl, contentType),
       mimeType: contentType,
       fileSize: arrayBuffer.byteLength,
       buffer: arrayBuffer,
-      storageId,
-      storageMode,
-      folderPath,
-      uploadSource,
-      visibility,
     });
   }
 

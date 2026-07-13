@@ -39,8 +39,13 @@ function decideFileAccess(options) {
     share,
     accessVersion,
     nowSeconds,
+    expiresAtMs,
+    nowMs,
   } = options;
 
+  if (Number.isFinite(expiresAtMs) && Number.isFinite(nowMs) && expiresAtMs <= nowMs) {
+    return ACCESS_DENIED;
+  }
   if (visibility === FILE_VISIBILITY.PUBLIC) return ACCESS_ALLOWED;
   if (visibility !== FILE_VISIBILITY.PRIVATE) return ACCESS_DENIED;
   if (actor === ACCESS_ACTORS.ADMIN) return ACCESS_ALLOWED;

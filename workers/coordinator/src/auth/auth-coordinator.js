@@ -5,6 +5,8 @@ import { ConfigStateRepository } from '../config/config-state-repository.js';
 import { ConfigStateService } from '../config/config-state-service.js';
 import { ShareRepository } from '../share/share-repository.js';
 import { ShareCoordinatorService } from '../share/share-coordinator.js';
+import { GuestQuotaRepository } from '../quota/quota-repository.js';
+import { GuestQuotaService } from '../quota/quota-coordinator.js';
 
 const OPERATION_METHODS = Object.freeze({
   bootstrapLogin: 'bootstrapLogin',
@@ -40,6 +42,10 @@ const OPERATION_METHODS = Object.freeze({
   shareLeaseRead: 'shareLeaseRead',
   shareConsumeStartLease: 'shareConsumeStartLease',
   shareLeaseAdvance: 'shareLeaseAdvance',
+  quotaReserve: 'quotaReserve',
+  quotaComplete: 'quotaComplete',
+  quotaCancel: 'quotaCancel',
+  quotaReleaseExpired: 'quotaReleaseExpired',
 });
 
 function jsonResponse(body, status = 200) {
@@ -84,54 +90,112 @@ function createTokenService(cryptoImpl) {
   });
 }
 
-export class AuthCoordinator {
-  constructor(ctx, env) {
-    const dependencies = {
+function createAlarmScheduler(storage) {
+  return Object.freeze({
+    async schedule(timestamp) {
+      const current = await storage.getAlarm();
+      if (current === null || timestamp < current) await storage.setAlarm(timestamp);
+    },
+    async replace(timestamp) {
+      if (timestamp === null) return storage.deleteAlarm();
+      return storage.setAlarm(timestamp);
+    },
+  });
+}
+
+function createDependencies(ctx) {
+  const clock = Object.freeze({ now: () => Date.now() });
+  const tokens = createTokenService(crypto);
+  return Object.freeze({
+    auth: Object.freeze({
       repository: new AuthRepository(ctx.storage),
       passwords: createPasswordService({ cryptoImpl: crypto }),
-      tokens: createTokenService(crypto),
-      clock: { now: () => Date.now() },
+      tokens,
+      clock,
       bootstrapCredentials: createBootstrapCredentials(),
-    };
-    const authService = new AuthService(dependencies);
-    const configService = new ConfigStateService({
+    }),
+    clock,
+    tokens,
+  });
+}
+
+function createCoordinatorServices(ctx) {
+  const dependencies = createDependencies(ctx);
+  const alarms = createAlarmScheduler(ctx.storage);
+  return Object.freeze({
+    auth: new AuthService(dependencies.auth),
+    config: new ConfigStateService({
       repository: new ConfigStateRepository(ctx.storage),
       clock: dependencies.clock,
-      alarms: { schedule: (timestamp) => ctx.storage.setAlarm(timestamp) },
-    });
-    const shareService = new ShareCoordinatorService({
+      alarms,
+    }),
+    share: new ShareCoordinatorService({
       repository: new ShareRepository(ctx.storage),
-    });
-    this.service = Object.freeze({
-      ...bindMethods(authService, OPERATION_METHODS),
-      configReadAuthority: (payload) => configService.readAuthority(payload),
-      configBegin: (payload) => configService.begin(payload),
-      configCommit: (payload) => configService.commit(payload),
-      configAbort: (payload) => configService.abort(payload),
-      configAbortStale: (payload) => configService.abortStale(payload),
-      shareCreate: (payload) => shareService.create(payload),
-      shareRead: (payload) => shareService.read(payload),
-      shareConsume: (payload) => shareService.consume(payload),
-      shareRevoke: (payload) => shareService.revoke(payload),
-      shareLeaseRead: (payload) => shareService.leaseRead(payload),
-      shareConsumeStartLease: (payload) => shareService.consumeStartLease(payload),
-      shareLeaseAdvance: (payload) => shareService.leaseAdvance(payload),
-    });
-    this.configService = configService;
+    }),
+    quota: new GuestQuotaService({
+      repository: new GuestQuotaRepository(ctx.storage),
+      clock: dependencies.clock,
+      ids: dependencies.tokens,
+      alarms,
+    }),
+    alarms,
+  });
+}
+
+function operationService(services) {
+  return Object.freeze({
+    ...bindMethods(services.auth, OPERATION_METHODS),
+    configReadAuthority: (payload) => services.config.readAuthority(payload),
+    configBegin: (payload) => services.config.begin(payload),
+    configCommit: (payload) => services.config.commit(payload),
+    configAbort: (payload) => services.config.abort(payload),
+    configAbortStale: (payload) => services.config.abortStale(payload),
+    shareCreate: (payload) => services.share.create(payload),
+    shareRead: (payload) => services.share.read(payload),
+    shareConsume: (payload) => services.share.consume(payload),
+    shareRevoke: (payload) => services.share.revoke(payload),
+    shareLeaseRead: (payload) => services.share.leaseRead(payload),
+    shareConsumeStartLease: (payload) => services.share.consumeStartLease(payload),
+    shareLeaseAdvance: (payload) => services.share.leaseAdvance(payload),
+    quotaReserve: (payload) => services.quota.reserve(payload),
+    quotaComplete: (payload) => services.quota.complete(payload),
+    quotaCancel: (payload) => services.quota.cancel(payload),
+    quotaReleaseExpired: (payload) => services.quota.releaseExpired(payload),
+  });
+}
+
+export class AuthCoordinator {
+  constructor(ctx, env) {
+    void env;
+    const services = createCoordinatorServices(ctx);
+    this.service = operationService(services);
+    this.configService = services.config;
+    this.quotaService = services.quota;
+    this.alarms = services.alarms;
   }
 
   fetch(request) {
     return routeAuthOperation({ request, service: this.service });
   }
 
-  alarm() {
-    return this.configService.abortStale({});
+  async alarm() {
+    await Promise.all([
+      this.configService.abortStale({}),
+      this.quotaService.releaseExpired({}),
+    ]);
+    const candidates = [
+      this.configService.nextAlarmAt(),
+      this.quotaService.nextAlarmAt(),
+    ].filter(Number.isFinite);
+    await this.alarms.replace(candidates.length ? Math.min(...candidates) : null);
   }
 }
 
 function bindMethods(service, operationMethods) {
   const entries = Object.entries(operationMethods)
-    .filter(([operation]) => !operation.startsWith('config') && !operation.startsWith('share'))
+    .filter(([operation]) => !['config', 'share', 'quota'].some((prefix) => (
+      operation.startsWith(prefix)
+    )))
     .map(([operation, method]) => [operation, service[method].bind(service)]);
   return Object.fromEntries(entries);
 }

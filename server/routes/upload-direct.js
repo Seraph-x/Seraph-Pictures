@@ -25,7 +25,7 @@ function validateStorageLimit({ context, fileSize, storageMode, container, helpe
 }
 
 async function performUpload(options) {
-  const { context, body, file, buffer, auth, uploadService, helpers } = options;
+  const { context, body, file, buffer, auth, reservation, uploadService, helpers } = options;
   try {
     return await uploadService.uploadFile({
       fileName: file.name,
@@ -33,15 +33,37 @@ async function performUpload(options) {
       fileSize: buffer.byteLength,
       buffer,
       storageMode: helpers.asString(body.storageMode || body.storage),
-      storageId: helpers.asString(body.storageId || body.storage_config_id),
+      storageId: reservation?.storageId
+        || helpers.asString(body.storageId || body.storage_config_id),
       folderPath: normalizeFolderPath(body.folderPath || body.folder || ''),
       uploadSource: auth.authenticated ? 'image-host' : 'guest',
       visibility: 'public',
+      expiresAt: reservation?.fileExpiresAt,
+      retentionDays: reservation?.retentionDays,
     });
   } catch (error) {
     const normalized = helpers.normalizeUploadError(context, error, 502);
     return context.json({ ...normalized, traceId: helpers.getTraceId(context) }, 502);
   }
+}
+
+async function reserveGuestUpload({ auth, services, request, file, buffer }) {
+  if (auth.authenticated) return null;
+  return services.guestService.reserveUpload({
+    request,
+    descriptor: Object.freeze({
+      fileName: file.name,
+      mimeType: file.type,
+      declaredBytes: file.size,
+      buffer: new Uint8Array(buffer),
+    }),
+  });
+}
+
+async function settleGuestUpload({ services, reservation, succeeded }) {
+  if (!reservation) return;
+  if (succeeded) await services.guestService.completeUpload(reservation.reservationId);
+  else await services.guestService.cancelUpload(reservation.reservationId);
 }
 
 async function handleDirectUpload(context, container, helpers) {
@@ -57,9 +79,13 @@ async function handleDirectUpload(context, container, helpers) {
     context, fileSize: buffer.byteLength, limit: container.config.uploadMaxSize, helpers,
   });
   if (maximumError) return maximumError;
-  if (!auth.authenticated) {
-    const guest = services.guestService.checkUploadAllowed(context.req.raw, buffer.byteLength);
-    if (!guest.allowed) return helpers.jsonError(context, guest.status || 403, 'GUEST_REJECTED', 'Guest upload is not allowed.', guest.reason);
+  let reservation;
+  try {
+    reservation = await reserveGuestUpload({
+      auth, services, request: context.req.raw, file, buffer,
+    });
+  } catch (error) {
+    return helpers.jsonError(context, error.status || 503, error.code || 'GUEST_REJECTED', 'Guest upload is not allowed.', error.message);
   }
   const storageError = validateStorageLimit({
     context,
@@ -68,12 +94,16 @@ async function handleDirectUpload(context, container, helpers) {
     container,
     helpers,
   });
-  if (storageError) return storageError;
+  if (storageError) {
+    await settleGuestUpload({ services, reservation, succeeded: false });
+    return storageError;
+  }
   const result = await performUpload({
-    context, body, file, buffer, auth, uploadService: services.uploadService, helpers,
+    context, body, file, buffer, auth, reservation,
+    uploadService: services.uploadService, helpers,
   });
+  await settleGuestUpload({ services, reservation, succeeded: !(result instanceof Response) });
   if (result instanceof Response) return result;
-  if (!auth.authenticated) services.guestService.incrementUsage(context.req.raw);
   return helpers.uploadSuccessResponse(context, result);
 }
 

@@ -20,6 +20,14 @@ function decide(overrides = {}) {
 }
 
 describe('shared file access policy', () => {
+  it('conceals an expired public guest file', () => {
+    assert.strictEqual(decide({
+      visibility: FILE_VISIBILITY.PUBLIC,
+      expiresAtMs: 1_000,
+      nowMs: 1_001,
+    }).allowed, false);
+  });
+
   it('allows anonymous access to explicitly public files', () => {
     assert.deepStrictEqual(decide({ visibility: FILE_VISIBILITY.PUBLIC }), {
       allowed: true,

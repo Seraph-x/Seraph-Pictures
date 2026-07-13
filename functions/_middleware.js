@@ -1,4 +1,6 @@
 import fileMetadataPolicy from '../shared/security/file-metadata.cjs';
+import { checkAuthentication, isAuthRequired } from './utils/auth.js';
+import { handleGuestUpload } from './services/guest-upload-handler.js';
 
 const { createAccessMetadata, resolveStoredAccessMetadata } = fileMetadataPolicy;
 const FILE_UPLOAD_PATHS = Object.freeze(new Set([
@@ -8,6 +10,12 @@ const FILE_UPLOAD_PATHS = Object.freeze(new Set([
   '/api/r2/upload',
   '/api/telegram/webhook',
   '/api/v1/upload',
+]));
+const GUEST_UPLOAD_PATHS = Object.freeze(new Set(['/upload', '/api/upload-from-url']));
+const CHUNK_UPLOAD_PATHS = Object.freeze(new Set([
+  '/api/chunked-upload/init',
+  '/api/chunked-upload/chunk',
+  '/api/chunked-upload/complete',
 ]));
 
 function isFileMetadata(metadata) {
@@ -67,9 +75,33 @@ function uploadEnvironment(context, pathname) {
   });
 }
 
+async function isGuestRequest(context, pathname) {
+  const protectedPath = GUEST_UPLOAD_PATHS.has(pathname) || CHUNK_UPLOAD_PATHS.has(pathname);
+  if (context.request.method !== 'POST' || !protectedPath) return false;
+  if (context.data?.apiToken || !isAuthRequired(context.env)) return false;
+  const authentication = await checkAuthentication(context);
+  return !authentication.authenticated;
+}
+
+function chunkGuestRejected() {
+  return new Response(JSON.stringify({
+    error: '访客不支持分片上传，请使用普通上传',
+    code: 'GUEST_CHUNK_UPLOAD_REJECTED',
+  }), {
+    status: 403,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
 export async function onRequest(context) {
   const pathname = new URL(context.request.url).pathname.replace(/\/+$/, '') || '/';
-  if (!FILE_UPLOAD_PATHS.has(pathname)) return context.next();
-  context.env = uploadEnvironment(context, pathname);
+  const isFileUpload = FILE_UPLOAD_PATHS.has(pathname);
+  const isChunkUpload = CHUNK_UPLOAD_PATHS.has(pathname);
+  if (!isFileUpload && !isChunkUpload) return context.next();
+  if (isFileUpload) context.env = uploadEnvironment(context, pathname);
+  if (await isGuestRequest(context, pathname)) {
+    if (GUEST_UPLOAD_PATHS.has(pathname)) return handleGuestUpload(context, pathname);
+    return chunkGuestRejected();
+  }
   return context.next();
 }

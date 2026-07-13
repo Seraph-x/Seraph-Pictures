@@ -38,7 +38,7 @@
   // (Settings -> Environment variables / Secrets) — never commit real values:
   //   TG_GUEST_BOT_TOKEN   guest bot token
   //   TG_GUEST_CHAT_ID     guest channel chat id
-  // Guest policy (enabled / retentionDays >=0 where 0=never expire / dailyLimit / maxFileSize) lives in
+  // Guest policy (enabled / retentionDays >=1 / fixed dailyLimit=10 / maxFileSize<=20MiB) lives in
   // KV (key "guest_config") and is edited from the admin "访客上传设置" panel.
   // The optional GUEST_UPLOAD / GUEST_RETENTION_DAYS / GUEST_DAILY_LIMIT /
   // GUEST_MAX_FILE_SIZE vars only seed the first read before a value is saved to KV.

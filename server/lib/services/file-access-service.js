@@ -13,12 +13,17 @@ function decideDockerFileAccess({ file, request, authService, share = null }) {
   if (metadata.visibility === 'private') {
     actor = authService.checkAuthentication(request).authenticated ? 'admin' : 'anonymous';
   }
+  const nowMs = Date.now();
+  const rawExpiry = Number(file.metadata.expiresAt);
+  const expiresAtMs = Number.isFinite(rawExpiry) && rawExpiry > 0 ? rawExpiry : null;
   return decideFileAccess({
     visibility: metadata.visibility,
     actor,
     share,
     accessVersion: metadata.accessVersion,
-    nowSeconds: Math.floor(Date.now() / 1000),
+    expiresAtMs,
+    nowMs,
+    nowSeconds: Math.floor(nowMs / 1000),
   });
 }
 
