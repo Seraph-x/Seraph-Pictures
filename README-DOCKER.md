@@ -1,96 +1,82 @@
 # Seraph's Pictures Docker 运行指南
 
-Docker runtime 用于自托管 Seraph's Pictures。它提供 Node/Hono 后端、静态前端和本地数据目录，适合 VPS、NAS 或本地调试。
+[项目中文说明](README.md) | [English Docker guide](README-DOCKER-EN.md)
 
-> 概览与功能特性见 [README.md](README.md)。
+Docker runtime 面向 VPS、NAS 与本地私有化部署，由静态前端、Node/Hono API 和持久数据卷组成。它与 Cloudflare runtime 都提供 Storage、Drive、Share、Passkey、API Token 和访客上传；两者差异在持久化、上传模式和存储适配实现，不在 API 是否存在。
 
-## Docker 版和 Cloudflare 版的区别
+## 要求与启动
 
-- Cloudflare Pages：当前线上主流程，根路径 Legacy 页面最稳定；`/app/storage`、`/app/drive` 的后端尚未补齐。
-- Docker runtime：包含更完整的新版后端接口，**已实现** Vue `/app/storage`、`/app/drive` 依赖的 `/api/storage/*`、`/api/drive/*`、`/api/share/*`。
-- Passkey 登录、API Token（`/api/v1/*`）、访客上传等能力两端一致；差异仅在上面这组动态存储 / Drive 接口。
-
-## 启动
+- Docker Engine 与 Compose v2；开发和诊断脚本使用 Node.js 22+。
+- HTTPS 反向代理用于公开部署和 Passkey。
+- 启动前必须替换示例密码、会话密钥、配置加密密钥和分享签名密钥。
 
 ```bash
 npm run docker:init-env
-# 编辑 .env，将 BASIC_PASS 替换为非示例密码
 docker compose up -d --build
+npm run docker:doctor
+docker compose logs api
 ```
 
-Docker 默认启用认证。生产环境若仍使用空凭据、示例密码或示例加密密钥，API 会拒绝启动。只有明确设置 `AUTH_DISABLED=true` 才会关闭认证，并在启动日志中输出警告。
+访问 `http://localhost:8080/`；管理页为 `/admin.html`，Vue Drive 与存储设置为 `/app/drive`、`/app/storage`。Docker 默认启用认证，`AUTH_DISABLED=true` 仅用于明确的本地隔离环境，不能作为生产修复手段。
 
-默认访问：
+## 数据与配置
 
-```txt
-http://localhost:8080/
-http://localhost:8080/admin.html
-http://localhost:8080/webdav.html
-```
+| 责任 | 配置 |
+| --- | --- |
+| 身份与加密 | `BASIC_USER`、`BASIC_PASS`、`SESSION_SECRET`、`CONFIG_ENCRYPTION_KEY`、`FILE_SHARE_SECRET_CURRENT` |
+| 公网与 Passkey | `PUBLIC_BASE_URL`、`WEBAUTHN_RP_ID`、`WEBAUTHN_ORIGIN` |
+| 持久化 | `DATA_DIR`、`DB_PATH`、`SETTINGS_STORE`、`SETTINGS_REDIS_URL` |
+| 访客 | `TG_GUEST_BOT_TOKEN`、`TG_GUEST_CHAT_ID`、`GUEST_UPLOAD`、`GUEST_MAX_FILE_SIZE`、`GUEST_RETENTION_DAYS`、`TRUST_PROXY` |
+| 上传 | `UPLOAD_MAX_SIZE`、`UPLOAD_SMALL_FILE_THRESHOLD`、`CHUNK_SIZE` |
+| 后端 | `TG_*`、`R2_*`、`S3_*`、`WEBDAV_*`、`DISCORD_*`、`HF_*`、`GITHUB_*` |
 
-## 常用环境变量
-
-```txt
-BASIC_USER
-BASIC_PASS
-TG_BOT_TOKEN
-TG_CHAT_ID
-DATA_DIR
-DB_PATH
-SETTINGS_STORE             # sqlite | redis
-CONFIG_ENCRYPTION_KEY      # 加密动态存储配置（必填，长随机串）
-SESSION_SECRET             # 会话签名密钥（长随机串）
-WEBAUTHN_RP_ID             # Passkey 规范域名
-WEBAUTHN_ORIGIN            # Passkey 规范来源（https://你的域名）
-TG_GUEST_BOT_TOKEN         # 访客上传专用 bot（与主 bot 隔离）
-TG_GUEST_CHAT_ID           # 访客上传专用频道 chat id
-GUEST_UPLOAD               # 访客上传初始默认（保存后以设置存储为准）
-GUEST_MAX_FILE_SIZE        # 访客单文件大小初始默认（上限 20MB）
-GUEST_DAILY_LIMIT          # 单 IP 每日上传次数初始默认
-S3_*
-WEBDAV_*
-DISCORD_*
-HUGGINGFACE_*
-GITHUB_*
-```
-
-完整变量见 `.env.example`。
-
-## Passkey 与访客上传
-
-- **Passkey 登录**：设置 `WEBAUTHN_RP_ID` / `WEBAUTHN_ORIGIN` 为你的域名后，登录页即可使用 Passkey（密码登录仍保留）。
-- **访客上传**：未登录访客走独立的 Telegram bot / 频道（`TG_GUEST_*`），与管理员存储隔离；开关、保留天数、单 IP 每日次数、单文件大小上限（≤ 20MB）保存在设置存储中，可在后台「访客上传设置」面板随时调整，`GUEST_*` 仅作首次默认。
-
-## 页面结构
-
-```txt
-/              上传首页
-/login.html    登录页
-/admin.html    管理后台
-/gallery.html  图片浏览
-/webdav.html   WebDAV 上传中心
-/app/status    Vue 状态页
-/app/storage   Vue 存储配置
-/app/drive     Vue Drive 管理
-```
-
-## 存储建议
-
-推荐把 WebDAV 作为聚合入口：
-
-1. 在同机或独立节点部署 alist/openlist。
-2. 在 Seraph's Pictures 中配置 WebDAV 后端。
-3. 由 alist/openlist 聚合多个上游存储，Seraph's Pictures 负责上传体验、直链、认证和后台管理。
-
-## 验证
+基础模板见 [.env.example](.env.example)；访客行中的扩展变量需按部署场景加入 `.env`。默认 SQLite 数据位于 `kvault_data` 持久卷。动态 storage profiles 以 AES-GCM 加密后始终保存在 SQLite；Redis 仅可作为独立的通用设置存储。动态配置优先于环境变量，空白密钥字段保留旧值。启用 Compose Redis：
 
 ```bash
-node scripts/docker-storage-doctor.js
-node scripts/docker-ci-smoke.js
+docker compose --profile redis up -d --build
+npm run docker:doctor
 ```
 
-## 注意事项
+备份时停止写入并备份 `kvault_data`；使用外部 Redis 时同时执行其一致性备份。恢复后运行 doctor 并验证登录、列表和下载。
 
-- Docker 静态前端不再复制旧 `admin-imgtc.html`、`admin-waterfall.html` 和 `_nuxt/`。
-- 根路径 Legacy 页面仍然是最稳定的操作入口。
-- Vue `/app` 页面适合逐步迁移和验证新版功能。
+## 存储与上传
+
+Docker 支持 Telegram、R2、S3、Discord、Hugging Face、WebDAV、GitHub，上传模式为 direct 或 chunked。管理员默认配置上限为 100 MiB；Telegram 最高 50 MiB、Discord 25 MiB、Hugging Face 35 MiB。后端服务的更低上限仍然生效。
+
+访客上传遵循不可放宽的隔离边界：
+
+- 必须同时配置独立的 `TG_GUEST_BOT_TOKEN` 与 `TG_GUEST_CHAT_ID`，缺失即失败，不回退主 Bot。
+- 每 IP 每日固定 10 次；保留期至少 1 天；可配置上限 20 MiB；`.env.example` 示例默认 5 MiB。
+- 仅接受签名、MIME 和扩展名一致的 AVIF/GIF/JPEG/PNG/WebP，默认可见性为 `public`。
+- 元数据到期会使项目链接失效，但不代表 Telegram 远端字节已删除；远端清理按频道策略执行。
+
+## 生产反向代理
+
+代理应终止 TLS、保留 `Host` 与转发协议，并限制请求体不低于应用允许的上传上限。`PUBLIC_BASE_URL=https://<YOUR_DOMAIN>`，`WEBAUTHN_RP_ID=<YOUR_DOMAIN>`，`WEBAUTHN_ORIGIN=https://<YOUR_DOMAIN>` 必须一致。开放访客上传时，仅在代理可信且会覆盖客户端地址头后设置 `TRUST_PROXY=true`；否则配额服务会返回 503。不要让 API 绕过代理直接暴露公网。
+
+## 验证与排错
+
+```bash
+npm run frontend:build
+npm test -- --reporter dot
+npm run docker:doctor
+npm run docker:smoke:ci
+```
+
+| 现象 | 处理 |
+| --- | --- |
+| API 拒绝启动 | 替换 `.env` 示例密码与密钥，查看 `docker compose logs api` |
+| 配置无法保存 | 配置有效的 `CONFIG_ENCRYPTION_KEY`，检查 SQLite/Redis 可写与连接状态 |
+| Passkey 失败 | 确保 RP 为域名、origin 为完整 HTTPS 源站且代理头正确 |
+| 分片未完成 | 检查 `CHUNK_DIR` 所在卷容量、权限和 API 日志，不伪造成功响应 |
+| 访客上传拒绝 | 检查独立访客 Bot/Chat、文件真实性、每日配额与保留期 |
+
+容器与持久卷状态：
+
+```bash
+docker compose ps
+docker compose logs --tail=200 api
+docker compose down
+```
+
+`docker compose down` 保留命名卷；不要使用删除卷的参数，除非已经验证备份且明确要销毁数据。
