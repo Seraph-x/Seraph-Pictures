@@ -280,6 +280,7 @@ import UploadPreparationDialog from '../components/UploadPreparationDialog.vue';
 import { useImageProcessing } from '../composables/useImageProcessing';
 import { STORAGE_TYPES, getStorageLabel, getUploadLimit, storageEnabledFromStatus } from '../config/storage-definitions';
 import { isImageProcessable } from '../utils/image-processing';
+import { createMultipartDigestPlan } from '../utils/multipart-digest';
 import { useI18n } from '../i18n';
 
 const { t } = useI18n();
@@ -673,6 +674,20 @@ async function processQueue() {
         item.progress = 100;
         shouldReload = true;
       } catch (err) {
+        if (item.multipartUploadId) {
+          try {
+            await apiFetch('/api/chunked-upload/cancel', {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ uploadId: item.multipartUploadId }),
+            });
+          } catch (cleanupError) {
+            item.status = 'error';
+            item.error = humanizeError(`${err.message}; cleanup: ${cleanupError.message}`);
+            continue;
+          }
+          item.multipartUploadId = null;
+        }
         if (item.cancelled) {
           item.status = 'cancelled';
           item.error = '';
@@ -822,6 +837,7 @@ function directUpload(item) {
 
 async function chunkUpload(item) {
   const totalChunks = Math.ceil(item.file.size / DEFAULT_CHUNK_SIZE);
+  const digests = await createMultipartDigestPlan(item.file, DEFAULT_CHUNK_SIZE);
   const init = await apiFetch('/api/chunked-upload/init', {
     method: 'POST',
     headers: {
@@ -834,12 +850,14 @@ async function chunkUpload(item) {
       fileSize: item.file.size,
       fileType: item.file.type,
       totalChunks,
+      rootDigest: digests.rootDigest,
       storageMode: item.storageMode,
       folderPath: item.targetFolderPath || '',
     }),
   });
 
   const uploadId = init.uploadId;
+  item.multipartUploadId = uploadId;
   const chunkSize = Number(init.chunkSize || DEFAULT_CHUNK_SIZE);
 
   for (let index = 0; index < totalChunks; index += 1) {
@@ -852,6 +870,7 @@ async function chunkUpload(item) {
     const body = new FormData();
     body.append('uploadId', uploadId);
     body.append('chunkIndex', String(index));
+    body.append('digest', digests.partDigests[index]);
     body.append('chunk', chunk);
 
     await apiFetch('/api/chunked-upload/chunk', {
@@ -875,12 +894,21 @@ async function chunkUpload(item) {
     },
     body: JSON.stringify({ uploadId }),
   });
+  item.multipartUploadId = null;
 }
 
-function cancelUpload(id) {
+async function cancelUpload(id) {
   const target = queue.value.find((item) => item.id === id);
   if (!target) return;
   target.cancelled = true;
+  if (target.multipartUploadId) {
+    await apiFetch('/api/chunked-upload/cancel', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uploadId: target.multipartUploadId }),
+    });
+    target.multipartUploadId = null;
+  }
   if (target.xhr) {
     target.xhr.abort();
     return;

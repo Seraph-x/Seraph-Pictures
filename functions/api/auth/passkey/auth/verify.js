@@ -8,6 +8,7 @@ import {
   readAdminCredentials,
 } from '../../../../utils/auth.js';
 import { verifyAuthentication } from '../../../../utils/webauthn.js';
+import { createAuthErrorResponse } from '../../../../utils/auth/http-errors.js';
 
 function json(body, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(body), {
@@ -19,8 +20,6 @@ function json(body, status = 200, extraHeaders = {}) {
 export async function onRequestPost(context) {
   const { request, env } = context;
   try {
-    if (!env.img_url) return json({ success: false, message: '未绑定 KV' }, 503);
-
     const body = await request.json().catch(() => ({}));
     const assertion = body?.response || body?.assertion || body;
 
@@ -34,9 +33,11 @@ export async function onRequestPost(context) {
     return json(
       { success: true, message: '登录成功' },
       200,
-      { 'Set-Cookie': createSessionCookieHeader(token) }
+      { 'Set-Cookie': createSessionCookieHeader(token, { secure: env.APP_ENV !== 'local' }) }
     );
   } catch (error) {
+    const authError = createAuthErrorResponse(error);
+    if (authError) return authError;
     console.error('Passkey auth verify error:', error);
     return json({ success: false, message: '登录校验失败' }, 500);
   }

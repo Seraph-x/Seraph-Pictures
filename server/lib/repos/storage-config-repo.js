@@ -1,6 +1,7 @@
 ﻿const { all, get, run, transaction } = require('../../db');
 const { encryptJson, decryptJson, randomId } = require('../utils/crypto');
 const { normalizeStorageType } = require('../storage/common');
+const { mergeStorageConfig } = require('../../../shared/storage/contracts.cjs');
 
 class StorageConfigRepository {
   constructor(db, appConfig) {
@@ -56,31 +57,7 @@ class StorageConfigRepository {
   }
 
   mergeConfigPreserveSecrets(type, currentConfig, patchConfig) {
-    if (!patchConfig || typeof patchConfig !== 'object') {
-      return { ...(currentConfig || {}) };
-    }
-
-    const merged = { ...(currentConfig || {}) };
-    const incoming = { ...patchConfig };
-
-    const secretFieldsByType = {
-      telegram: ['botToken'],
-      r2: ['accessKeyId', 'secretAccessKey'],
-      s3: ['accessKeyId', 'secretAccessKey'],
-      discord: ['botToken', 'webhookUrl'],
-      huggingface: ['token'],
-      webdav: ['password', 'bearerToken', 'token'],
-      github: ['token'],
-    };
-
-    const fields = secretFieldsByType[type] || [];
-    fields.forEach((field) => {
-      if (incoming[field] === '********') {
-        delete incoming[field];
-      }
-    });
-
-    return { ...merged, ...incoming };
+    return mergeStorageConfig(type, currentConfig || {}, patchConfig || {});
   }
 
   list(includeSecrets = false) {

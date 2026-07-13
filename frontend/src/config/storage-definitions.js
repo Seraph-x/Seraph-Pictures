@@ -1,3 +1,7 @@
+import capabilityModule from '../../../shared/storage/capabilities.cjs';
+
+const { resolveCapability } = capabilityModule;
+
 export const STORAGE_TYPES = [
   {
     value: 'telegram',
@@ -112,48 +116,20 @@ export const STORAGE_NOTES = {
   github: 'Releases mode is preferred for binaries. Contents mode is better for small files/text and has tighter API limits.',
 };
 
-export const DEFAULT_DIRECT_UPLOAD_THRESHOLD = 20 * 1024 * 1024;
-export const DEFAULT_CHUNK_UPLOAD_LIMIT = 100 * 1024 * 1024;
+export const DEFAULT_DIRECT_UPLOAD_THRESHOLD = capabilityModule.DIRECT_THRESHOLD_BYTES;
+export const DEFAULT_CHUNK_UPLOAD_LIMIT = capabilityModule.DEFAULT_MAX_BYTES;
 
-export const FALLBACK_UPLOAD_LIMITS = {
-  telegram: {
-    maxBytes: DEFAULT_DIRECT_UPLOAD_THRESHOLD,
-    directThreshold: DEFAULT_DIRECT_UPLOAD_THRESHOLD,
-    supportsChunkUpload: false,
-    message: 'Telegram web upload on Cloudflare Pages is limited to 20MB. Use R2/S3/WebDAV/GitHub for larger browser uploads, or send the file to Telegram and use webhook return links.',
-  },
-  r2: {
-    maxBytes: DEFAULT_CHUNK_UPLOAD_LIMIT,
-    directThreshold: DEFAULT_DIRECT_UPLOAD_THRESHOLD,
-    supportsChunkUpload: true,
-  },
-  s3: {
-    maxBytes: DEFAULT_CHUNK_UPLOAD_LIMIT,
-    directThreshold: DEFAULT_DIRECT_UPLOAD_THRESHOLD,
-    supportsChunkUpload: true,
-  },
-  discord: {
-    maxBytes: 25 * 1024 * 1024,
-    directThreshold: DEFAULT_DIRECT_UPLOAD_THRESHOLD,
-    supportsChunkUpload: true,
-    message: 'Discord upload limit depends on server boost level; Seraph\'s Pictures uses a conservative 25MB default.',
-  },
-  huggingface: {
-    maxBytes: 35 * 1024 * 1024,
-    directThreshold: DEFAULT_DIRECT_UPLOAD_THRESHOLD,
-    supportsChunkUpload: true,
-  },
-  webdav: {
-    maxBytes: DEFAULT_CHUNK_UPLOAD_LIMIT,
-    directThreshold: DEFAULT_DIRECT_UPLOAD_THRESHOLD,
-    supportsChunkUpload: true,
-  },
-  github: {
-    maxBytes: DEFAULT_CHUNK_UPLOAD_LIMIT,
-    directThreshold: DEFAULT_DIRECT_UPLOAD_THRESHOLD,
-    supportsChunkUpload: true,
-  },
-};
+export const FALLBACK_UPLOAD_LIMITS = Object.freeze(Object.fromEntries(
+  STORAGE_TYPES.map(({ value }) => {
+    const capability = resolveCapability({ runtime: 'cloudflare', type: value });
+    const supportsChunkUpload = capability.modes.includes('multipart');
+    return [value, Object.freeze({
+      maxBytes: capability.maxBytes,
+      directThreshold: supportsChunkUpload ? capability.directThreshold : capability.maxBytes,
+      supportsChunkUpload,
+    })];
+  }),
+));
 
 export const STORAGE_GROUPS = [
   {
@@ -184,12 +160,9 @@ export function storageEnabledFromStatus(status, type) {
 }
 
 export function getUploadLimit(status, type) {
+  if (!FALLBACK_UPLOAD_LIMITS[type]) throw new Error('STORAGE_BACKEND_UNSUPPORTED');
   return {
-    ...(FALLBACK_UPLOAD_LIMITS[type] || {
-      maxBytes: DEFAULT_CHUNK_UPLOAD_LIMIT,
-      directThreshold: DEFAULT_DIRECT_UPLOAD_THRESHOLD,
-      supportsChunkUpload: true,
-    }),
+    ...FALLBACK_UPLOAD_LIMITS[type],
     ...(status?.uploadLimits?.[type] || {}),
   };
 }

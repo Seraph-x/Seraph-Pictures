@@ -3,6 +3,7 @@
  * GET /api/auth/check
  */
 import {
+  AuthCoordinatorError,
   checkAuthentication,
   isAuthRequired
 } from '../../utils/auth.js';
@@ -38,13 +39,13 @@ export async function onRequestGet(context) {
     });
 
   } catch (error) {
-    console.error('Auth check error:', error);
+    if (!(error instanceof AuthCoordinatorError)) console.error('Auth check error:', error);
     return new Response(JSON.stringify({
       authenticated: false,
       authRequired: true,
-      error: error.message
+      error: { code: error.code || 'AUTH_CHECK_FAILED' }
     }), {
-      status: 500,
+      status: error instanceof AuthCoordinatorError ? error.status : 500,
       headers: { 'Content-Type': 'application/json' }
     });
   }

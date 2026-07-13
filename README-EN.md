@@ -1,333 +1,201 @@
 <div align="center">
-  <img src="logo.png" alt="Seraph's Pictures Logo" width="140">
+  <img src="logo.png" alt="Seraph's Pictures" width="140">
 
 # Seraph's Pictures
 
-A private media workspace for Cloudflare Pages: image/file hosting, admin management, WebDAV upload, and multiple storage backends — with Passkey login, API tokens, and guest uploads.
+A private media workspace for Cloudflare and Docker with multiple storage backends, guest image hosting, file management, and secure sharing.
 
-**English** | [中文](README.md)
+[中文](README.md) | **English**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-![Cloudflare Pages](https://img.shields.io/badge/Cloudflare-Pages-F38020?logo=cloudflare&logoColor=white)
+![Cloudflare](https://img.shields.io/badge/Cloudflare-Pages%20%2B%20Workers-F38020?logo=cloudflare&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-supported-2496ED?logo=docker&logoColor=white)
 ![Vue 3](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)
-![Hono](https://img.shields.io/badge/Hono-backend-E36002?logo=hono&logoColor=white)
-![Login: Passkey](https://img.shields.io/badge/Login-Passkey%2FWebAuthn-2563EB)
-
 </div>
 
-## Table of Contents
+## Security warnings
 
-- [Overview](#overview)
-- [Features](#features)
-- [Screenshots](#screenshots)
-- [Frontend Map](#frontend-map)
-- [Deployment](#deployment)
-- [Storage Configuration](#storage-configuration)
-- [Guest Uploads](#guest-uploads)
-- [Environment Variables](#environment-variables)
-- [API Guide](#api-guide)
-- [Limitations](#limitations)
-- [Verification](#verification)
-- [Roadmap](#roadmap)
-- [Credits](#credits)
-- [License](#license)
+> [!WARNING]
+> Do not deploy the checked-in Wrangler configuration unchanged after forking. Replace project and Worker names, every KV ID, R2 bucket name, Durable Object `script_name`, WebAuthn domain/origin, and migration audience in both configuration files. Deploy the Coordinator before Pages.
 
-## Overview
+> [!IMPORTANT]
+> Production must keep authentication enabled and store secrets as Secrets. `AUTH_DISABLED=true` is local-only. Coordinator, KV, or encryption-key failures are explicit; the service does not degrade to legacy credentials or plaintext configuration.
 
-Seraph's Pictures is a lightweight, private media workspace that deploys to Cloudflare Pages for hosting images, files, audio, video, and documents. The root legacy UI is the stable production surface today, while the Vue app under `/app/` is kept for the newer experience.
+## Features and interfaces
 
-- `/` — main upload page
-- `/login.html` — login page (password and Passkey)
-- `/admin.html` — admin console
-- `/gallery.html` — image gallery
-- `/webdav.html` — WebDAV upload center
-- `/storage-settings.html` — storage backend settings (admin "Storage Config" entry)
-- `/app/status` — Vue status page
+- Upload images, media, and documents with URL upload, chunked/multipart paths, and SSRF protection.
+- Telegram, R2, S3, Discord, Hugging Face, WebDAV, and GitHub storage adapters.
+- Password and Passkey/WebAuthn login, scoped API tokens, short links, and signed private shares.
+- Folder tree, filtering, batch move/delete, rename, visibility controls, and previews.
+- Isolated Telegram bot/channel, fixed quotas, and content authenticity checks for public guest image hosting.
+- Stable Legacy UI: `/`, `/login.html`, `/admin.html`, `/gallery.html`, `/webdav.html`, `/storage-settings.html`.
+- Vue UI: `/app/`, `/app/drive`, `/app/storage`, `/app/status`; both runtimes implement its Storage, Drive, and Share APIs.
 
-The Vue app stays under `/app/`. On Cloudflare Pages the root legacy pages are the reliable main flow; `/app/storage` and `/app/drive` already have UI screens, but their Cloudflare Functions endpoints still need to be completed before they can replace the legacy console (see [Roadmap](#roadmap)).
+| Upload | Gallery | Administration | Passkey |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/screenshots/home.jpeg" width="210" alt="Upload page"> | <img src="docs/screenshots/gallery.jpeg" width="210" alt="Gallery"> | <img src="docs/screenshots/admin.jpeg" width="210" alt="Administration"> | <img src="docs/screenshots/login-passkey.jpeg" width="210" alt="Passkey login"> |
 
-## Features
+## Architecture
 
-> This section lists only **shipped** capabilities; work in progress is in the [Roadmap](#roadmap).
-
-- **Multi-type upload**: images, audio, video, documents, and generic files; chunked upload for large files; upload-from-URL with validation that blocks private/internal targets (SSRF protection).
-- **Multiple storage backends**: Telegram, Cloudflare R2, S3-compatible services, Discord, Hugging Face, GitHub, and WebDAV — pick the backend per upload.
-- **Passkey / WebAuthn login**: passwordless Passkey login and credential management alongside password login (built on `@simplewebauthn/server`).
-- **API tokens and public REST API**: create scoped tokens (upload / read / delete / paste) in the admin console and call `/api/v1/*` with `Authorization: Bearer`, suitable for scripts and tools like ShareX.
-- **Share short links**: generate `/s/<slug>` links with optional custom slug, password, expiry, and max-download limits.
-- **Guest uploads**: unauthenticated visitors upload to a **separate Telegram bot / channel**, isolated from admin storage; the toggle, retention days, per-IP daily limit, and max file size (≤ 20MB) live in KV and are editable from the admin panel.
-- **Admin console**: file listing, folder management (Folder Manager), grid view with pagination, detail view, rename, delete, likes, and move-to-folder.
-- **Manual content control**: admins can block/allow individual files; blocked access redirects to `block-img.html`, and in allow-list mode non-listed content redirects to `whitelist-on.html`.
-- **WebDAV upload center**: a standalone entry at `/webdav.html`.
-- **Runtime storage settings**: `/storage-settings.html` (admin "Storage Config" entry) edits Telegram / WebDAV / S3 / Discord / GitHub / Hugging Face credentials without a redeploy; secrets are AES-GCM encrypted in KV and take precedence over env vars at runtime. The Telegram main and guest channels are kept separate.
-- **Browser image cache**: image responses carry a 3-minute `private` cache so switching pages does not re-download them; the edge (CDN) is not cached, so delete / block / allow-list changes stay instant for other viewers.
-- **Gallery with multiple link formats**: browse at `/gallery.html` and copy URL, Markdown, HTML, or BBCode links with one click.
-- **Online preview with Data Saver**: in-browser preview for images/media with a data-saver option.
-- **Authentication**: Basic Auth plus cookie-based sessions.
-- **Branding and theme**: Claude-inspired theme with dark mode and glass-opacity styling.
-
-## Screenshots
-
-<div align="center">
-
-| Main upload page | Gallery (link formats) |
-| :---: | :---: |
-| <img src="docs/screenshots/home.jpeg" width="380" alt="Main upload page: storage selector, 20MB limit, upload folder"> | <img src="docs/screenshots/gallery.jpeg" width="380" alt="Gallery: URL / Markdown / HTML / BBCode links"> |
-| **Admin console** | **Passkey login** |
-| <img src="docs/screenshots/admin.jpeg" width="380" alt="Admin console: folder manager, grid view, pagination"> | <img src="docs/screenshots/login-passkey.jpeg" width="380" alt="Sign in with Passkey"> |
-| **Online preview (Data Saver)** | **Guest mode** |
-| <img src="docs/screenshots/file-preview.jpeg" width="380" alt="Online preview and Data Saver"> | <img src="docs/screenshots/guest-mode.jpeg" width="380" alt="Guest mode: 20MB per file, daily limit"> |
-
-</div>
-
-## Frontend Map
-
-```txt
-Root legacy UI
-├── index.html          # default upload page
-├── login.html          # login (password + Passkey)
-├── admin.html          # primary admin console
-├── gallery.html        # image gallery
-├── webdav.html         # WebDAV upload center
-├── storage-settings.html # storage backend settings
-├── preview.html        # compatibility preview page
-├── block-img.html      # blocked-file notice
-└── whitelist-on.html   # allow-list notice
-
-Optional Vue app
-└── /app/
-    ├── /app/           # Vue upload page
-    ├── /app/login      # Vue login
-    ├── /app/drive      # Vue Drive; Cloudflare API is incomplete
-    ├── /app/storage    # Vue storage config; Cloudflare API is incomplete
-    └── /app/status     # Vue status page
+```mermaid
+flowchart LR
+  browser[Browser / API client] --> frontend[Legacy + Vue UI]
+  frontend --> runtime{Runtime}
+  runtime --> pages[Pages Functions]
+  runtime --> docker[Docker Hono API]
+  pages --> coordinator[Auth + Upload Coordinator DO]
+  pages --> metadata[Workers KV metadata]
+  docker --> metadata_docker[SQLite / Redis metadata]
+  coordinator --> r2[R2 multipart storage]
+  pages --> adapters[Storage adapters]
+  docker --> adapters
+  adapters --> remote[Telegram / S3 / WebDAV / others]
 ```
 
-At build time `frontend/scripts/copy-legacy.mjs` builds the Vue app into `frontend/dist/app/`, copies legacy pages into `frontend/dist/`, writes a compatibility copy under `frontend/dist/legacy/`, and adds `/app` SPA rewrites.
+Cloudflare coordinates authentication and R2 multipart state with Durable Objects and stores metadata in KV. Docker runs Hono with SQLite, an optional Redis settings store, and persistent volumes. The UI is shared; persistence and adapter implementations differ.
 
-## Deployment
+## Quick start
 
-### Prerequisites
-
-- Node.js 18+ and npm
-- A Cloudflare account (Pages, KV, optional R2)
-- A Telegram bot and channel/group (if using Telegram storage)
-
-### 1. Install dependencies
+| Goal | Choose | Shortest path |
+| --- | --- | --- |
+| Global edge, serverless | Cloudflare Pages + Worker | Create KV/R2/DO, edit configs, deploy Worker then Pages |
+| VPS, NAS, local private hosting | Docker Compose | Generate `.env`, replace secrets, build and start |
 
 ```bash
-npm install
-npm --prefix frontend install
+npm ci
+npm run frontend:build
+npm run docker:init-env
+docker compose up -d --build
+npm run docker:doctor
 ```
 
-### 2. Prepare Telegram credentials (optional, for Telegram storage)
+Development and the Docker backend require Node.js 22+. Never commit `.env`, real tokens, passwords, or encryption keys.
 
-1. Create a bot via [@BotFather](https://t.me/BotFather) to get `TG_BOT_TOKEN`.
-2. Add the bot to your channel/group as an administrator.
-3. Obtain the channel/group `TG_CHAT_ID`.
-4. Configure both as **Secrets** in the Cloudflare Pages dashboard — never commit them.
+## Cloudflare deployment
 
-### 3. Build and deploy to Cloudflare Pages
+1. Create a Pages project, KV namespace, R2 bucket, and a Worker that hosts both Durable Objects.
+2. Replace every repository-specific value in `wrangler.jsonc` and `workers/coordinator/wrangler.jsonc`:
+
+| Placeholder | Replace in |
+| --- | --- |
+| `<PAGES_PROJECT>` | Pages `name` |
+| `<COORDINATOR_WORKER>` | Worker top-level and `env.production.name`, plus both DO `script_name` values |
+| `<KV_NAMESPACE_ID>` | Every KV ID in both files, including `env.production` |
+| `<R2_BUCKET>` | Every bucket name in both files, including `env.production` |
+| `<YOUR_DOMAIN>` | `WEBAUTHN_RP_ID` and the HTTPS `WEBAUTHN_ORIGIN` |
+| `<MIGRATION_AUDIENCE>` | Current KV audience, normally your KV namespace ID |
+
+3. Configure `BASIC_USER`, `BASIC_PASS`, `SESSION_SECRET`, `CONFIG_ENCRYPTION_KEY`, and `FILE_SHARE_SECRET_CURRENT` as production Pages Secrets. Add main-storage credentials as needed and dedicated `TG_GUEST_BOT_TOKEN` plus `TG_GUEST_CHAT_ID` for guests. Use plain variables for WebAuthn RP/origin; keep binding names `img_url`, `R2_BUCKET`, `AUTH_COORDINATOR`, and `UPLOAD_COORDINATOR`.
+4. Preserve existing R2 lifecycle rules. Add multipart cleanup with a read-add-read sequence; never use an operation that replaces the complete ruleset:
 
 ```bash
-npm run pages:deploy
+npx wrangler r2 bucket lifecycle list <R2_BUCKET>
+npx wrangler r2 bucket lifecycle add <R2_BUCKET> abort-incomplete-uploads multipart/ --abort-multipart-days 1
+npx wrangler r2 bucket lifecycle list <R2_BUCKET>
+npx wrangler deploy --config workers/coordinator/wrangler.jsonc --env production
+npm run frontend:build
+npx wrangler pages deploy frontend/dist --project-name <PAGES_PROJECT> --branch main
+node scripts/probe-coordinator-binding.mjs --base-url https://<YOUR_DOMAIN>
 ```
 
-This script runs `npm run frontend:build` then `npx wrangler pages deploy frontend/dist`. The project name is read from the `name` field in `wrangler.jsonc`, so there is no `--project-name` flag on the command line.
+Do not reverse the deployment order. The lifecycle rule only aborts incomplete uploads under `multipart/` after one day; it does not remove completed objects. Preserve any all-prefix default rule and every unrelated rule. `npm run pages:deploy` consumes the checked-in configuration, so a fork must not run it before completing every replacement.
 
-> For local development, `npm start` runs `wrangler pages dev` (port 8080, with `admin:123` Basic Auth and local KV / R2 bindings).
-
-### 4. Deploy via GitHub Actions (fork deploy guide)
-
-The repo ships `.github/workflows/pages-deploy.yml` so you can deploy to **your own Cloudflare account**. After forking:
-
-1. **Provision Cloudflare resources**: create a Pages project, a KV namespace, and (optionally) an R2 bucket.
-2. **Edit `wrangler.jsonc` with your own values**:
-   - `name`: your Pages project name (read by both the workflow and `pages:deploy`)
-   - `kv_namespaces[].id`: your KV namespace id
-   - `r2_buckets[].bucket_name`: your R2 bucket name (delete this block if not using R2)
-   - `vars.WEBAUTHN_RP_ID` / `WEBAUTHN_ORIGIN`: your domain (for Passkey)
-3. **Add repository Secrets** (Settings → Secrets and variables → Actions):
-   - `CLOUDFLARE_API_TOKEN`: an API token with `Account › Cloudflare Pages › Edit`
-   - `CLOUDFLARE_ACCOUNT_ID`: your Cloudflare Account ID
-4. **Trigger a deploy**: push to `main`, or run **Actions → pages-deploy → Run workflow** manually.
-5. **Runtime secrets** (`TG_BOT_TOKEN`, `TG_GUEST_*`, etc.) are configured in **Pages dashboard → Settings → Environment variables / Secrets**, never in code.
-
-> Until `CLOUDFLARE_API_TOKEN` is set, the deploy job auto-skips (green "skipped", no error), so pushing to main during local iteration won't produce failing CI runs.
-
-### 5. Docker self-hosting
-
-The Docker runtime provides a fuller self-hosted backend, including the Vue `/api/storage/*`, `/api/drive/*`, and `/api/share/*` endpoints.
+## Docker deployment
 
 ```bash
 npm run docker:init-env
 docker compose up -d --build
+npm run docker:doctor
+docker compose logs api
 ```
 
-Open:
+Replace every example secret in `.env` before startup. SQLite data and configuration persist in `kvault_data` by default. Set `SETTINGS_STORE=redis` for external Redis; the Compose Redis service starts through its profile. A reverse proxy must provide HTTPS, and `PUBLIC_BASE_URL` plus WebAuthn RP/origin must match the public domain. See the [English Docker guide](README-DOCKER-EN.md).
 
-```txt
-http://localhost:8080/
-http://localhost:8080/admin.html
-http://localhost:8080/webdav.html
-```
+## Storage and upload capabilities
 
-See [README-DOCKER-EN.md](README-DOCKER-EN.md) for details.
+| Backend | Cloudflare | Docker | Hard ceiling |
+| --- | --- | --- | --- |
+| R2 | direct / multipart | direct / chunked | Admin setting, 100 MiB default maximum |
+| S3, WebDAV | direct / streaming | direct / chunked | Admin setting, 100 MiB default maximum |
+| Telegram | direct | direct / chunked | 20 MiB on Cloudflare/guest; 50 MiB for Docker admin |
+| Discord | direct | direct / chunked | 25 MiB |
+| Hugging Face | direct | direct / chunked | 35 MiB |
+| GitHub | direct | direct / chunked | Admin setting, 100 MiB default maximum |
 
-## Storage Configuration
+The direct threshold is 20 MiB; only Cloudflare R2 uses multipart. Admin-saved dynamic storage settings are AES-GCM encrypted: Cloudflare writes them to KV, while Docker storage profiles always use SQLite; Redis is only an optional, separate general settings store. Dynamic settings take precedence over environment variables, and a blank secret field preserves its current value. Wrangler/the Cloudflare dashboard still controls the native R2 binding.
 
-The following upload backends are supported; configure the relevant fields via environment variables / dashboard:
+## Security model
 
-| Backend | Key configuration | Notes |
-| --- | --- | --- |
-| Telegram | `TG_BOT_TOKEN`, `TG_CHAT_ID` | Default backend; files stored in a channel/group |
-| Cloudflare R2 | `R2_BUCKET` binding (Pages) / `R2_*` (Docker) | Object storage on the same account |
-| S3-compatible | `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_REGION` | Any S3-compatible service |
-| Discord | `DISCORD_WEBHOOK_URL` or `DISCORD_BOT_TOKEN` + `DISCORD_CHANNEL_ID` | Delivered via webhook / bot |
-| Hugging Face | `HF_TOKEN`, `HF_REPO` | Stored in an HF repo |
-| GitHub | `GITHUB_REPO`, `GITHUB_TOKEN`, `GITHUB_MODE` (releases / contents, etc.) | Stored in repo releases or contents |
-| WebDAV | `WEBDAV_BASE_URL`, `WEBDAV_USERNAME`, `WEBDAV_PASSWORD` (or `WEBDAV_BEARER_TOKEN`) | Recommended with alist / openlist to aggregate upstreams |
+- **Authentication:** Pages uses `AuthCoordinator` for initialization, login-failure limits, and session state. Binding or persistence failures fail closed. Environment credentials are not a runtime fallback after initialization.
+- **Passkeys:** the RP ID is the domain and origin is its HTTPS origin. Register credentials again after changing domains.
+- **File visibility:** Drive sources default to `private`; image-host, API, and Legacy sources default to `public`, while APIs may explicitly request `private`. Private access uses expiring signatures and revocable leases. Guest files default to `public`.
+- **Guest uploads:** both dedicated `TG_GUEST_*` values are required. Missing values reject uploads instead of falling back to the administrator bot. Only AVIF/GIF/JPEG/PNG/WebP files whose signature, MIME, and extension agree are accepted. The fixed per-IP quota is 10/day, retention is at least one day, the configurable ceiling is 20 MiB, and the example default is 5 MiB.
+- **Deletion semantics:** guest metadata expiry invalidates project links but does not prove deletion of remote Telegram bytes. Apply a separate channel cleanup policy when remote deletion is required.
 
-> All secrets should be configured as Pages Secrets or Docker `.env` values — never committed.
+Phase two introduced no new paid third-party dependency. Cloudflare Pages, Workers, KV, R2, and Durable Objects can still incur usage-based charges; review the provider's current pricing and allowances before deployment.
 
-> Besides env vars, admins can edit the backend credentials above at runtime from `/storage-settings.html` (admin "Storage Config" entry) with no redeploy. The config is stored in KV (key `storage_config`); secret fields are AES-GCM encrypted (key from `CONFIG_ENCRYPTION_KEY`, falling back to `SESSION_SECRET`). KV config takes precedence over env vars at runtime; R2 is a Cloudflare binding and is still configured only in Pages.
+## Configuration reference
 
-## Guest Uploads
-
-- Files from unauthenticated visitors go through a **separate Telegram bot + channel** (`TG_GUEST_BOT_TOKEN` / `TG_GUEST_CHAT_ID`), isolated from admin storage; if unset, it falls back to the main bot.
-- The guest policy (toggle, retention days (non-negative integer, 0 = never expire), per-IP daily limit, max file size ≤ 20MB) lives in KV and is **editable any time from the admin "Guest Upload Settings" panel** — no env-var changes or redeploys needed. The `GUEST_*` env vars only seed the first read before a value is saved to KV.
-- Guest KV records carry an `expirationTtl`, so links expire automatically (the bytes remain in the free guest channel; to fully purge, clear/recreate that channel).
-
-## Environment Variables
-
-Common Cloudflare Pages bindings and variables (configure secrets via the dashboard):
-
-| Variable / binding | Purpose |
+| Responsibility | Variables or bindings |
 | --- | --- |
-| `BASIC_USER` / `BASIC_PASS` | Admin credentials |
-| `TG_BOT_TOKEN` / `TG_CHAT_ID` | Main Telegram storage credentials |
-| `img_url` | KV namespace binding (required; stores metadata and config) |
-| `CONFIG_ENCRYPTION_KEY` | Encrypts the storage credentials saved to KV via `/storage-settings.html` (falls back to `SESSION_SECRET` when unset) |
-| `R2_BUCKET` | R2 binding (optional) |
-| `S3_*` | S3-compatible storage (optional) |
-| `WEBDAV_*` | WebDAV backend (optional) |
-| `DISCORD_*` | Discord backend (optional) |
-| `HUGGINGFACE_*` / `HF_*` | Hugging Face backend (optional) |
-| `GITHUB_*` | GitHub backend (optional) |
-| `WEBAUTHN_RP_ID` / `WEBAUTHN_ORIGIN` | Passkey canonical domain (plaintext vars; once set, Passkey only works on that domain) |
-| `TG_GUEST_BOT_TOKEN` / `TG_GUEST_CHAT_ID` | Dedicated guest bot / channel (Secret) |
-| `GUEST_UPLOAD` | Initial default for guest uploads (true/false; KV wins after save) |
-| `GUEST_RETENTION_DAYS` | Initial default retention days (non-negative integer, 0 = never expire) |
-| `GUEST_DAILY_LIMIT` | Initial default per-IP daily upload count |
-| `GUEST_MAX_FILE_SIZE` | Initial default max file size (bytes, capped at 20MB) |
+| Authentication/encryption | `BASIC_USER`, `BASIC_PASS`, `SESSION_SECRET`, `CONFIG_ENCRYPTION_KEY` |
+| Share signing | `FILE_SHARE_SECRET_CURRENT`, `FILE_SHARE_SECRET_PREVIOUS`, `FILE_SHARE_SECRET_PREVIOUS_VALID_UNTIL` |
+| Passkeys | `WEBAUTHN_RP_ID`, `WEBAUTHN_ORIGIN`, `WEBAUTHN_RP_NAME` |
+| Pages data | `img_url`, `R2_BUCKET`, `AUTH_COORDINATOR`, `UPLOAD_COORDINATOR` |
+| Telegram | `TG_BOT_TOKEN`, `TG_CHAT_ID`, `TG_GUEST_BOT_TOKEN`, `TG_GUEST_CHAT_ID` |
+| Docker data | `DATA_DIR`, `DB_PATH`, `SETTINGS_STORE`, `SETTINGS_REDIS_URL`, `TRUST_PROXY` |
+| Optional backends | `R2_*`, `S3_*`, `WEBDAV_*`, `DISCORD_*`, `HF_*`, `GITHUB_*` |
 
-> The full Docker self-hosting variables (`DATA_DIR`, `DB_PATH`, `SETTINGS_STORE`, etc.) are in [README-DOCKER-EN.md](README-DOCKER-EN.md) and `.env.example`.
+See [.env.example](.env.example) for the base Docker template. Public Docker guest uploads also need `TG_GUEST_*`, `GUEST_RETENTION_DAYS`, and `TRUST_PROXY=true` only behind a trusted reverse proxy. Environment values bootstrap settings; encrypted dynamic settings saved by an administrator take precedence. Errors remain explicit—do not assume automatic fallback.
 
-## API Guide
+## API examples
 
-The public REST API lives at `/api/v1/*` and authenticates with API tokens created in the admin console.
+UI routes `/app/storage` and `/app/drive` are not API routes. Every operation below requires administrator authentication:
 
-### 1. Create a token
-
-In the admin console (`/admin.html`), open the **API Token** panel and create a token with the scopes you need:
-
-- `upload`: upload files / create pastes
-- `read`: list and read files / pastes
-- `delete`: delete files / pastes
-- `paste`: create pastes
-
-### 2. Authentication
-
-Every request carries:
-
-```http
-Authorization: Bearer <API_TOKEN>
-```
-
-Success returns `{ "success": true, ... }`; failure returns `{ "success": false, "error": { "code", "message" } }`.
-
-### 3. Upload example (curl)
+| Scope | Method and path |
+| --- | --- |
+| Storage query/create | `GET /api/storage/list`, `POST /api/storage` |
+| Storage mutation/test | `PUT/DELETE /api/storage/:id`, `POST /api/storage/default/:id`, `POST /api/storage/:id/test`, `POST /api/storage/test` |
+| Drive query/folders | `GET /api/drive/tree`, `GET /api/drive/explorer`, `POST /api/drive/folders`, `POST /api/drive/folders/move`, `DELETE /api/drive/folders` |
+| Drive files/sharing | `POST /api/drive/files/move`, `POST /api/drive/files/rename`, `POST /api/drive/files/delete-batch`, `POST /api/share/sign` |
 
 ```bash
-curl -X POST https://<your-domain>/api/v1/upload \
-  -H "Authorization: Bearer <API_TOKEN>" \
-  -F "file=@./photo.png" \
-  -F "storage=telegram"        # optional: telegram|r2|s3|discord|huggingface|webdav|github
+curl --fail-with-body https://<YOUR_DOMAIN>/api/auth/check
+curl --fail-with-body https://<YOUR_DOMAIN>/api/status
+curl --fail-with-body -u '<ADMIN_USER>:<ADMIN_PASSWORD>' -F file=@example.png https://<YOUR_DOMAIN>/upload
+curl --fail-with-body -u '<ADMIN_USER>:<ADMIN_PASSWORD>' https://<YOUR_DOMAIN>/api/storage/list
+curl --fail-with-body -u '<ADMIN_USER>:<ADMIN_PASSWORD>' https://<YOUR_DOMAIN>/api/drive/tree
+curl --fail-with-body -u '<ADMIN_USER>:<ADMIN_PASSWORD>' --json '{"fileId":"<FILE_ID>"}' https://<YOUR_DOMAIN>/api/share/sign
 ```
 
-Example response:
-
-```json
-{
-  "success": true,
-  "file": { "id": "...", "name": "photo.png", "size": 12345, "type": "image/png", "storage": "telegram", "uploadedAt": "..." },
-  "links": {
-    "download": "https://<your-domain>/file/<id>",
-    "share": "https://<your-domain>/s/<id-or-slug>",
-    "delete": "https://<your-domain>/api/v1/file/<id>"
-  }
-}
-```
-
-Optional upload parameters (form field or query): `storage`, `password` (share password), `expires_in` (seconds), `max_downloads`, `slug` (custom short link).
-
-### 4. Endpoint reference
-
-| Method | Path | Scope | Description |
-| --- | --- | --- | --- |
-| POST | `/api/v1/upload` | upload | Upload a file |
-| GET | `/api/v1/files` | read | List files |
-| GET | `/api/v1/file/{id}` | read | Download / fetch a file |
-| GET | `/api/v1/file/{id}/info` | read | Get file info |
-| DELETE | `/api/v1/file/{id}` | delete | Delete a file |
-| POST | `/api/v1/paste` | paste | Create a paste |
-| GET | `/api/v1/pastes` | read | List pastes |
-| GET | `/api/v1/paste/{id}` | read | Get a paste |
-| DELETE | `/api/v1/paste/{id}` | delete | Delete a paste |
-
-### 5. ShareX
-
-Create a Custom Uploader:
-
-- **Method**: `POST`, **Request URL**: `https://<your-domain>/api/v1/upload`
-- **Headers**: `Authorization: Bearer <API_TOKEN>`
-- **Body**: `multipart/form-data` with file form field name `file`
-- **URL parsing**: read `links.download` (or `links.share`) from the JSON response
-
-## Limitations
-
-- Root legacy pages are the current main flow; the Cloudflare Functions backend for `/app/storage` and `/app/drive` is not yet complete (see [Roadmap](#roadmap)).
-- Guest uploads are capped at 20MB per file.
-- Content moderation is currently **manual** block/allow lists; there is no automatic detection (see [Roadmap](#roadmap)).
+For scripts, issue a scoped Bearer token in the admin UI and call `/api/v1/*`; never put a token in a URL. Protected APIs should return 401/403 when unauthenticated, not fabricated empty results.
 
 ## Verification
 
-Recommended before commit or deploy:
-
 ```bash
-perl -e 'alarm shift; exec @ARGV' 60 ./node_modules/.bin/mocha \
-  test/claude-theme.test.js \
-  test/claude-layout.test.js \
-  test/frontend-entrypoint.test.js \
-  test/security-regression.test.js \
-  --timeout 60000
-
-npm --prefix frontend run build
+npm run frontend:build
+npm test -- --reporter dot
+npm audit --omit=dev
+npm run test:storage-e2e
+npm run test:auth-e2e
+npm run test:visual
 ```
 
-## Roadmap
+Manifest ranges are support declarations, lockfiles record current exact resolutions, and security reports record versions used by a completed verification; they are not interchangeable. Browser E2E requires Playwright browsers and its runtime. See the [phase-two security report](docs/2026-07-13_security-phase-two-report.md) for production evidence.
 
-The following are **not yet shipped** and should not be treated as available:
+## Troubleshooting
 
-- **Automatic content moderation / Safe Mode**: on top of the existing manual block/allow lists, automatic detection and blocking of inappropriate content (including CSAM detection). The Safe Mode toggle exists on the preview page, but auto-detection is not implemented.
-- **Cloudflare backend for `/app/storage` and `/app/drive`**: these Vue screens exist, but Cloudflare Pages still lacks the full `/api/storage/*`, `/api/drive/*`, and `/api/share/*` Functions; today those endpoints are only available in the Docker runtime.
-- **Non-Telegram storage backends for guest uploads**: guest uploads currently always use the dedicated Telegram bot / channel; expanding to R2, S3, and others is planned.
+| Symptom | Root cause and action |
+| --- | --- |
+| `COORDINATOR_BINDING_*` / login 5xx | Worker not deployed first, mismatched `script_name`, or missing DO migration; compare both configs and run the binding probe |
+| `NO_ENC_KEY` | Set `CONFIG_ENCRYPTION_KEY` or `SESSION_SECRET`; never save plaintext credentials |
+| `GUEST_STORAGE_NOT_CONFIGURED` | Set both guest bot token and chat ID |
+| Incomplete multipart data | List rules, add the one-day abort rule, and list again; do not replace existing lifecycle rules |
+| Passkey origin/RP error | RP is the domain only; origin is the full HTTPS origin; both must match the browser address |
+| Docker refuses startup | Replace example passwords/keys, check volume permissions, and inspect `docker compose logs api` |
 
-## Credits
+## Maintenance and license
 
-- Upstream project [katelya77/K-Vault](https://github.com/katelya77/K-Vault); this project builds on its structure and ideas with rebranding and feature extensions.
-- The earlier origin [Telegraph-Image](https://github.com/cf-pages/Telegraph-Image).
+Key directories: `frontend/` (Vue and Legacy build), `functions/` (Pages Functions), `workers/coordinator/` (DO Worker), `server/` (Docker API), `shared/` (cross-runtime contracts), `test/` and `e2e/` (verification), and `docs/` (deployment/security reports). See [Cloudflare Pages + R2](docs/cloudflare-pages-r2.md) and the [Chinese Docker guide](README-DOCKER.md).
 
-## License
-
-Released under the [MIT License](LICENSE).
+Update both language documents in the same change, run the build and relevant tests, and never commit build output, real credentials, or account-specific configuration. Released under the [MIT License](LICENSE).

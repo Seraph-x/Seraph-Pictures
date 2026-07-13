@@ -177,6 +177,7 @@ import UploadPreparationDialog from '../components/UploadPreparationDialog.vue';
 import { useImageProcessing } from '../composables/useImageProcessing';
 import { STORAGE_TYPES, getStorageLabel, getUploadLimit, storageEnabledFromStatus } from '../config/storage-definitions';
 import { isImageProcessable } from '../utils/image-processing';
+import { createMultipartDigestPlan } from '../utils/multipart-digest';
 import { useI18n } from '../i18n';
 
 const { t } = useI18n();
@@ -439,6 +440,20 @@ async function processQueue() {
           link,
         });
       } catch (err) {
+        if (item.multipartUploadId) {
+          try {
+            await apiFetch('/api/chunked-upload/cancel', {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ uploadId: item.multipartUploadId }),
+            });
+          } catch (cleanupError) {
+            item.error = humanizeError(`${err.message}; cleanup: ${cleanupError.message}`);
+            item.status = 'error';
+            continue;
+          }
+          item.multipartUploadId = null;
+        }
         item.status = 'error';
         item.error = humanizeError(err.message || t('uv.errUploadFailed'));
       }
@@ -640,6 +655,7 @@ function directUpload(item) {
 
 async function chunkUpload(item) {
   const totalChunks = Math.ceil(item.file.size / DEFAULT_CHUNK_SIZE);
+  const digests = await createMultipartDigestPlan(item.file, DEFAULT_CHUNK_SIZE);
 
   const init = await apiFetch('/api/chunked-upload/init', {
     method: 'POST',
@@ -653,12 +669,14 @@ async function chunkUpload(item) {
       fileSize: item.file.size,
       fileType: item.file.type,
       totalChunks,
+      rootDigest: digests.rootDigest,
       storageMode: item.storageMode,
       folderPath: item.targetFolderPath || '',
     }),
   });
 
   const uploadId = init.uploadId;
+  item.multipartUploadId = uploadId;
   const chunkSize = Number(init.chunkSize || DEFAULT_CHUNK_SIZE);
 
   for (let index = 0; index < totalChunks; index += 1) {
@@ -669,6 +687,7 @@ async function chunkUpload(item) {
     const chunkBody = new FormData();
     chunkBody.append('uploadId', uploadId);
     chunkBody.append('chunkIndex', String(index));
+    chunkBody.append('digest', digests.partDigests[index]);
     chunkBody.append('chunk', chunk);
 
     await apiFetch('/api/chunked-upload/chunk', {
@@ -697,6 +716,7 @@ async function chunkUpload(item) {
     throw new Error(t('uv.errMissingSrc'));
   }
 
+  item.multipartUploadId = null;
   return toAbsoluteUrl(done.src);
 }
 

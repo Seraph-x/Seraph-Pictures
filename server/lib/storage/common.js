@@ -1,5 +1,7 @@
 ﻿const path = require('node:path');
 
+const { resolveCapability } = require('../../../shared/storage/capabilities.cjs');
+
 const MIME_EXTENSION_MAP = {
   'image/jpeg': 'jpg',
   'image/jpg': 'jpg',
@@ -52,17 +54,8 @@ function buildPublicFileId(storageType, fileName, mimeType) {
 
 function normalizeStorageType(type) {
   const normalized = String(type || '').trim().toLowerCase();
-  const supported = [
-    'telegram',
-    'r2',
-    's3',
-    'discord',
-    'huggingface',
-    'webdav',
-    'github',
-  ];
-  if (supported.includes(normalized)) return normalized;
-  return 'telegram';
+  resolveCapability({ runtime: 'docker', type: normalized });
+  return normalized;
 }
 
 module.exports = {

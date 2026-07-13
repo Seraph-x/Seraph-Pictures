@@ -18,18 +18,33 @@
       "bucket_name": "k-vault-files"
     }
   ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "AUTH_COORDINATOR",
+        "class_name": "AuthCoordinator",
+        "script_name": "k-vault-coordinator"
+      },
+      {
+        "name": "UPLOAD_COORDINATOR",
+        "class_name": "UploadCoordinator",
+        "script_name": "k-vault-coordinator"
+      }
+    ]
+  },
   // Passkey/WebAuthn 规范域名(明文 vars，非机密)。锁定后 passkey 只在该域名生效。
   // 本地 npm start 用 --binding 覆盖回 localhost(见 package.json)。
   "vars": {
     "WEBAUTHN_RP_ID": "pictures.seraphzero.com",
-    "WEBAUTHN_ORIGIN": "https://pictures.seraphzero.com"
+    "WEBAUTHN_ORIGIN": "https://pictures.seraphzero.com",
+    "MIGRATION_AUDIENCE": "1dd5b18021224616b0cd017ec1f3f455"
   }
   // Guest uploads use a SEPARATE Telegram bot/channel so guest abuse cannot get
   // the main bot banned. Configure these as Secrets in the Pages dashboard
   // (Settings -> Environment variables / Secrets) — never commit real values:
   //   TG_GUEST_BOT_TOKEN   guest bot token
   //   TG_GUEST_CHAT_ID     guest channel chat id
-  // Guest policy (enabled / retentionDays >=0 where 0=never expire / dailyLimit / maxFileSize) lives in
+  // Guest policy (enabled / retentionDays >=1 / fixed dailyLimit=10 / maxFileSize<=20MiB) lives in
   // KV (key "guest_config") and is edited from the admin "访客上传设置" panel.
   // The optional GUEST_UPLOAD / GUEST_RETENTION_DAYS / GUEST_DAILY_LIMIT /
   // GUEST_MAX_FILE_SIZE vars only seed the first read before a value is saved to KV.

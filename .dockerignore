@@ -1,5 +1,10 @@
 .git
 .gitignore
+.env
+.env.*
+.dev.vars*
+cookies.txt
+test-login.json
 node_modules
 server/node_modules
 frontend/node_modules

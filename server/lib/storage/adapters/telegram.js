@@ -56,9 +56,11 @@ class TelegramStorageAdapter {
     }
   }
 
-  async testConnection() {
+  async testConnection(options = {}) {
     this.validate();
-    const response = await fetch(buildBotApiUrl(this.config, 'getMe'));
+    const response = await fetch(buildBotApiUrl(this.config, 'getMe'), {
+      signal: options.signal,
+    });
     const json = await response.json().catch(() => ({}));
     const detail = typeof json?.description === 'string' && json.description
       ? json.description

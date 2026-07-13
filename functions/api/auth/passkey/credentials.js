@@ -11,6 +11,7 @@ import {
   renameCredential,
   deleteCredential,
 } from '../../../utils/webauthn.js';
+import { withAuthErrorResponse } from '../../../utils/auth/http-errors.js';
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -20,7 +21,6 @@ function json(body, status = 200) {
 }
 
 async function requireLogin(context) {
-  if (!context.env.img_url) return json({ success: false, message: '未绑定 KV' }, 503);
   if (isAuthRequired(context.env)) {
     const auth = await checkAuthentication(context);
     if (!auth.authenticated) return json({ success: false, message: '需要登录' }, 401);
@@ -28,14 +28,14 @@ async function requireLogin(context) {
   return null;
 }
 
-export async function onRequestGet(context) {
+async function handleGet(context) {
   const gate = await requireLogin(context);
   if (gate) return gate;
   const { items } = await readCredentials(context.env);
   return json({ success: true, credentials: publicCredentialList(items) });
 }
 
-export async function onRequestPatch(context) {
+async function handlePatch(context) {
   const gate = await requireLogin(context);
   if (gate) return gate;
   const body = await context.request.json().catch(() => ({}));
@@ -48,7 +48,7 @@ export async function onRequestPatch(context) {
   return json({ success: true, message: '已重命名' });
 }
 
-export async function onRequestDelete(context) {
+async function handleDelete(context) {
   const gate = await requireLogin(context);
   if (gate) return gate;
   const body = await context.request.json().catch(() => ({}));
@@ -58,3 +58,7 @@ export async function onRequestDelete(context) {
   if (!result.ok) return json({ success: false, message: result.error }, 404);
   return json({ success: true, message: '已删除' });
 }
+
+export const onRequestGet = withAuthErrorResponse(handleGet);
+export const onRequestPatch = withAuthErrorResponse(handlePatch);
+export const onRequestDelete = withAuthErrorResponse(handleDelete);

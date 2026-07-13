@@ -1,0 +1,40 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "k-vault-coordinator",
+  "main": "src/index.js",
+  "compatibility_date": "2026-05-03",
+  "workers_dev": false,
+  "durable_objects": {
+    "bindings": [
+      { "name": "AUTH_COORDINATOR", "class_name": "AuthCoordinator" },
+      { "name": "UPLOAD_COORDINATOR", "class_name": "UploadCoordinator" }
+    ]
+  },
+  "kv_namespaces": [
+    { "binding": "FILE_METADATA", "id": "1dd5b18021224616b0cd017ec1f3f455" }
+  ],
+  "r2_buckets": [
+    { "binding": "UPLOAD_BUCKET", "bucket_name": "k-vault-files" }
+  ],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["AuthCoordinator"] },
+    { "tag": "v2", "new_sqlite_classes": ["UploadCoordinator"] }
+  ],
+  "env": {
+    "production": {
+      "name": "k-vault-coordinator",
+      "durable_objects": {
+        "bindings": [
+          { "name": "AUTH_COORDINATOR", "class_name": "AuthCoordinator" },
+          { "name": "UPLOAD_COORDINATOR", "class_name": "UploadCoordinator" }
+        ]
+      },
+      "kv_namespaces": [
+        { "binding": "FILE_METADATA", "id": "1dd5b18021224616b0cd017ec1f3f455" }
+      ],
+      "r2_buckets": [
+        { "binding": "UPLOAD_BUCKET", "bucket_name": "k-vault-files" }
+      ]
+    }
+  }
+}

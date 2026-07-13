@@ -13,8 +13,8 @@ function base64url(input) {
     .replace(/=+$/g, '');
 }
 
-function getSharePayload({ fileId, expiresAt }) {
-  return `${asString(fileId)}:${Number(expiresAt || 0)}`;
+function getSharePayload({ fileId, expiresAt, accessVersion }) {
+  return `${asString(fileId)}:${Number(expiresAt || 0)}:${Number(accessVersion || 0)}`;
 }
 
 function signSharePayload(payload, secret) {
@@ -23,15 +23,15 @@ function signSharePayload(payload, secret) {
   );
 }
 
-function createShareSignature({ fileId, expiresAt, secret }) {
-  return signSharePayload(getSharePayload({ fileId, expiresAt }), secret);
+function createShareSignature({ fileId, expiresAt, accessVersion, secret }) {
+  return signSharePayload(getSharePayload({ fileId, expiresAt, accessVersion }), secret);
 }
 
-function verifyShareSignature({ fileId, expiresAt, signature, secret }) {
+function verifyShareSignature({ fileId, expiresAt, accessVersion, signature, secret }) {
   const actual = asString(signature);
   if (!actual) return false;
 
-  const expected = createShareSignature({ fileId, expiresAt, secret });
+  const expected = createShareSignature({ fileId, expiresAt, accessVersion, secret });
   const actualBuffer = Buffer.from(actual);
   const expectedBuffer = Buffer.from(expected);
   if (actualBuffer.length !== expectedBuffer.length) return false;

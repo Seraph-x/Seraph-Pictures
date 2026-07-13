@@ -2,6 +2,7 @@ node_modules/*
 .pnpm-store/*
 !node_modules/.mf/*
 .wrangler/*
+workers/**/.wrangler/
 data/*
 tmpclaude*
 server/node_modules/*
@@ -17,6 +18,9 @@ test-login.json
 .wrangler-pages-test/
 .playwright-cli/
 .playwright-mcp/
+/playwright-report/
+/test-results/
+/_worker.bundle
 .serena/
 .claude/
 .DS_Store

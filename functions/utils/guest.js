@@ -9,7 +9,6 @@ export const KV_BINDING_CANDIDATES = ['img_url', 'KV', 'UI_CONFIG_KV'];
 // Telegram native single-file ceiling for guest uploads; backend can only lower it.
 const MAX_GUEST_FILE_BYTES = 20 * 1024 * 1024;
 const DEFAULT_RETENTION_DAYS = 3;
-const MAX_DAILY_LIMIT = 1000;
 
 export const DEFAULT_GUEST_CONFIG = {
   version: 1,
@@ -28,7 +27,7 @@ function clampNumber(value, min, max) {
 // Guest file retention in days: any non-negative integer; 0 means never expire.
 function clampRetentionDays(value) {
   const n = Math.round(Number(value));
-  return Number.isFinite(n) && n > 0 ? n : 0;
+  return Number.isFinite(n) && n > 0 ? n : DEFAULT_RETENTION_DAYS;
 }
 
 function parseBooleanFlag(value, fallback = false) {
@@ -49,7 +48,7 @@ export function normalizeGuestConfig(raw) {
     version: 1,
     enabled: parseBooleanFlag(next.enabled, DEFAULT_GUEST_CONFIG.enabled),
     retentionDays: clampRetentionDays(next.retentionDays),
-    dailyLimit: Math.round(clampNumber(next.dailyLimit, 0, MAX_DAILY_LIMIT)),
+    dailyLimit: DEFAULT_GUEST_CONFIG.dailyLimit,
     maxFileSize: Math.round(clampNumber(next.maxFileSize, 0, MAX_GUEST_FILE_BYTES)),
   };
 }
@@ -103,23 +102,8 @@ export async function readGuestConfig(env = {}) {
  * 一旦用于按 IP 限额会被轻易绕过,故不再回退到它们。
  */
 export function getClientIP(request) {
-  return request.headers.get('CF-Connecting-IP') || '0.0.0.0';
-}
-
-/**
- * 获取今日日期字符串 (YYYY-MM-DD)
- */
-function getTodayKey() {
-  return new Date().toISOString().split('T')[0];
-}
-
-/**
- * 距离当天 UTC 结束的秒数(KV TTL 最小 60 秒)
- */
-function secondsUntilEndOfUtcDay() {
-  const now = Date.now();
-  const endOfDay = new Date(now).setUTCHours(24, 0, 0, 0);
-  return Math.max(Math.ceil((endOfDay - now) / 1000), 60);
+  void request;
+  return 'redacted';
 }
 
 /**
@@ -131,6 +115,7 @@ function secondsUntilEndOfUtcDay() {
  * @returns {Promise<{ allowed: boolean, reason?: string, status?: number, remaining?: number }>}
  */
 export async function checkGuestUpload(request, env, fileSize, config = null) {
+  void request;
   const cfg = config || (await readGuestConfig(env));
 
   // 是否启用访客上传(以 KV 配置为准)
@@ -144,35 +129,12 @@ export async function checkGuestUpload(request, env, fileSize, config = null) {
     return { allowed: false, reason: `访客上传限制：文件大小不能超过 ${maxMB}MB`, status: 413 };
   }
 
-  // 每日上传次数(dailyLimit <= 0 视为不限,跳过计数)
-  const dailyLimit = cfg.dailyLimit;
-  const kv = resolveGuestKv(env);
-  if (kv && dailyLimit > 0) {
-    const ip = getClientIP(request);
-    const today = getTodayKey();
-    const kvKey = `guest:${ip}:${today}`;
-    try {
-      const countStr = await kv.get(kvKey);
-      const currentCount = parseInt(countStr) || 0;
-
-      if (currentCount >= dailyLimit) {
-        return {
-          allowed: false,
-          reason: `访客每日上传上限 ${dailyLimit} 次，今日已用完`,
-          status: 429,
-          remaining: 0
-        };
-      }
-
-      return { allowed: true, remaining: dailyLimit - currentCount };
-    } catch (e) {
-      console.error('Guest rate limit check error:', e);
-      // KV 出错时放行，不阻塞用户
-      return { allowed: true };
-    }
-  }
-
-  return { allowed: true };
+  return {
+    allowed: false,
+    reason: 'Guest upload must pass through the atomic quota middleware.',
+    status: 503,
+    code: 'GUEST_ATOMIC_GATE_REQUIRED',
+  };
 }
 
 /**
@@ -181,26 +143,10 @@ export async function checkGuestUpload(request, env, fileSize, config = null) {
  * @param {object|null} config 可选:已读取的访客配置,避免重复读 KV
  */
 export async function incrementGuestCount(request, env, config = null) {
-  const kv = resolveGuestKv(env);
-  if (!kv) return;
-
-  const cfg = config || (await readGuestConfig(env));
-  // 未启用或不限次数时无需计数
-  if (!cfg.enabled || cfg.dailyLimit <= 0) return;
-
-  const ip = getClientIP(request);
-  const today = getTodayKey();
-  const kvKey = `guest:${ip}:${today}`;
-
-  try {
-    const countStr = await kv.get(kvKey);
-    const currentCount = parseInt(countStr) || 0;
-    await kv.put(kvKey, String(currentCount + 1), {
-      expirationTtl: secondsUntilEndOfUtcDay()
-    });
-  } catch (e) {
-    console.error('Guest count increment error:', e);
-  }
+  void request;
+  void env;
+  void config;
+  throw Object.assign(new Error('GUEST_ATOMIC_GATE_REQUIRED'), { status: 503 });
 }
 
 /**

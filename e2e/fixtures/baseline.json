@@ -1,0 +1,7 @@
+{
+  "auth": { "authRequired": true, "authenticated": true, "user": "admin" },
+  "status": { "status": "ok", "storage": [] },
+  "files": [],
+  "folders": [],
+  "storage": { "success": true, "data": { "configs": [], "defaultId": null } }
+}

@@ -34,18 +34,21 @@ jobs:
         id: probe
         env:
           CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BACKUP_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
         run: |
-          if [ -n "$CF_TOKEN" ]; then
+          if [ -n "$CF_TOKEN" ] && [ -n "$CF_ACCOUNT" ] && [ -n "$BACKUP_KEY" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::CLOUDFLARE_API_TOKEN is not set — skipping deploy. Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID repo secrets to enable Pages deploys."
+            echo "::notice::Cloudflare deploy or backup secrets are incomplete — skipping deploy."
           fi
 
   deploy:
     needs: check
     if: needs.check.outputs.ready == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
     steps:
@@ -55,7 +58,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: .node-version
           cache: npm
 
       - name: Install root dependencies
@@ -64,10 +67,73 @@ jobs:
       - name: Build frontend (vite + legacy assets)
         run: npm run build
 
-      - name: Deploy to Cloudflare Pages
-        # Project name comes from wrangler.jsonc; --branch keeps CI's detached
-        # HEAD targeting the production deployment instead of a preview.
-        run: npx wrangler pages deploy frontend/dist --branch="${{ github.ref_name }}"
+      - name: Run unit and integration tests
+        run: npm test
+
+      - name: Run real coordinator authentication E2E
+        run: npm run test:auth-e2e
+
+      - name: Validate generated changes
+        run: git diff --check
+
+      - name: Dry-run coordinator bundle
+        run: npx wrangler deploy --config workers/coordinator/wrangler.jsonc --env production --dry-run --outdir "$RUNNER_TEMP/coordinator-dry-run"
+
+      - name: Compile Pages Functions
+        run: npx wrangler pages functions build frontend/dist --outfile "$RUNNER_TEMP/pages-functions.js"
+
+      - name: Create verified encrypted production KV backup
+        run: node scripts/security/backup-kv-state.mjs --environment production --output "$RUNNER_TEMP/kv-security-backup.json"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          KV_NAMESPACE_ID: 1dd5b18021224616b0cd017ec1f3f455
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+
+      - name: Preserve encrypted rollback artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kv-security-backup-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/kv-security-backup.json
+            ${{ runner.temp }}/kv-security-backup.json.manifest.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Deploy coordinator migration
+        run: npx wrangler deploy --config workers/coordinator/wrangler.jsonc --env production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy exact Pages preview candidate
+        id: preview
+        run: |
+          set -o pipefail
+          output=$(npx wrangler pages deploy frontend/dist --project-name k-vault --branch=security-2a0-candidate 2>&1)
+          printf '%s\n' "$output"
+          url=$(printf '%s\n' "$output" | sed -nE 's#.*(https://[^ ]+\.pages\.dev).*#\1#p' | tail -1)
+          test -n "$url"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Probe preview coordinator binding
+        run: node scripts/probe-coordinator-binding.mjs --base-url "${{ steps.preview.outputs.url }}"
+
+      - name: Deploy verified artifact to production Pages
+        id: production
+        run: |
+          set -o pipefail
+          output=$(npx wrangler pages deploy frontend/dist --project-name k-vault --branch=main 2>&1)
+          printf '%s\n' "$output"
+          url=$(printf '%s\n' "$output" | sed -nE 's#.*(https://[^ ]+\.pages\.dev).*#\1#p' | tail -1)
+          test -n "$url"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Probe production coordinator binding
+        run: node scripts/probe-coordinator-binding.mjs --base-url "${{ steps.production.outputs.url }}"

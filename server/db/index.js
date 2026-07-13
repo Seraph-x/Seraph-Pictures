@@ -56,6 +56,8 @@ function cleanupExpiredState(db) {
   run(db, 'DELETE FROM sessions WHERE expires_at <= ?', [now]);
   run(db, 'DELETE FROM chunk_uploads WHERE expires_at <= ?', [now]);
   run(db, 'DELETE FROM login_failures WHERE window_expires_at <= ?', [now]);
+  run(db, 'DELETE FROM private_shares WHERE expires_at <= ?', [now]);
+  run(db, 'DELETE FROM share_range_leases WHERE expires_at <= ?', [now]);
 }
 
 module.exports = {

@@ -20,6 +20,10 @@ function runComposeExec(script) {
   return runCommand('docker', ['compose', 'exec', '-T', 'api', 'sh', '-lc', script]);
 }
 
+function runComposeNode(script) {
+  return runCommand('docker', ['compose', 'exec', '-T', 'api', 'node', '-e', script]);
+}
+
 function parseJson(text) {
   try {
     return JSON.parse(String(text || ''));
@@ -48,7 +52,17 @@ function waitForApi(maxAttempts = 60, intervalMs = 2000) {
 }
 
 function readStatus() {
-  const response = runComposeExec('wget -qO- http://localhost:8787/api/status');
+  const script = [
+    'const credentials = `${process.env.BASIC_USER}:${process.env.BASIC_PASS}`;',
+    "const authorization = Buffer.from(credentials).toString('base64');",
+    "fetch('http://localhost:8787/api/status', {",
+    '  headers: { Authorization: `Basic ${authorization}` },',
+    '}).then(async (response) => {',
+    '  process.stdout.write(await response.text());',
+    '  if (!response.ok) process.exitCode = 1;',
+    '});',
+  ].join('\n');
+  const response = runComposeNode(script);
   if (response.code !== 0) {
     return { ok: false, error: response.stderr || response.stdout || 'status request failed', data: null };
   }
@@ -86,67 +100,54 @@ function assertConfigured(status, key, errors) {
   }
 }
 
-function main() {
-  process.stdout.write('Running Docker CI smoke checks for storage bootstrap...\n');
-
-  const composePs = runCommand('docker', ['compose', 'ps']);
-  if (composePs.code !== 0) {
-    process.stderr.write('docker compose ps failed: ' + (composePs.stderr || composePs.stdout) + '\n');
-    process.exit(2);
-    return;
-  }
-
-  if (!waitForApi()) {
-    process.stderr.write('API did not become ready in time.\n');
-    process.exit(2);
-    return;
-  }
-
-  const statusResult = readStatus();
-  if (!statusResult.ok) {
-    process.stderr.write('Failed to read /api/status: ' + statusResult.error + '\n');
-    process.exit(2);
-    return;
-  }
-
-  const profileResult = readProfileTypes();
-  if (!profileResult.ok) {
-    process.stderr.write('Failed to inspect storage profiles: ' + profileResult.error + '\n');
-    process.exit(2);
-    return;
-  }
-
+function validateSmokeData(status, profileTypes) {
   const errors = [];
-  const status = statusResult.data;
-
   assertConfigured(status, 'huggingface', errors);
   assertConfigured(status, 'github', errors);
+  const typeSet = new Set(profileTypes);
+  if (!typeSet.has('huggingface')) errors.push('storage profile list is missing huggingface');
+  if (!typeSet.has('github')) errors.push('storage profile list is missing github');
+  return errors;
+}
 
-  const typeSet = new Set(profileResult.types);
-  if (!typeSet.has('huggingface')) {
-    errors.push('storage profile list is missing huggingface');
-  }
-  if (!typeSet.has('github')) {
-    errors.push('storage profile list is missing github');
-  }
-
-  if (errors.length > 0) {
-    process.stderr.write('Docker CI smoke checks failed:\n- ' + errors.join('\n- ') + '\n');
-    process.stderr.write('Status snapshot:\n' + JSON.stringify({
-      huggingface: status.huggingface,
-      github: status.github,
-      profileTypes: profileResult.types,
-    }, null, 2) + '\n');
-    process.exit(2);
-    return;
-  }
-
-  process.stdout.write('Docker CI smoke checks passed.\n');
-  process.stdout.write(JSON.stringify({
+function statusSnapshot(status, profileTypes) {
+  return JSON.stringify({
     huggingface: status.huggingface,
     github: status.github,
-    profileTypes: profileResult.types,
-  }, null, 2) + '\n');
+    profileTypes,
+  }, null, 2);
+}
+
+function requireSmokeData() {
+  const composePs = runCommand('docker', ['compose', 'ps']);
+  if (composePs.code !== 0) {
+    throw new Error('docker compose ps failed: ' + (composePs.stderr || composePs.stdout));
+  }
+  if (!waitForApi()) throw new Error('API did not become ready in time.');
+  const statusResult = readStatus();
+  if (!statusResult.ok) throw new Error('Failed to read /api/status: ' + statusResult.error);
+  const profileResult = readProfileTypes();
+  if (!profileResult.ok) {
+    throw new Error('Failed to inspect storage profiles: ' + profileResult.error);
+  }
+  return { status: statusResult.data, profileTypes: profileResult.types };
+}
+
+function main() {
+  process.stdout.write('Running Docker CI smoke checks for storage bootstrap...\n');
+  try {
+    const { status, profileTypes } = requireSmokeData();
+    const errors = validateSmokeData(status, profileTypes);
+    const snapshot = statusSnapshot(status, profileTypes);
+    if (errors.length > 0) {
+      throw new Error('Docker CI smoke checks failed:\n- '
+        + errors.join('\n- ') + '\nStatus snapshot:\n' + snapshot);
+    }
+    process.stdout.write('Docker CI smoke checks passed.\n' + snapshot + '\n');
+  } catch (error) {
+    process.stderr.write(error.message + '\n');
+    process.exit(2);
+  }
 }
 
 main();

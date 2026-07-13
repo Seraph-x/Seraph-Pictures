@@ -6,13 +6,17 @@ const { createRouteHelpers } = require('./routes/_shared');
 const { registerAuthRoutes } = require('./routes/auth');
 const { registerSettingsRoutes } = require('./routes/settings');
 const { registerStorageRoutes } = require('./routes/storage');
+const { registerStatusRoutes } = require('./routes/status');
 const { registerUploadRoutes } = require('./routes/upload');
 const { registerFileRoutes } = require('./routes/files');
 const { registerManageRoutes } = require('./routes/manage');
+const { registerDriveRoutes } = require('./routes/drive');
 const { registerTelegramRoutes } = require('./routes/telegram');
+const { registerVisibilityRoutes } = require('./routes/visibility');
+const { registerShareRoutes } = require('./routes/shares');
 
 const CORS_ALLOW_METHODS = 'GET,POST,PUT,PATCH,DELETE,OPTIONS';
-const CORS_ALLOW_HEADERS = 'Content-Type, Authorization, Range, X-Seraph-Client, Accept';
+const CORS_ALLOW_HEADERS = 'Content-Type, Authorization, Range, X-Seraph-Client, X-Share-Password, Accept';
 const CORS_EXPOSE_HEADERS = 'Content-Length, Content-Range, Accept-Ranges, Content-Disposition';
 
 function createCorsMiddleware(env = {}) {
@@ -97,10 +101,14 @@ function createApp() {
 
   registerAuthRoutes(app, container, helpers);
   registerSettingsRoutes(app, container, helpers);
+  registerStatusRoutes(app, container, helpers);
   registerStorageRoutes(app, container, helpers);
   registerUploadRoutes(app, container, helpers);
   registerFileRoutes(app, container, helpers);
+  registerShareRoutes(app, container, helpers);
+  registerDriveRoutes(app, helpers);
   registerManageRoutes(app, container, helpers);
+  registerVisibilityRoutes(app, container, helpers);
   registerTelegramRoutes(app, container, helpers);
 
   return app;

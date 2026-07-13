@@ -1,133 +1,45 @@
-﻿/**
- * Upload one file chunk.
- * POST /api/chunked-upload/chunk
- */
 import { checkAuthentication, isAuthRequired } from '../../utils/auth.js';
-import { createChunkPlan, validateChunkPart } from '../../utils/chunk-policy.js';
+import { createAuthErrorResponse } from '../../utils/auth/http-errors.js';
+import { uploadMultipartPart } from '../../services/multipart-client.js';
 
-const TEMP_CHUNK_PREFIX = 'chunk-upload';
-
-export async function onRequestPost(context) {
-  const { request, env } = context;
-
-  try {
-    if (isAuthRequired(env)) {
-      const auth = await checkAuthentication(context);
-      if (!auth.authenticated) {
-        return jsonResponse({ error: 'Unauthorized' }, 401);
-      }
-    }
-
-    if (!env.img_url) {
-      return jsonResponse({ error: 'KV binding img_url is required for chunk upload task state.' }, 500);
-    }
-
-    const formData = await request.formData();
-    const uploadId = formData.get('uploadId');
-    const rawChunkIndex = formData.get('chunkIndex');
-    const chunkIndex = Number(rawChunkIndex);
-    const chunk = formData.get('chunk');
-
-    if (!uploadId || rawChunkIndex == null || String(rawChunkIndex).trim() === '' || !chunk) {
-      return jsonResponse({ error: '缺少必要参数' }, 400);
-    }
-
-    const taskData = await env.img_url.get(`upload:${uploadId}`, { type: 'json' });
-    if (!taskData) {
-      return jsonResponse({ error: '上传任务不存在或已过期' }, 404);
-    }
-    const plan = createChunkPlan({
-      fileSize: Number(taskData.fileSize),
-      chunkSize: Number(taskData.chunkSize),
-      totalChunks: Number(taskData.totalChunks),
-    });
-    const totalChunks = plan.totalChunks;
-
-    const chunkBackend = resolveChunkBackend(taskData, env);
-    const minimizeKvWrites = isKvWriteMinimized(env);
-
-    if (!minimizeKvWrites && Array.isArray(taskData.uploadedChunks) && taskData.uploadedChunks.includes(chunkIndex)) {
-      return jsonResponse({
-        success: true,
-        message: '分片已存在',
-        uploadedChunks: taskData.uploadedChunks,
-      });
-    }
-
-    const chunkArrayBuffer = await chunk.arrayBuffer();
-    validateChunkPart({ plan, chunkIndex, byteLength: chunkArrayBuffer.byteLength });
-
-    if (chunkBackend === 'r2') {
-      if (!env.R2_BUCKET) {
-        return jsonResponse({ error: 'R2 chunk backend requested but R2_BUCKET is not configured.' }, 500);
-      }
-
-      await env.R2_BUCKET.put(getChunkObjectKey(uploadId, chunkIndex), chunkArrayBuffer, {
-        customMetadata: {
-          type: 'chunk',
-          uploadId,
-          chunkIndex: String(chunkIndex),
-          createdAt: String(Date.now()),
-        },
-      });
-    } else {
-      await env.img_url.put(`chunk:${uploadId}:${chunkIndex}`, chunkArrayBuffer, {
-        expirationTtl: 3600,
-        metadata: {
-          type: 'chunk',
-          uploadId,
-          chunkIndex,
-          createdAt: Date.now(),
-        },
-      });
-    }
-
-    let uploadedChunks = taskData.uploadedChunks || [];
-    if (!minimizeKvWrites) {
-      uploadedChunks = Array.from(new Set([...uploadedChunks, chunkIndex])).sort((a, b) => a - b);
-      taskData.uploadedChunks = uploadedChunks;
-      taskData.chunkBackend = chunkBackend;
-
-      await env.img_url.put(`upload:${uploadId}`, JSON.stringify(taskData), {
-        expirationTtl: 3600,
-      });
-    }
-
-    const progress = minimizeKvWrites
-      ? (((chunkIndex + 1) / totalChunks) * 100).toFixed(1)
-      : ((uploadedChunks.length / totalChunks) * 100).toFixed(1);
-
-    return jsonResponse({
-      success: true,
-      chunkIndex,
-      uploadedChunks,
-      chunkBackend,
-      progress,
-    });
-  } catch (error) {
-    const status = error.status || 500;
-    if (status >= 500) console.error('Chunk upload error:', error);
-    return jsonResponse({ error: error.message, code: error.code }, status);
-  }
-}
-
-function jsonResponse(body, status = 200) {
+function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
+    status, headers: { 'Content-Type': 'application/json' },
   });
 }
 
-function isKvWriteMinimized(env) {
-  return env.MINIMIZE_KV_WRITES === 'true';
+async function requireAdmin(context) {
+  if (!isAuthRequired(context.env)) return true;
+  return (await checkAuthentication(context)).authenticated;
 }
 
-function resolveChunkBackend(taskData, env) {
-  if (taskData?.chunkBackend === 'r2' && env.R2_BUCKET) return 'r2';
-  if (taskData?.chunkBackend === 'kv') return 'kv';
-  return env.R2_BUCKET ? 'r2' : 'kv';
+function readForm(form) {
+  const uploadId = form.get('uploadId');
+  const rawIndex = form.get('chunkIndex');
+  const chunkIndex = Number(rawIndex);
+  const chunk = form.get('chunk');
+  const digest = form.get('digest');
+  if (!uploadId || rawIndex == null || String(rawIndex).trim() === '' || !chunk || !digest) {
+    throw Object.assign(new Error('MULTIPART_PAYLOAD_INVALID'), { status: 400 });
+  }
+  if (!Number.isSafeInteger(chunkIndex) || chunkIndex < 0) {
+    throw Object.assign(new Error('INVALID_CHUNK_INDEX'), { code: 'INVALID_CHUNK_INDEX', status: 400 });
+  }
+  return Object.freeze({ uploadId, chunkIndex, chunk, digest });
 }
 
-function getChunkObjectKey(uploadId, chunkIndex) {
-  return `${TEMP_CHUNK_PREFIX}/${uploadId}/${chunkIndex}`;
+export async function onRequestPost(context) {
+  try {
+    if (!await requireAdmin(context)) return json({ error: 'Unauthorized' }, 401);
+    const input = readForm(await context.request.formData());
+    const bytes = await input.chunk.arrayBuffer();
+    const result = await uploadMultipartPart(context.env, {
+      uploadId: input.uploadId, partNumber: input.chunkIndex + 1, digest: input.digest, bytes,
+    });
+    return json({ success: true, chunkIndex: input.chunkIndex, uploadedChunks: result.uploadedParts });
+  } catch (error) {
+    const authError = createAuthErrorResponse(error);
+    if (authError) return authError;
+    return json({ error: error.message, code: error.code }, error.status || 500);
+  }
 }

@@ -1,93 +1,82 @@
-# Seraph's Pictures Docker Runtime Guide
+# Seraph's Pictures Docker Guide
 
-The Docker runtime self-hosts Seraph's Pictures with a Node/Hono backend, static frontend pages, and local data storage. It is suitable for a VPS, NAS, or local development.
+[Project README](README-EN.md) | [中文 Docker 指南](README-DOCKER.md)
 
-> For an overview and feature list, see [README-EN.md](README-EN.md).
+The Docker runtime targets VPS, NAS, and local private deployments. It combines a static frontend, Node/Hono API, and persistent data volume. Docker and Cloudflare both provide Storage, Drive, Share, Passkey, API Token, and guest-upload features; they differ in persistence, upload modes, and adapter implementations—not API availability.
 
-## Docker vs Cloudflare Pages
+## Requirements and startup
 
-- Cloudflare Pages: current production-oriented deployment. The root legacy pages are the stable main flow; the backend for `/app/storage` and `/app/drive` is not yet complete.
-- Docker runtime: includes the newer backend APIs and **implements** the `/api/storage/*`, `/api/drive/*`, and `/api/share/*` endpoints used by Vue `/app/storage`, `/app/drive`, and the `/app` upload flows.
-- Passkey login, API tokens (`/api/v1/*`), and guest uploads work the same on both; the only difference is the dynamic storage / Drive APIs above.
-
-## Start
+- Docker Engine and Compose v2; development and diagnostic scripts use Node.js 22+.
+- An HTTPS reverse proxy for public deployment and Passkeys.
+- Replace every example password, session secret, configuration encryption key, and share-signing key before startup.
 
 ```bash
 npm run docker:init-env
 docker compose up -d --build
+npm run docker:doctor
+docker compose logs api
 ```
 
-Open:
+Open `http://localhost:8080/`; administration is `/admin.html`, while Vue Drive and storage settings are `/app/drive` and `/app/storage`. Authentication is enabled by default. `AUTH_DISABLED=true` is only for an explicitly isolated local environment and is not a production repair mechanism.
 
-```txt
-http://localhost:8080/
-http://localhost:8080/admin.html
-http://localhost:8080/webdav.html
-```
+## Data and configuration
 
-## Common Environment Variables
+| Responsibility | Configuration |
+| --- | --- |
+| Identity and encryption | `BASIC_USER`, `BASIC_PASS`, `SESSION_SECRET`, `CONFIG_ENCRYPTION_KEY`, `FILE_SHARE_SECRET_CURRENT` |
+| Public URL and Passkeys | `PUBLIC_BASE_URL`, `WEBAUTHN_RP_ID`, `WEBAUTHN_ORIGIN` |
+| Persistence | `DATA_DIR`, `DB_PATH`, `SETTINGS_STORE`, `SETTINGS_REDIS_URL` |
+| Guests | `TG_GUEST_BOT_TOKEN`, `TG_GUEST_CHAT_ID`, `GUEST_UPLOAD`, `GUEST_MAX_FILE_SIZE`, `GUEST_RETENTION_DAYS`, `TRUST_PROXY` |
+| Uploads | `UPLOAD_MAX_SIZE`, `UPLOAD_SMALL_FILE_THRESHOLD`, `CHUNK_SIZE` |
+| Backends | `TG_*`, `R2_*`, `S3_*`, `WEBDAV_*`, `DISCORD_*`, `HF_*`, `GITHUB_*` |
 
-```txt
-BASIC_USER
-BASIC_PASS
-TG_BOT_TOKEN
-TG_CHAT_ID
-DATA_DIR
-DB_PATH
-SETTINGS_STORE             # sqlite | redis
-CONFIG_ENCRYPTION_KEY      # encrypts dynamic storage configs (required, long random)
-SESSION_SECRET             # session signing secret (long random)
-WEBAUTHN_RP_ID             # Passkey canonical domain
-WEBAUTHN_ORIGIN            # Passkey canonical origin (https://your-domain)
-TG_GUEST_BOT_TOKEN         # dedicated guest bot (isolated from the main bot)
-TG_GUEST_CHAT_ID           # dedicated guest channel chat id
-GUEST_UPLOAD               # initial default for guest uploads (settings store wins after save)
-GUEST_MAX_FILE_SIZE        # initial default max file size (capped at 20MB)
-GUEST_DAILY_LIMIT          # initial default per-IP daily upload count
-S3_*
-WEBDAV_*
-DISCORD_*
-HUGGINGFACE_*
-GITHUB_*
-```
-
-See `.env.example` for the full list.
-
-## Passkey and Guest Uploads
-
-- **Passkey login**: set `WEBAUTHN_RP_ID` / `WEBAUTHN_ORIGIN` to your domain to enable Passkey on the login page (password login remains available).
-- **Guest uploads**: unauthenticated visitors use a separate Telegram bot / channel (`TG_GUEST_*`), isolated from admin storage; the toggle, retention days, per-IP daily limit, and max file size (≤ 20MB) live in the settings store and are editable from the admin "Guest Upload Settings" panel, with `GUEST_*` only seeding the first defaults.
-
-## Pages
-
-```txt
-/              upload home
-/login.html    login
-/admin.html    admin console
-/gallery.html  image gallery
-/webdav.html   WebDAV upload center
-/app/status    Vue status page
-/app/storage   Vue storage config
-/app/drive     Vue Drive console
-```
-
-## Storage Recommendation
-
-WebDAV is the recommended aggregation entry:
-
-1. Deploy alist/openlist on the same host or another trusted node.
-2. Configure a WebDAV backend in Seraph's Pictures.
-3. Let alist/openlist aggregate upstream storage providers while Seraph's Pictures handles upload UX, direct links, auth, and administration.
-
-## Verification
+See [.env.example](.env.example) for the base template; add the guest-row variables to `.env` as the deployment requires. SQLite data persists in `kvault_data` by default. Dynamic storage profiles are AES-GCM encrypted and always stored in SQLite; Redis is only an optional, separate general settings store. Dynamic settings take precedence over environment variables, and blank secret fields preserve existing values. Start the Compose Redis profile with:
 
 ```bash
-node scripts/docker-storage-doctor.js
-node scripts/docker-ci-smoke.js
+docker compose --profile redis up -d --build
+npm run docker:doctor
 ```
 
-## Notes
+For backup, stop writes and back up `kvault_data`; also take a consistent Redis backup when using external Redis. After restoration, run the doctor and verify login, listing, and downloads.
 
-- Docker static frontend no longer copies retired `admin-imgtc.html`, `admin-waterfall.html`, or `_nuxt/`.
-- The root legacy pages remain the stable operation path.
-- Vue `/app` pages are available for gradual migration and validation.
+## Storage and uploads
+
+Docker supports Telegram, R2, S3, Discord, Hugging Face, WebDAV, and GitHub through direct or chunked uploads. The default configured administrator ceiling is 100 MiB; Telegram is capped at 50 MiB, Discord at 25 MiB, and Hugging Face at 35 MiB. Lower backend limits still apply.
+
+Guest uploads enforce boundaries that administrators cannot relax:
+
+- Both dedicated `TG_GUEST_BOT_TOKEN` and `TG_GUEST_CHAT_ID` are required. Missing values fail instead of falling back to the main bot.
+- The fixed per-IP quota is 10/day; retention is at least one day; the configurable ceiling is 20 MiB; `.env.example` uses a 5 MiB example default.
+- Only AVIF/GIF/JPEG/PNG/WebP files whose signature, MIME, and extension agree are accepted. Visibility defaults to `public`.
+- Metadata expiry invalidates project links but does not prove deletion of remote Telegram bytes; use a separate channel cleanup policy.
+
+## Production reverse proxy
+
+The proxy should terminate TLS, preserve `Host` and the forwarded protocol, and allow request bodies at least as large as the application upload limit. `PUBLIC_BASE_URL=https://<YOUR_DOMAIN>`, `WEBAUTHN_RP_ID=<YOUR_DOMAIN>`, and `WEBAUTHN_ORIGIN=https://<YOUR_DOMAIN>` must agree. For public guest uploads, set `TRUST_PROXY=true` only when the trusted proxy overwrites client-address headers; otherwise the quota service returns 503. Do not expose the API directly to the public internet around the proxy.
+
+## Verification and troubleshooting
+
+```bash
+npm run frontend:build
+npm test -- --reporter dot
+npm run docker:doctor
+npm run docker:smoke:ci
+```
+
+| Symptom | Action |
+| --- | --- |
+| API refuses startup | Replace `.env` example passwords/keys and inspect `docker compose logs api` |
+| Settings cannot be saved | Configure a valid `CONFIG_ENCRYPTION_KEY`; check SQLite/Redis write and connection state |
+| Passkey failure | Ensure RP is the domain, origin is the full HTTPS origin, and proxy headers are correct |
+| Chunk upload does not complete | Check volume capacity/permissions for `CHUNK_DIR` and API logs; do not fabricate success |
+| Guest upload rejected | Check the dedicated guest bot/chat, file authenticity, daily quota, and retention |
+
+Inspect containers and persistent volumes with:
+
+```bash
+docker compose ps
+docker compose logs --tail=200 api
+docker compose down
+```
+
+`docker compose down` preserves named volumes. Do not add a volume-removal option unless a backup is verified and data destruction is intentional.

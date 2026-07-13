@@ -1,341 +1,201 @@
 <div align="center">
-  <img src="logo.png" alt="Seraph's Pictures Logo" width="140">
+  <img src="logo.png" alt="Seraph's Pictures" width="140">
 
 # Seraph's Pictures
 
-私有媒体工作区：面向 Cloudflare Pages 的图片 / 文件托管、后台管理、WebDAV 上传、多存储适配，并支持 Passkey 登录、API Token 与访客上传。
+面向 Cloudflare 与 Docker 的私有媒体工作区，支持多存储、访客图床、文件管理和安全分享。
 
-[English](README-EN.md) | **中文**
+**中文** | [English](README-EN.md)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-![Cloudflare Pages](https://img.shields.io/badge/Cloudflare-Pages-F38020?logo=cloudflare&logoColor=white)
+![Cloudflare](https://img.shields.io/badge/Cloudflare-Pages%20%2B%20Workers-F38020?logo=cloudflare&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-supported-2496ED?logo=docker&logoColor=white)
 ![Vue 3](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)
-![Hono](https://img.shields.io/badge/Hono-backend-E36002?logo=hono&logoColor=white)
-![Login: Passkey](https://img.shields.io/badge/Login-Passkey%2FWebAuthn-2563EB)
-
 </div>
 
-## 目录
+## 安全警告
 
-- [简介](#简介)
-- [功能特性](#功能特性)
-- [效果图](#效果图)
-- [前端结构](#前端结构)
-- [快速部署](#快速部署)
-- [存储配置](#存储配置)
-- [访客上传](#访客上传)
-- [环境变量参考](#环境变量参考)
-- [API 使用指南](#api-使用指南)
-- [使用限制](#使用限制)
-- [验证](#验证)
-- [路线图](#路线图)
-- [致谢](#致谢)
-- [许可证](#许可证)
+> [!WARNING]
+> Fork 后不要直接部署仓库内的 Wrangler 配置。必须替换两个配置文件中的项目名、Worker 名、全部 KV ID、R2 桶名、Durable Object `script_name`、WebAuthn 域名/来源和迁移 audience；先部署 Coordinator，再部署 Pages。
 
-## 简介
+> [!IMPORTANT]
+> 生产环境必须启用认证并使用 Secrets。`AUTH_DISABLED=true` 仅允许本地运行；Coordinator、KV 或加密密钥异常时服务会明确失败，不会降级到旧凭据或明文配置。
 
-Seraph's Pictures 是一个轻量、私有、可部署到 Cloudflare Pages 的媒体托管工作区，用于图片、文件、音频、视频和文档的上传、浏览与管理。当前线上以根路径 Legacy 前端作为稳定主流程，同时保留 `/app/` 下的 Vue 版界面作为新版体验入口。
+## 功能与界面
 
-- `/`：主上传页
-- `/login.html`：登录页（支持密码与 Passkey）
-- `/admin.html`：管理后台
-- `/gallery.html`：图片浏览
-- `/webdav.html`：WebDAV 上传中心
-- `/storage-settings.html`：存储后端设置（后台「存储配置」入口）
-- `/app/status`：Vue 版状态页
+- 上传图片、音视频和文档，支持 URL 上传、分片/多段上传及 SSRF 防护。
+- Telegram、R2、S3、Discord、Hugging Face、WebDAV、GitHub 多存储适配。
+- 密码、Passkey/WebAuthn、作用域 API Token、短链和私有签名分享。
+- 目录树、筛选、批量移动/删除、重命名、可见性管理和在线预览。
+- 开放访客图床时使用隔离的 Telegram Bot/频道、固定配额和内容真实性校验。
+- Legacy 稳定界面：`/`、`/login.html`、`/admin.html`、`/gallery.html`、`/webdav.html`、`/storage-settings.html`。
+- Vue 界面：`/app/`、`/app/drive`、`/app/storage`、`/app/status`；两种运行时均已实现其 Storage、Drive 和 Share API。
 
-Vue App 保留在 `/app/`，用于后续新版体验。当前 Cloudflare Pages 端以 Legacy 根页面为主流程；`/app/storage` 与 `/app/drive` 的 UI 已存在，但对应的 Cloudflare Functions API 仍需补齐后才能作为主流程使用（见[路线图](#路线图)）。
+| 上传 | 图库 | 管理 | Passkey |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/screenshots/home.jpeg" width="210" alt="上传页"> | <img src="docs/screenshots/gallery.jpeg" width="210" alt="图库"> | <img src="docs/screenshots/admin.jpeg" width="210" alt="管理后台"> | <img src="docs/screenshots/login-passkey.jpeg" width="210" alt="Passkey 登录"> |
 
-## 功能特性
+## 架构
 
-> 本节只列出**已上线**的能力；尚在开发中的项目见[路线图](#路线图)。
-
-- **多类型上传**：图片、音频、视频、文档与常见文件；大文件分片上传；支持从 URL 拉取上传，并对内网 / 私有地址做安全校验，阻止 SSRF。
-- **多存储适配**：Telegram、Cloudflare R2、S3 兼容存储、Discord、Hugging Face、GitHub、WebDAV，可按需选择上传后端。
-- **Passkey / WebAuthn 登录**：在密码登录之外支持无密码的 Passkey 登录与凭据管理（基于 `@simplewebauthn/server`）。
-- **API Token 与公开 REST API**：在后台创建带作用域（upload / read / delete / paste）的 Token，通过 `/api/v1/*` 以 `Authorization: Bearer` 调用，适合脚本与 ShareX 等工具。
-- **分享短链**：生成 `/s/<slug>` 短链，可选自定义 slug、访问密码、有效期与下载次数上限。
-- **访客上传**：未登录访客可上传到**独立的 Telegram bot / 频道**，与管理员存储隔离；开关、保留天数、单 IP 每日次数、单文件大小上限（≤ 20MB）均存于 KV，可在后台随时调整。
-- **管理后台**：文件列表、目录管理（Folder Manager）、网格视图与分页、详情查看、重命名、删除、收藏、跨目录移动。
-- **手动内容管控**：管理员可对单个文件加入黑名单 / 白名单；命中黑名单的访问会跳转到 `block-img.html`，白名单模式下非白名单内容跳转到 `whitelist-on.html`。
-- **WebDAV 上传中心**：`/webdav.html` 独立上传入口。
-- **存储后端在线设置**：`/storage-settings.html`（后台「存储配置」入口）无需重新部署即可编辑 Telegram / WebDAV / S3 / Discord / GitHub / Hugging Face 凭据；密钥经 AES-GCM 加密后存入 KV，运行时优先于环境变量。Telegram 主通道与访客通道分开维护。
-- **图片浏览器缓存**：图片响应附带 3 分钟 `private` 缓存，跨页切换不再重复下载；边缘（CDN）不缓存，删除 / 屏蔽 / 白名单对其他访客仍即时生效。
-- **图库与多种链接格式**：`/gallery.html` 浏览，并一键复制 URL、Markdown、HTML、BBCode 链接。
-- **在线预览与 Data Saver**：图片 / 媒体在线预览，提供省流量（Data Saver）选项。
-- **认证**：Basic Auth 加 Cookie 会话登录。
-- **品牌与主题**：Claude 风格主题、暗色模式与玻璃质感（glass opacity）界面。
-
-## 效果图
-
-<div align="center">
-
-| 主上传页 | 图库（多种链接格式） |
-| :---: | :---: |
-| <img src="docs/screenshots/home.jpeg" width="380" alt="主上传页：存储选择、20MB 限制、上传目录"> | <img src="docs/screenshots/gallery.jpeg" width="380" alt="图库：URL / Markdown / HTML / BBCode 链接"> |
-| **管理后台** | **Passkey 登录** |
-| <img src="docs/screenshots/admin.jpeg" width="380" alt="管理后台：目录管理、网格视图、分页"> | <img src="docs/screenshots/login-passkey.jpeg" width="380" alt="使用 Passkey 登录"> |
-| **在线预览（Data Saver）** | **访客模式** |
-| <img src="docs/screenshots/file-preview.jpeg" width="380" alt="在线预览与 Data Saver"> | <img src="docs/screenshots/guest-mode.jpeg" width="380" alt="访客模式：单文件 20MB、每日上限"> |
-
-</div>
-
-## 前端结构
-
-```txt
-根路径 Legacy 前端
-├── index.html          # 默认上传页
-├── login.html          # 登录页（密码 + Passkey）
-├── admin.html          # 当前主后台
-├── gallery.html        # 图片浏览
-├── webdav.html         # WebDAV 上传中心
-├── storage-settings.html # 存储后端设置
-├── preview.html        # 旧预览兼容页
-├── block-img.html      # 黑名单屏蔽提示页
-└── whitelist-on.html   # 白名单提示页
-
-Vue App，可选入口
-└── /app/
-    ├── /app/           # Vue 上传页
-    ├── /app/login      # Vue 登录页
-    ├── /app/drive      # Vue Drive，Cloudflare API 尚未完整接通
-    ├── /app/storage    # Vue 存储配置，Cloudflare API 尚未完整接通
-    └── /app/status     # Vue 状态页
+```mermaid
+flowchart LR
+  browser[Browser / API client] --> frontend[Legacy + Vue UI]
+  frontend --> runtime{Runtime}
+  runtime --> pages[Pages Functions]
+  runtime --> docker[Docker Hono API]
+  pages --> coordinator[Auth + Upload Coordinator DO]
+  pages --> metadata[Workers KV metadata]
+  docker --> metadata_docker[SQLite / Redis metadata]
+  coordinator --> r2[R2 multipart storage]
+  pages --> adapters[Storage adapters]
+  docker --> adapters
+  adapters --> remote[Telegram / S3 / WebDAV / others]
 ```
 
-构建时 `frontend/scripts/copy-legacy.mjs` 会：
+Cloudflare 以 Durable Objects 协调认证与 R2 multipart 状态，以 KV 保存元数据；Docker 以 Hono、SQLite（可选 Redis 设置存储）和持久卷运行。界面保持一致，持久化与适配实现不同。
 
-1. 构建 Vue App 到 `frontend/dist/app/`
-2. 复制 Legacy 页面到 `frontend/dist/`
-3. 再复制一份兼容副本到 `frontend/dist/legacy/`
-4. 写入 `/app` 的 SPA rewrite 规则
+## 快速开始
 
-## 快速部署
-
-### 前置要求
-
-- Node.js 18+ 与 npm
-- 一个 Cloudflare 账户（用于 Pages、KV，可选 R2）
-- 一个 Telegram bot 与频道 / 群组（若使用 Telegram 存储）
-
-### 1. 安装依赖
+| 目标 | 选择 | 最短路径 |
+| --- | --- | --- |
+| 全球边缘、无服务器 | Cloudflare Pages + Worker | 创建 KV/R2/DO，改配置，先部署 Worker 后部署 Pages |
+| VPS、NAS、本地私有化 | Docker Compose | 生成 `.env`，修改密钥，构建并启动 |
 
 ```bash
-npm install
-npm --prefix frontend install
+npm ci
+npm run frontend:build
+npm run docker:init-env
+docker compose up -d --build
+npm run docker:doctor
 ```
 
-### 2. 准备 Telegram 凭据（可选，使用 Telegram 存储时）
+Node.js 22+ 用于开发与 Docker 后端。不要把 `.env`、真实 Token、密码或加密密钥提交到仓库。
 
-1. 通过 [@BotFather](https://t.me/BotFather) 创建 bot，拿到 `TG_BOT_TOKEN`。
-2. 把 bot 加入目标频道 / 群组并设为管理员。
-3. 取得频道 / 群组的 `TG_CHAT_ID`。
-4. 这两个值作为 **Secrets** 配置在 Cloudflare Pages 控制台，切勿写入代码或提交到仓库。
+## Cloudflare 部署
 
-### 3. 构建与部署到 Cloudflare Pages
+1. 创建 Pages 项目、KV namespace、R2 bucket，以及承载两个 Durable Object 的 Worker。
+2. 在 `wrangler.jsonc` 和 `workers/coordinator/wrangler.jsonc` 中替换所有仓库专用值：
+
+| 占位符 | 必须替换的位置 |
+| --- | --- |
+| `<PAGES_PROJECT>` | Pages `name` |
+| `<COORDINATOR_WORKER>` | Worker 顶层及 `env.production.name`、两个 DO `script_name` |
+| `<KV_NAMESPACE_ID>` | 两文件中全部 KV ID，包括 `env.production` |
+| `<R2_BUCKET>` | 两文件中全部桶名，包括 `env.production` |
+| `<YOUR_DOMAIN>` | `WEBAUTHN_RP_ID` 与 HTTPS `WEBAUTHN_ORIGIN` |
+| `<MIGRATION_AUDIENCE>` | 当前 KV audience；通常取你的 KV namespace ID |
+
+3. 在 Pages 生产 Secrets 中配置 `BASIC_USER`、`BASIC_PASS`、`SESSION_SECRET`、`CONFIG_ENCRYPTION_KEY`、`FILE_SHARE_SECRET_CURRENT`；按需增加主存储凭据及访客专用 `TG_GUEST_BOT_TOKEN`、`TG_GUEST_CHAT_ID`。普通变量配置 WebAuthn RP/origin，绑定名保持 `img_url`、`R2_BUCKET`、`AUTH_COORDINATOR`、`UPLOAD_COORDINATOR`。
+4. 保留已有 R2 生命周期规则，用“读取—追加—复查”添加 multipart 清理规则；禁止使用会整体替换规则集的操作：
 
 ```bash
-npm run pages:deploy
+npx wrangler r2 bucket lifecycle list <R2_BUCKET>
+npx wrangler r2 bucket lifecycle add <R2_BUCKET> abort-incomplete-uploads multipart/ --abort-multipart-days 1
+npx wrangler r2 bucket lifecycle list <R2_BUCKET>
+npx wrangler deploy --config workers/coordinator/wrangler.jsonc --env production
+npm run frontend:build
+npx wrangler pages deploy frontend/dist --project-name <PAGES_PROJECT> --branch main
+node scripts/probe-coordinator-binding.mjs --base-url https://<YOUR_DOMAIN>
 ```
 
-该脚本等价于先 `npm run frontend:build` 构建前端，再 `npx wrangler pages deploy frontend/dist` 部署产物。项目名从 `wrangler.jsonc` 的 `name` 字段读取，无需在命令行追加 `--project-name`。
+部署顺序不可颠倒。生命周期规则仅终止 `multipart/` 前缀下一天未完成的上传，不删除完整对象；若已有全前缀默认规则或其他规则，必须原样保留。`npm run pages:deploy` 会读取已检入配置，Fork 未完成全部替换前不要运行。
 
-> 本地开发可用 `npm start` 启动 `wrangler pages dev`（默认 8080 端口，内置 `admin:123` 的 Basic Auth 与本地 KV / R2），用于联调。
-
-### 4. 通过 GitHub Actions 部署（Fork 部署指南）
-
-仓库内置 `.github/workflows/pages-deploy.yml`，可把项目部署到你**自己的 Cloudflare 账户**。Fork 后：
-
-1. **在 Cloudflare 准备资源**：创建一个 Pages 项目、一个 KV namespace，（可选）一个 R2 bucket。
-2. **把 `wrangler.jsonc` 改成你自己的值**：
-   - `name`：你的 Pages 项目名（工作流与 `pages:deploy` 都从这里读取项目名）
-   - `kv_namespaces[].id`：你的 KV namespace id
-   - `r2_buckets[].bucket_name`：你的 R2 bucket 名（不用 R2 可删掉该段）
-   - `vars.WEBAUTHN_RP_ID` / `WEBAUTHN_ORIGIN`：你的域名（Passkey 用）
-3. **添加仓库 Secrets**（Settings → Secrets and variables → Actions）：
-   - `CLOUDFLARE_API_TOKEN`：含 `Account › Cloudflare Pages › Edit` 权限的 API Token
-   - `CLOUDFLARE_ACCOUNT_ID`：你的 Cloudflare Account ID
-4. **触发部署**：push 到 `main` 自动部署，或在 **Actions → pages-deploy → Run workflow** 手动触发。
-5. **运行时密钥**（`TG_BOT_TOKEN`、`TG_GUEST_*` 等）在 **Pages 控制台 → Settings → Environment variables / Secrets** 配置，不要写进代码。
-
-> 配置 `CLOUDFLARE_API_TOKEN` 之前，部署任务会自动跳过（绿色 skipped，不报错），所以本地迭代时 push 到 main 不会产生失败的 CI 记录。
-
-### 5. Docker 自托管
-
-Docker runtime 提供更完整的本地 / 自托管后端，包含 Vue `/api/storage/*`、`/api/drive/*`、`/api/share/*` 等接口。
+## Docker 部署
 
 ```bash
 npm run docker:init-env
-# 编辑 .env，将 BASIC_PASS 替换为非示例密码
 docker compose up -d --build
+npm run docker:doctor
+docker compose logs api
 ```
 
-Docker 默认启用认证；生产环境不会接受空凭据、示例密码或示例加密密钥。仅在明确设置 `AUTH_DISABLED=true` 时关闭认证。
+启动前修改 `.env` 中所有示例密钥。默认 SQLite 数据和配置位于 `kvault_data` 持久卷；`SETTINGS_STORE=redis` 时使用外部 Redis，Compose 的本地 Redis 通过 profile 启动。反向代理必须提供 HTTPS，并令 `PUBLIC_BASE_URL`、WebAuthn RP/origin 与公开域名一致。完整说明见 [Docker 中文指南](README-DOCKER.md)。
 
-访问：
+## 存储与上传能力
 
-```txt
-http://localhost:8080/
-http://localhost:8080/admin.html
-http://localhost:8080/webdav.html
-```
+| 后端 | Cloudflare | Docker | 硬上限 |
+| --- | --- | --- | --- |
+| R2 | direct / multipart | direct / chunked | 管理员配置，默认最高 100 MiB |
+| S3、WebDAV | direct / streaming | direct / chunked | 管理员配置，默认最高 100 MiB |
+| Telegram | direct | direct / chunked | Cloudflare/访客 20 MiB；Docker 管理员最高 50 MiB |
+| Discord | direct | direct / chunked | 25 MiB |
+| Hugging Face | direct | direct / chunked | 35 MiB |
+| GitHub | direct | direct / chunked | 管理员配置，默认最高 100 MiB |
 
-详见 [README-DOCKER.md](README-DOCKER.md)。
+20 MiB 是 direct 阈值；只有 Cloudflare R2 使用 multipart。管理页保存的动态存储配置以 AES-GCM 加密：Cloudflare 写入 KV，Docker storage profiles 写入 SQLite；Redis 只可作为独立的通用设置存储。动态配置优先于环境变量，空白密钥字段表示保留旧值。R2 原生绑定仍由 Wrangler/Cloudflare 控制台管理。
 
-## 存储配置
+## 安全模型
 
-支持以下上传后端，按需在环境变量 / 控制台中配置对应字段：
+- **认证**：Pages 通过 `AuthCoordinator` 处理初始化、登录失败限制和会话状态；绑定或持久化失败时 fail closed。初始化后环境凭据不是运行时回退。
+- **Passkey**：RP ID 是域名，origin 必须是对应 HTTPS 源站；更换域名后需重新注册凭据。
+- **文件可见性**：Drive 来源默认 `private`；image-host、API 与 Legacy 来源默认 `public`，API 可显式请求 `private`。私有访问使用带过期时间的签名和可撤销 lease；访客文件默认 `public`。
+- **访客上传**：必须同时配置独立的 `TG_GUEST_*`；缺失即拒绝，不回退管理员 Bot。仅接受签名、MIME 与扩展名一致的 AVIF/GIF/JPEG/PNG/WebP。每 IP 每日固定 10 次，保留期至少 1 天，配置上限 20 MiB，示例默认 5 MiB。
+- **删除语义**：访客元数据到期会令项目链接失效，但不代表 Telegram 远端字节已删除；远端清理需按频道策略单独执行。
 
-| 后端 | 关键配置 | 说明 |
-| --- | --- | --- |
-| Telegram | `TG_BOT_TOKEN`、`TG_CHAT_ID` | 默认后端，文件存入频道 / 群组 |
-| Cloudflare R2 | `R2_BUCKET` 绑定（Pages）/ `R2_*`（Docker） | 与 Pages 同账户的对象存储 |
-| S3 兼容 | `S3_ENDPOINT`、`S3_BUCKET`、`S3_ACCESS_KEY_ID`、`S3_SECRET_ACCESS_KEY`、`S3_REGION` | 任意 S3 兼容服务 |
-| Discord | `DISCORD_WEBHOOK_URL` 或 `DISCORD_BOT_TOKEN` + `DISCORD_CHANNEL_ID` | 经 Webhook / Bot 投递 |
-| Hugging Face | `HF_TOKEN`、`HF_REPO` | 存入 HF 仓库 |
-| GitHub | `GITHUB_REPO`、`GITHUB_TOKEN`、`GITHUB_MODE`（releases / contents 等） | 存入仓库 Release 或内容 |
-| WebDAV | `WEBDAV_BASE_URL`、`WEBDAV_USERNAME`、`WEBDAV_PASSWORD`（或 `WEBDAV_BEARER_TOKEN`） | 推荐配合 alist / openlist 聚合上游存储 |
+第二阶段未引入新的付费第三方依赖，但 Cloudflare Pages、Workers、KV、R2 和 Durable Objects 可能按用量计费；部署前检查服务商当前定价与额度。
 
-> 所有密钥都应作为 Pages Secrets 或 Docker `.env` 配置，不要提交到仓库。
+## 配置参考
 
-> 除环境变量外，管理员也可在 `/storage-settings.html`（后台「存储配置」入口）运行时编辑上述后端凭据，无需重新部署。配置存入 KV（key `storage_config`），其中密钥字段以 AES-GCM 加密（密钥取 `CONFIG_ENCRYPTION_KEY`，未设置时回退 `SESSION_SECRET`）。运行时 KV 配置优先于环境变量；R2 为 Cloudflare 绑定，仍只能在 Pages 设置。
-
-## 访客上传
-
-- 未登录访客的文件走**独立的 Telegram bot + 频道**（`TG_GUEST_BOT_TOKEN` / `TG_GUEST_CHAT_ID`），与管理员存储隔离；未配置时回退到主 bot。
-- 访客策略（开关、保留天数（非负整数，0 = 永不过期）、单 IP 每日次数、单文件大小上限 ≤ 20MB）存于 KV，**可在后台「访客上传设置」面板随时调整**，无需改环境变量或重新部署。`GUEST_*` 环境变量仅作首次读取的初始默认。
-- 访客文件的 KV 记录带 `expirationTtl`，到期后访问链接自动失效（字节仍留在免费的访客频道，需要彻底清空时直接清空 / 重建该频道）。
-
-## 环境变量参考
-
-Cloudflare Pages 常用绑定与变量（密钥请用控制台 Secrets 配置）：
-
-| 变量 / 绑定 | 用途 |
+| 责任 | 变量或绑定 |
 | --- | --- |
-| `BASIC_USER` / `BASIC_PASS` | 管理员账号密码 |
-| `TG_BOT_TOKEN` / `TG_CHAT_ID` | 主 Telegram 存储凭据 |
-| `img_url` | KV namespace 绑定（必需，存元数据与配置） |
-| `CONFIG_ENCRYPTION_KEY` | 加密 `/storage-settings.html` 存入 KV 的存储凭据（未设置时回退用 `SESSION_SECRET`） |
-| `R2_BUCKET` | R2 binding（可选） |
-| `S3_*` | S3 兼容存储（可选） |
-| `WEBDAV_*` | WebDAV 后端（可选） |
-| `DISCORD_*` | Discord 后端（可选） |
-| `HUGGINGFACE_*` / `HF_*` | Hugging Face 后端（可选） |
-| `GITHUB_*` | GitHub 后端（可选） |
-| `WEBAUTHN_RP_ID` / `WEBAUTHN_ORIGIN` | Passkey 规范域名（明文 vars，锁定后 Passkey 仅在该域名生效） |
-| `TG_GUEST_BOT_TOKEN` / `TG_GUEST_CHAT_ID` | 访客上传专用 bot / 频道（Secret） |
-| `GUEST_UPLOAD` | 访客上传初始默认（true/false；保存后以 KV 为准） |
-| `GUEST_RETENTION_DAYS` | 访客文件保留天数初始默认（非负整数，0 = 永不过期） |
-| `GUEST_DAILY_LIMIT` | 单 IP 每日上传次数初始默认 |
-| `GUEST_MAX_FILE_SIZE` | 访客单文件大小初始默认（字节，上限 20MB） |
+| 认证/加密 | `BASIC_USER`、`BASIC_PASS`、`SESSION_SECRET`、`CONFIG_ENCRYPTION_KEY` |
+| 分享签名 | `FILE_SHARE_SECRET_CURRENT`、`FILE_SHARE_SECRET_PREVIOUS`、`FILE_SHARE_SECRET_PREVIOUS_VALID_UNTIL` |
+| Passkey | `WEBAUTHN_RP_ID`、`WEBAUTHN_ORIGIN`、`WEBAUTHN_RP_NAME` |
+| Pages 数据 | `img_url`、`R2_BUCKET`、`AUTH_COORDINATOR`、`UPLOAD_COORDINATOR` |
+| Telegram | `TG_BOT_TOKEN`、`TG_CHAT_ID`、`TG_GUEST_BOT_TOKEN`、`TG_GUEST_CHAT_ID` |
+| Docker 数据 | `DATA_DIR`、`DB_PATH`、`SETTINGS_STORE`、`SETTINGS_REDIS_URL`、`TRUST_PROXY` |
+| 可选后端 | `R2_*`、`S3_*`、`WEBDAV_*`、`DISCORD_*`、`HF_*`、`GITHUB_*` |
 
-> Docker 自托管的完整变量（含 `DATA_DIR`、`DB_PATH`、`SETTINGS_STORE` 等）见 [README-DOCKER.md](README-DOCKER.md) 与 `.env.example`。
+Docker 基础模板见 [.env.example](.env.example)。开放 Docker 访客上传时还需加入 `TG_GUEST_*`、`GUEST_RETENTION_DAYS`，并仅在可信反向代理之后设置 `TRUST_PROXY=true`。变量仅负责首次引导时，管理员保存的加密动态配置会优先；错误会显式返回，不能假定自动回退。
 
-## API 使用指南
+## API 示例
 
-公开 REST API 位于 `/api/v1/*`，使用在后台创建的 API Token 鉴权。
+UI 路由 `/app/storage`、`/app/drive` 不等于 API。以下操作均要求管理员认证：
 
-### 1. 创建 Token
-
-在管理后台（`/admin.html`）的 **API Token** 面板创建 Token，并按需勾选作用域：
-
-- `upload`：上传文件 / 创建 paste
-- `read`：列出与读取文件 / paste
-- `delete`：删除文件 / paste
-- `paste`：创建 paste
-
-### 2. 鉴权方式
-
-所有请求带上：
-
-```http
-Authorization: Bearer <API_TOKEN>
-```
-
-成功返回 `{ "success": true, ... }`；失败返回 `{ "success": false, "error": { "code", "message" } }`。
-
-### 3. 上传示例（curl）
+| 范围 | 方法与路径 |
+| --- | --- |
+| Storage 查询/创建 | `GET /api/storage/list`、`POST /api/storage` |
+| Storage 修改/测试 | `PUT/DELETE /api/storage/:id`、`POST /api/storage/default/:id`、`POST /api/storage/:id/test`、`POST /api/storage/test` |
+| Drive 查询/目录 | `GET /api/drive/tree`、`GET /api/drive/explorer`、`POST /api/drive/folders`、`POST /api/drive/folders/move`、`DELETE /api/drive/folders` |
+| Drive 文件/分享 | `POST /api/drive/files/move`、`POST /api/drive/files/rename`、`POST /api/drive/files/delete-batch`、`POST /api/share/sign` |
 
 ```bash
-curl -X POST https://<your-domain>/api/v1/upload \
-  -H "Authorization: Bearer <API_TOKEN>" \
-  -F "file=@./photo.png" \
-  -F "storage=telegram"        # 可选：telegram|r2|s3|discord|huggingface|webdav|github
+curl --fail-with-body https://<YOUR_DOMAIN>/api/auth/check
+curl --fail-with-body https://<YOUR_DOMAIN>/api/status
+curl --fail-with-body -u '<ADMIN_USER>:<ADMIN_PASSWORD>' -F file=@example.png https://<YOUR_DOMAIN>/upload
+curl --fail-with-body -u '<ADMIN_USER>:<ADMIN_PASSWORD>' https://<YOUR_DOMAIN>/api/storage/list
+curl --fail-with-body -u '<ADMIN_USER>:<ADMIN_PASSWORD>' https://<YOUR_DOMAIN>/api/drive/tree
+curl --fail-with-body -u '<ADMIN_USER>:<ADMIN_PASSWORD>' --json '{"fileId":"<FILE_ID>"}' https://<YOUR_DOMAIN>/api/share/sign
 ```
 
-返回示例：
-
-```json
-{
-  "success": true,
-  "file": { "id": "...", "name": "photo.png", "size": 12345, "type": "image/png", "storage": "telegram", "uploadedAt": "..." },
-  "links": {
-    "download": "https://<your-domain>/file/<id>",
-    "share": "https://<your-domain>/s/<id-or-slug>",
-    "delete": "https://<your-domain>/api/v1/file/<id>"
-  }
-}
-```
-
-上传可选参数（form 字段或 query）：`storage`、`password`（分享密码）、`expires_in`（秒）、`max_downloads`、`slug`（自定义短链）。
-
-### 4. 端点速查
-
-| 方法 | 路径 | 作用域 | 说明 |
-| --- | --- | --- | --- |
-| POST | `/api/v1/upload` | upload | 上传文件 |
-| GET | `/api/v1/files` | read | 列出文件 |
-| GET | `/api/v1/file/{id}` | read | 下载 / 获取文件 |
-| GET | `/api/v1/file/{id}/info` | read | 获取文件信息 |
-| DELETE | `/api/v1/file/{id}` | delete | 删除文件 |
-| POST | `/api/v1/paste` | paste | 创建 paste |
-| GET | `/api/v1/pastes` | read | 列出 paste |
-| GET | `/api/v1/paste/{id}` | read | 获取 paste |
-| DELETE | `/api/v1/paste/{id}` | delete | 删除 paste |
-
-### 5. ShareX
-
-新建一个 Custom Uploader：
-
-- **Method**：`POST`，**Request URL**：`https://<your-domain>/api/v1/upload`
-- **Headers**：`Authorization: Bearer <API_TOKEN>`
-- **Body**：`multipart/form-data`，文件表单字段名为 `file`
-- **URL 解析**：从响应 JSON 取 `links.download`（或 `links.share`）
-
-## 使用限制
-
-- Cloudflare Pages 当前主流程是 Legacy 根页面；`/app/storage`、`/app/drive` 的 Cloudflare Functions 后端尚未补齐（见[路线图](#路线图)）。
-- 访客单文件大小上限为 20MB。
-- 内容审核目前为**手动**黑 / 白名单；尚无自动检测（见[路线图](#路线图)）。
+脚本集成使用后台签发的 Bearer Token 调用 `/api/v1/*`；不要在 URL 中传 Token。受保护 API 未认证时应返回 401/403，而不是伪造空结果。
 
 ## 验证
 
-提交或部署前推荐运行：
-
 ```bash
-perl -e 'alarm shift; exec @ARGV' 60 ./node_modules/.bin/mocha \
-  test/claude-theme.test.js \
-  test/claude-layout.test.js \
-  test/frontend-entrypoint.test.js \
-  test/security-regression.test.js \
-  --timeout 60000
-
-npm --prefix frontend run build
+npm run frontend:build
+npm test -- --reporter dot
+npm audit --omit=dev
+npm run test:storage-e2e
+npm run test:auth-e2e
+npm run test:visual
 ```
 
-## 路线图
+清单中的版本范围表示支持声明，lockfile 表示当前精确解析版本，安全报告表示某次完成验证时使用的版本，三者不可互换。浏览器 E2E 需要 Playwright 浏览器和对应运行时；生产验证结果见 [第二阶段安全报告](docs/2026-07-13_security-phase-two-report.md)。
 
-以下能力**尚未上线**，仅作规划，不应视为已具备：
+## 故障排查
 
-- **自动内容审核 / Safe Mode**：在现有手动黑白名单之上，增加自动识别与拦截不当内容（含 CSAM 检测）的能力。预览页的 Safe Mode 开关已存在，但自动检测尚未实现。
-- **`/app/storage` 与 `/app/drive` 的 Cloudflare 后端**：这两个 Vue 界面已存在，但在 Cloudflare Pages 上还缺少完整的 `/api/storage/*`、`/api/drive/*`、`/api/share/*` Functions 实现；当前这些接口仅在 Docker runtime 中可用。
-- **访客上传的非 Telegram 存储后端**：当前访客上传固定走独立 Telegram bot / 频道，计划扩展到 R2、S3 等其他后端。
+| 现象 | 根因与处理 |
+| --- | --- |
+| `COORDINATOR_BINDING_*` / 登录 5xx | Worker 未先部署、`script_name` 不一致或 DO 迁移缺失；核对两份配置并运行 binding probe |
+| `NO_ENC_KEY` | 设置 `CONFIG_ENCRYPTION_KEY` 或 `SESSION_SECRET`，不要保存明文凭据 |
+| `GUEST_STORAGE_NOT_CONFIGURED` | 同时设置访客 Bot Token 与 Chat ID |
+| multipart 残留 | 先 list 规则，再追加一日 abort 规则并复查；不要覆盖已有 lifecycle |
+| Passkey origin/RP 错误 | RP 仅填域名，origin 填完整 HTTPS 源站，二者与浏览器地址一致 |
+| Docker 启动拒绝 | 替换示例密码/密钥，检查持久卷权限并查看 `docker compose logs api` |
 
-## 致谢
+## 维护与许可
 
-- 上游项目 [katelya77/K-Vault](https://github.com/katelya77/K-Vault)，本项目在其结构与思路基础上做了品牌化与功能扩展。
-- 更早的源头 [Telegraph-Image](https://github.com/cf-pages/Telegraph-Image)。
+核心目录：`frontend/`（Vue 与 Legacy 构建）、`functions/`（Pages Functions）、`workers/coordinator/`（DO Worker）、`server/`（Docker API）、`shared/`（跨运行时契约）、`test/` 与 `e2e/`（验证）、`docs/`（部署与安全报告）。R2 专项说明见 [Cloudflare Pages + R2](docs/cloudflare-pages-r2.md)，Docker English guide 见 [README-DOCKER-EN.md](README-DOCKER-EN.md)。
 
-## 许可证
-
-本项目基于 [MIT 许可证](LICENSE) 释出。
+提交变更时同步更新中英文文档，运行构建与相关测试，不提交生成物、真实凭据或账户专用配置。项目依据 [MIT License](LICENSE) 发布。

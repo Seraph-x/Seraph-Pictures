@@ -20,6 +20,7 @@ jobs:
           cat >> .env <<'EOF'
           CONFIG_ENCRYPTION_KEY=ci_config_encryption_key_0123456789abcdef0123456789abcdef
           SESSION_SECRET=ci_session_secret_0123456789abcdef0123456789abcdef
+          FILE_SHARE_SECRET_CURRENT=ci_file_share_secret_0123456789abcdef0123456789abcdef
           BASIC_USER=admin
           BASIC_PASS=admin
           DEFAULT_STORAGE_TYPE=telegram

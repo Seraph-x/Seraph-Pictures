@@ -2,10 +2,11 @@
 FROM node:22-alpine AS base
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
+COPY server/package.json server/package-lock.json* ./
 RUN npm install --omit=dev
 
-COPY . .
+COPY server/ ./
+COPY shared/ /shared/
 
 ENV NODE_ENV=production
 EXPOSE 8787

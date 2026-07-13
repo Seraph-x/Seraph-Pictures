@@ -1,17 +1,9 @@
-/**
- * 管理员账号管理 API
- * GET  /api/auth/credentials  → 返回当前用户名(绝不返回密码哈希)
- * POST /api/auth/credentials  → 改用户名/密码(需有效会话 + 重新验证当前密码)
- */
 import {
-  ADMIN_CREDENTIALS_KEY,
+  AuthCoordinatorError,
+  changeAdminCredentials,
   checkAuthentication,
-  createPasswordRecord,
-  createSession,
   createSessionCookieHeader,
-  deleteOtherSessions,
   getSessionFromCookie,
-  isAuthRequired,
   readAdminCredentials,
   verifyCredentials,
 } from '../../utils/auth.js';
@@ -31,10 +23,7 @@ function validateUsername(value) {
   const username = String(value ?? '').trim();
   if (!username) return { error: '用户名不能为空' };
   if (username.length > MAX_USERNAME_LENGTH) return { error: `用户名不能超过 ${MAX_USERNAME_LENGTH} 个字符` };
-  // Basic Auth 以冒号分隔用户名与密码;禁止冒号与控制字符
-  if (username.includes(':') || /[\0-\x1F\x7F]/.test(username)) {
-    return { error: '用户名包含非法字符' };
-  }
+  if (username.includes(':') || /[\0-\x1F\x7F]/.test(username)) return { error: '用户名包含非法字符' };
   return { username };
 }
 
@@ -46,101 +35,68 @@ function validatePassword(value) {
   return { password };
 }
 
+function mapError(error) {
+  if (error instanceof AuthCoordinatorError) {
+    return json({ success: false, message: '认证服务暂不可用', error: { code: error.code } }, error.status);
+  }
+  console.error('Credential management error:', error);
+  return json({ success: false, message: '更新失败' }, 500);
+}
+
+async function requireSession(context) {
+  const auth = await checkAuthentication(context);
+  const token = getSessionFromCookie(context.request);
+  if (!auth.authenticated || !token) return null;
+  return token;
+}
+
 export async function onRequestGet(context) {
-  const { env } = context;
-
-  if (!env.img_url) {
-    return json({ success: false, message: '未绑定 KV，无法管理账号' }, 503);
+  try {
+    if (!await requireSession(context)) return json({ success: false, message: '需要登录' }, 401);
+    const profile = await readAdminCredentials(context.env);
+    return json({
+      success: true,
+      username: profile.username,
+      source: profile.source,
+      updatedAt: profile.updatedAt,
+    });
+  } catch (error) {
+    return mapError(error);
   }
-  if (isAuthRequired(env)) {
-    const auth = await checkAuthentication(context);
-    if (!auth.authenticated) {
-      return json({ success: false, message: '需要登录' }, 401);
-    }
-  }
+}
 
-  const cred = await readAdminCredentials(env);
-  return json({
-    success: true,
-    username: cred.username,
-    source: cred.source,
-    updatedAt: cred.updatedAt || null,
-  });
+function resolveNextCredentials(body, profile) {
+  const hasUsername = body?.newUsername != null && String(body.newUsername).trim() !== '';
+  const hasPassword = body?.newPassword != null && String(body.newPassword) !== '';
+  if (!hasUsername && !hasPassword) return { error: '请填写新的用户名或新密码' };
+  const username = hasUsername ? validateUsername(body.newUsername) : { username: profile.username };
+  if (username.error) return username;
+  const password = hasPassword ? validatePassword(body.newPassword) : { password: body.currentPassword };
+  if (password.error) return password;
+  return { username: username.username, password: password.password };
 }
 
 export async function onRequestPost(context) {
-  const { request, env } = context;
-
   try {
-    if (!env.img_url) {
-      return json({ success: false, message: '未绑定 KV，无法管理账号' }, 503);
-    }
-
-    // 必须有有效会话(或 basic-auth 登录态)
-    const auth = await checkAuthentication(context);
-    if (!auth.authenticated) {
-      return json({ success: false, message: '需要登录' }, 401);
-    }
-
-    const body = await request.json().catch(() => ({}));
+    const sessionToken = await requireSession(context);
+    if (!sessionToken) return json({ success: false, message: '需要登录' }, 401);
+    const body = await context.request.json().catch(() => ({}));
     const currentPassword = String(body?.currentPassword ?? '');
-    const hasNewUsername = body?.newUsername != null && String(body.newUsername).trim() !== '';
-    const hasNewPassword = body?.newPassword != null && String(body.newPassword) !== '';
-
-    if (!currentPassword) {
-      return json({ success: false, message: '请输入当前密码' }, 400);
-    }
-    if (!hasNewUsername && !hasNewPassword) {
-      return json({ success: false, message: '请填写新的用户名或新密码' }, 400);
-    }
-
-    // 重新验证当前密码
-    const cred = await readAdminCredentials(env);
-    const reauth = await verifyCredentials(cred.username, currentPassword, env);
-    if (!reauth.ok) {
+    if (!currentPassword) return json({ success: false, message: '请输入当前密码' }, 400);
+    const profile = await readAdminCredentials(context.env);
+    if (!(await verifyCredentials(profile.username, currentPassword, context.env)).ok) {
       return json({ success: false, message: '当前密码不正确' }, 401);
     }
-
-    // 校验新用户名 / 新密码
-    let nextUsername = cred.username;
-    if (hasNewUsername) {
-      const u = validateUsername(body.newUsername);
-      if (u.error) return json({ success: false, message: u.error }, 400);
-      nextUsername = u.username;
-    }
-
-    // 最终密码:有新密码用新密码,否则沿用当前密码(确保始终以哈希形式落 KV)
-    let finalPassword = currentPassword;
-    if (hasNewPassword) {
-      const p = validatePassword(body.newPassword);
-      if (p.error) return json({ success: false, message: p.error }, 400);
-      finalPassword = p.password;
-    }
-
-    const record = await createPasswordRecord(finalPassword);
-    const nextVersion = (Number(cred.credVersion) || 0) + 1;
-    const credentials = {
-      username: nextUsername,
-      passwordHash: record.passwordHash,
-      salt: record.salt,
-      iterations: record.iterations,
-      credVersion: nextVersion,
-      updatedAt: Date.now(),
-    };
-
-    await env.img_url.put(ADMIN_CREDENTIALS_KEY, JSON.stringify(credentials));
-
-    // 重新签发当前会话(新 credVersion),并作废其它所有旧会话
-    const newToken = await createSession(nextUsername, env);
-    await deleteOtherSessions(newToken, env);
-
-    return json(
-      { success: true, message: '账号已更新', username: nextUsername },
-      200,
-      { 'Set-Cookie': createSessionCookieHeader(newToken) }
-    );
+    const next = resolveNextCredentials({ ...body, currentPassword }, profile);
+    if (next.error) return json({ success: false, message: next.error }, 400);
+    const changed = await changeAdminCredentials({ sessionToken, ...next }, context.env);
+    if (!changed.ok) return json({ success: false, message: '需要登录' }, 401);
+    return json({ success: true, message: '账号已更新', username: next.username }, 200, {
+      'Set-Cookie': createSessionCookieHeader(changed.session.token, {
+        secure: context.env.APP_ENV !== 'local',
+      }),
+    });
   } catch (error) {
-    console.error('Update credentials error:', error);
-    return json({ success: false, message: '更新失败' }, 500);
+    return mapError(error);
   }
 }

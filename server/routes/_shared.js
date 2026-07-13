@@ -1,8 +1,10 @@
 const crypto = require('node:crypto');
 const { toStorageErrorPayload } = require('../lib/utils/storage-error');
 const { parseSignedTelegramFileId } = require('../lib/utils/telegram-webhook');
+const { createUploadCapabilityHelpers } = require('./upload-capabilities');
 
 function createRouteHelpers(container) {
+  const uploadCapabilities = createUploadCapabilityHelpers(container.config);
   function getServices(c) {
     return c.get('container');
   }
@@ -163,7 +165,22 @@ function createRouteHelpers(container) {
     return headers;
   }
 
-  async function handleSignedTelegramFile(id, range, storageRepo, c, headOnly = false) {
+  function signedTelegramHeaders(upstream, parsed) {
+    const headers = new Headers(upstream.headers);
+    headers.set('Access-Control-Allow-Origin', '*');
+    headers.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+    headers.set('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges, Content-Disposition');
+    headers.set('Cache-Control', 'no-store, max-age=0');
+    if (!headers.get('content-type') && parsed.mimeType) headers.set('Content-Type', parsed.mimeType);
+    if (!headers.get('content-disposition')) {
+      const safeName = encodeURIComponent(parsed.fileName || `${parsed.fileId}.${parsed.fileExtension}`);
+      headers.set('Content-Disposition', `inline; filename="${safeName}"; filename*=UTF-8''${safeName}`);
+    }
+    return headers;
+  }
+
+  async function handleSignedTelegramFile(options) {
+    const { id, range, storageRepo, context: c, headOnly = false } = options;
     const env = { ...process.env, FILE_URL_SECRET: container.config.configEncryptionKey };
     const parsed = parseSignedTelegramFileId(id, env);
     if (!parsed?.fileId) {
@@ -198,18 +215,7 @@ function createRouteHelpers(container) {
       return c.text('File not found on Telegram.', 404);
     }
 
-    const headers = new Headers(upstream.headers);
-    headers.set('Access-Control-Allow-Origin', '*');
-    headers.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-    headers.set('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges, Content-Disposition');
-    headers.set('Cache-Control', 'no-store, max-age=0');
-    if (!headers.get('content-type') && parsed.mimeType) {
-      headers.set('Content-Type', parsed.mimeType);
-    }
-    if (!headers.get('content-disposition')) {
-      const safeName = encodeURIComponent(parsed.fileName || `${parsed.fileId}.${parsed.fileExtension}`);
-      headers.set('Content-Disposition', `inline; filename="${safeName}"; filename*=UTF-8''${safeName}`);
-    }
+    const headers = signedTelegramHeaders(upstream, parsed);
 
     if (headOnly) {
       return new Response(null, { status: upstream.status, statusText: upstream.statusText, headers });
@@ -238,52 +244,6 @@ function createRouteHelpers(container) {
       }
     }
     return String(detail);
-  }
-
-  function getUploadLimits() {
-    const mb = 1024 * 1024;
-    const directThreshold = Number(container.config.uploadSmallFileThreshold || 20 * mb);
-    const maxUploadSize = Number(container.config.uploadMaxSize || 100 * mb);
-
-    return {
-      telegram: {
-        maxBytes: Math.min(maxUploadSize, 50 * mb),
-        directThreshold,
-        supportsChunkUpload: true,
-        message: 'Telegram Bot API upload is capped at 50MB in the Docker runtime. For larger files, use R2/S3/WebDAV/GitHub or Telegram client + webhook return links.',
-      },
-      r2: {
-        maxBytes: maxUploadSize,
-        directThreshold,
-        supportsChunkUpload: true,
-      },
-      s3: {
-        maxBytes: maxUploadSize,
-        directThreshold,
-        supportsChunkUpload: true,
-      },
-      discord: {
-        maxBytes: Math.min(maxUploadSize, 25 * mb),
-        directThreshold,
-        supportsChunkUpload: true,
-        message: 'Discord upload limit depends on server boost level; Seraph Pictures uses a conservative 25MB default.',
-      },
-      huggingface: {
-        maxBytes: Math.min(maxUploadSize, 35 * mb),
-        directThreshold,
-        supportsChunkUpload: true,
-      },
-      webdav: {
-        maxBytes: maxUploadSize,
-        directThreshold,
-        supportsChunkUpload: true,
-      },
-      github: {
-        maxBytes: maxUploadSize,
-        directThreshold,
-        supportsChunkUpload: true,
-      },
-    };
   }
 
   function uploadSuccessResponse(c, result) {
@@ -328,7 +288,8 @@ function createRouteHelpers(container) {
     handleSignedTelegramFile,
     parseShareExpiry,
     formatStatusDetail,
-    getUploadLimits,
+    getUploadLimits: uploadCapabilities.getUploadLimits,
+    validateUploadCapability: uploadCapabilities.validateUploadCapability,
     uploadSuccessResponse,
   };
 }
