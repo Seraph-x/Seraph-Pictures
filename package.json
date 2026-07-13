@@ -8,6 +8,8 @@
     "ci-test": "concurrently --kill-others --success first \"npm start\" \"wait-on http://localhost:8080 && mocha --exit\"",
     "test": "mocha",
     "test:auth-e2e": "playwright test --config playwright.auth.config.js",
+    "pretest:storage-e2e": "npm --prefix server ci",
+    "test:storage-e2e": "playwright test --config playwright.storage.config.js",
     "test:visual": "playwright test e2e/baseline.spec.js",
     "start": "npx wrangler pages dev ./ --kv \"img_url\" --r2=R2_BUCKET --compatibility-date=2026-05-03 --port 8080 --binding APP_ENV=local --binding AUTH_DISABLED=true --binding BASIC_USER=admin --binding BASIC_PASS=123 --binding WEBAUTHN_RP_ID=localhost --binding WEBAUTHN_ORIGIN=http://localhost:8080 --persist-to ./data",
     "pages:r2:doctor": "node scripts/cloudflare-pages-r2-doctor.js",
@@ -32,19 +34,19 @@
   "devDependencies": {
     "@playwright/test": "1.61.1",
     "concurrently": "^10.0.3",
-    "hono": "^4.12.23",
+    "hono": "^4.12.25",
     "mocha": "^11.7.6",
     "pixelmatch": "7.2.0",
     "pngjs": "7.0.0",
     "wait-on": "^9.0.10",
-    "wrangler": "^4.98.0"
+    "wrangler": "^4.110.0"
   },
   "overrides": {
     "@babel/runtime": "^7.29.7",
     "axios": "^1.17.0",
     "diff": "^9.0.0",
     "follow-redirects": "^1.16.0",
-    "form-data": "^4.0.5",
+    "form-data": "^4.0.6",
     "js-yaml": "^4.2.0",
     "lodash": "^4.18.1",
     "serialize-javascript": "^7.0.5"
