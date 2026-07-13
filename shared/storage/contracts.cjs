@@ -198,12 +198,16 @@ function normalizeDriveFile(record = {}) {
 }
 
 function explorerEnvelope(payload = {}) {
+  const folderCursor = Object.hasOwn(payload, 'folderCursor')
+    ? { folderCursor: normalizeNextCursor(payload.folderCursor) }
+    : {};
   return Object.freeze({
     success: true,
     folders: Object.freeze((payload.folders || []).map(normalizeDriveFolder)),
     files: Object.freeze((payload.files || payload.items || []).map(normalizeDriveFile)),
     nextCursor: normalizeNextCursor(payload.nextCursor),
     stats: Object.freeze({ ...(payload.stats || {}) }),
+    ...folderCursor,
   });
 }
 
