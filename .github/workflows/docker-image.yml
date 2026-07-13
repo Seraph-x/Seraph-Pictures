@@ -24,7 +24,7 @@ jobs:
       matrix:
         include:
           - image_name: k-vault-api
-            context: ./server
+            context: .
             file: ./server/Dockerfile
           - image_name: k-vault-web
             context: .
