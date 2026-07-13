@@ -166,8 +166,11 @@ Docker runtime 提供更完整的本地 / 自托管后端，包含 Vue `/api/sto
 
 ```bash
 npm run docker:init-env
+# 编辑 .env，将 BASIC_PASS 替换为非示例密码
 docker compose up -d --build
 ```
+
+Docker 默认启用认证；生产环境不会接受空凭据、示例密码或示例加密密钥。仅在明确设置 `AUTH_DISABLED=true` 时关闭认证。
 
 访问：
 

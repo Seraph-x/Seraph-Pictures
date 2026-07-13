@@ -1,5 +1,14 @@
 ﻿const path = require('node:path');
 
+const PLACEHOLDER_VALUES = new Set([
+  'change_this_password',
+  'replace_with_a_long_random_secret',
+  'replace_with_another_long_random_secret',
+  'changeme',
+  'placeholder',
+]);
+const PLACEHOLDER_PATTERNS = [/^replace_with/i, /^change_this/i, /^your[_-]?(secret|password)/i];
+
 function toBool(value, defaultValue = false) {
   if (value == null || value === '') return defaultValue;
   const normalized = String(value).trim().toLowerCase();
@@ -45,6 +54,27 @@ function pickEnvAlias(env, aliases = [], fallback = '') {
   return { value: normalizeEnvString(fallback), source: '' };
 }
 
+function isPlaceholder(value) {
+  const normalized = String(value || '').trim();
+  if (!normalized || PLACEHOLDER_VALUES.has(normalized)) return true;
+  return PLACEHOLDER_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+function validateProductionConfig(config) {
+  if (config.nodeEnv !== 'production') return config;
+  const invalid = [];
+  if (!config.authDisabled && !config.basicUser) invalid.push('BASIC_USER');
+  if (!config.authDisabled && isPlaceholder(config.basicPass)) invalid.push('BASIC_PASS');
+  if (isPlaceholder(config.configEncryptionKey)) invalid.push('CONFIG_ENCRYPTION_KEY');
+  if (isPlaceholder(config.sessionSecret)) invalid.push('SESSION_SECRET');
+  if (invalid.length === 0) return config;
+
+  const error = new Error(`Insecure production configuration: ${invalid.join(', ')}`);
+  error.code = 'INSECURE_PRODUCTION_CONFIG';
+  error.variables = Object.freeze([...invalid]);
+  throw error;
+}
+
 function loadConfig(env = process.env) {
   const dataDir = env.DATA_DIR
     ? path.resolve(normalizeEnvString(env.DATA_DIR))
@@ -57,7 +87,7 @@ function loadConfig(env = process.env) {
   const githubToken = pickEnvAlias(env, ['GITHUB_TOKEN', 'GH_TOKEN', 'GITHUB_PAT']);
   const githubRepo = pickEnvAlias(env, ['GITHUB_REPO', 'GH_REPO', 'GITHUB_REPOSITORY']);
 
-  return {
+  const config = {
     port: toInt(env.PORT, 8787),
     nodeEnv: normalizeEnvString(env.NODE_ENV, 'development'),
     publicBaseUrl: normalizeEnvString(env.PUBLIC_BASE_URL),
@@ -152,10 +182,12 @@ function loadConfig(env = process.env) {
       },
     },
   };
+  return validateProductionConfig(config);
 }
 
 module.exports = {
   loadConfig,
+  validateProductionConfig,
   toBool,
   toInt,
 };
