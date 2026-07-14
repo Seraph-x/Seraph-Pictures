@@ -9,7 +9,6 @@ Allow administrators to configure multiple backend instances of the same storage
 type, manage them without changing the established visual design, select an exact
 instance for every administrator write operation, and continue reading files from
 all configured instances.
-
 ## 2. Decisions
 - Both legacy and Vue settings/upload surfaces are in scope.
 - Each storage type has its own default instance.
@@ -27,15 +26,13 @@ all configured instances.
 - Upload, URL upload, multipart upload, Drive/admin filtering, status, and file
   migration all gain instance awareness.
 - Existing background, glass cards, typography, spacing, navigation, and general
-  page hierarchy remain unchanged.
-
+page hierarchy remain unchanged.
 ## 3. Non-Goals
 - Guest users cannot select or discover administrator profiles.
 - This work does not introduce a new storage provider.
 - This work does not add load balancing, random selection, or automatic failover.
 - This work does not silently reroute a failed write to another profile.
 - This work does not require a new paid service.
-
 ## 4. Unified Profile Model
 ```json
 {
@@ -50,10 +47,8 @@ all configured instances.
   "updatedAt": 0
 }
 ```
-
 ### 4.1 Invariants
 For each storage type independently:
-
 1. Zero profiles is valid.
 2. If profiles exist, exactly one enabled profile is the default.
 3. At most one profile has `isDefault=true`.
@@ -66,7 +61,6 @@ For each storage type independently:
 
 Creating the first profile of a type requires it to be enabled and makes it the
 default. The API rejects contradictory input rather than rewriting it silently.
-
 ### 4.2 Persistence
 - Cloudflare stores the encrypted catalog in KV schema version 2.
 - Docker stores profiles in SQLite and uses a partial unique index on `type` where
@@ -80,16 +74,18 @@ default. The API rejects contradictory input rather than rewriting it silently.
 - Docker uses SQLite foreign keys and transactional reference queries.
 
 No runtime keeps a second administrator-profile source after migration.
-
 ## 5. Secret Handling
 - Profile secrets remain encrypted at rest with `CONFIG_ENCRYPTION_KEY`.
 - List/get responses never return plaintext secrets.
 - Public profile objects expose `secretsPresent` booleans by field.
+- Public `config` retains the current shape: a present secret is `********` and an
+  absent secret is `""`; `secretsPresent` is an object keyed by every secret field.
 - An omitted or blank secret in an update preserves the existing value.
 - Creating a profile requires every provider-required secret.
+- Secret preservation applies only while the type is unchanged. A permitted type
+  change replaces the whole config and requires every field for the new provider.
 - Draft connection tests accept transient secrets but never persist or log them.
 - Error responses name the missing field but never echo its submitted value.
-
 ## 6. API Contract
 Existing routes remain canonical:
 
@@ -105,15 +101,13 @@ POST   /api/storage/test
 
 All mutations require administrator authentication. Cloudflare and Docker return
 the same envelopes, status codes, and error codes.
-
-`GET /api/storage/list` supports optional `type`, `enabled`, and `includeDisabled`
-filters. It returns disabled profiles to authenticated settings/management pages,
-while upload selectors locally retain only enabled profiles.
+`GET /api/storage/list` always returns every profile to the authenticated caller.
+First-party views perform their explicit type/enabled filtering locally; no list
+query parameters are introduced by this work.
 
 The legacy `/api/storage-config` endpoint stops owning administrator backend
 configuration after migration. It remains responsible only for Guest Channel and
 other non-profile settings still represented there.
-
 ## 7. Selection Contract
 Administrator write requests carry both values:
 
@@ -125,7 +119,6 @@ Administrator write requests carry both values:
 ```
 
 Resolution order is deterministic:
-
 1. With `storageId`, load that exact profile and verify `storageMode` matches.
 2. With only `storageMode`, load that type's enabled default profile.
 3. With neither, load the configured preferred type's enabled default profile.
@@ -133,8 +126,11 @@ Resolution order is deterministic:
 
 There is no cross-profile or cross-type fallback. Existing public API clients that
 send only a type remain compatible through step 2. New first-party clients always
-send both values.
-
+send both values. The preferred type is the existing `DEFAULT_STORAGE_TYPE`
+runtime setting, which remains a non-profile setting with precedence: explicit
+runtime value, pre-migration global-default type, then `telegram`. Migration stores
+the resolved value identically for Cloudflare and Docker; profile CRUD never
+changes it implicitly.
 ## 8. Upload and File Data Flow
 The exact `storageId` travels through:
 
@@ -144,7 +140,10 @@ The exact `storageId` travels through:
 - Drive upload;
 - authenticated API v1 upload;
 - file copy/migration operations.
-
+An initialized multipart upload is an active profile reference. Docker checks both
+`files` and `chunk_uploads`; Cloudflare records a Coordinator lease with expiry.
+Cancel/expiry releases it, while completion atomically converts it to a file
+reference. Profile delete/type-change fails while either reference kind exists.
 Before a write, the runtime loads the decrypted profile, validates type and write
 state, creates an adapter from that profile, and performs the write. Successful
 file metadata persists both `storageType` and `storageConfigId`.
@@ -158,17 +157,19 @@ after profile resolution. Docker already has the required adapter-factory shape
 and is aligned to the same contract.
 
 ### 8.1 R2
-- The current `R2_BUCKET` binding migrates to a default binding-backed profile.
-- Additional R2 profiles use R2's S3-compatible endpoint and credentials.
+- R2 `config.adapterMode` is required and is `binding` or `s3`.
+- `binding` requires `bindingName`; migration uses `R2_BUCKET`. The runtime accepts
+  only an actually configured R2 binding and never falls back to another binding.
+- `s3` requires endpoint, bucket, access key, and secret; region defaults to `auto`.
 - Binding-backed and credential-backed profiles share the same public type and
-  file contract.
+file contract.
+- Adapter selection is exclusively determined by `adapterMode`; required-field and
+  secret-field validation follows that mode.
 - The design requires no extra paid Cloudflare product.
-
 ### 8.2 Guest Upload
 Anonymous requests cannot enumerate profiles and any submitted `storageId` is
 ignored. The server selects only the Guest Channel specified by guest policy.
 Guest quotas, retention, and size limits remain unchanged.
-
 ## 9. Settings UI
 Both `/storage-settings` and `/app/storage` preserve their established visual
 systems. Each storage-type card gains:
@@ -181,7 +182,6 @@ systems. Each storage-type card gains:
 Changing the select loads that instance's masked fields. Normal view is read-only;
 Add or Edit enters form mode. Default-lock and in-use errors are shown adjacent to
 the action area. Guest Channel remains a visually separate section.
-
 The implementation may extract focused JavaScript/Vue components to satisfy the
 project's file and function size limits, but it must not redesign the page.
 
@@ -215,23 +215,30 @@ errors display `type · instance name`.
 ## 12. Migration
 Migration is explicit, backed up, idempotent, and fail-closed:
 
-1. Back up Cloudflare KV catalog/config/file metadata and Docker SQLite.
-2. Freeze storage-config writes through the existing mutation barrier.
-3. Generate deterministic IDs for each configured legacy administrator backend.
-4. Create one default profile per configured type and encrypt its secrets.
-5. Represent the existing R2 binding as its default binding profile.
-6. Backfill historical file records from `storageType` to the deterministic ID.
-7. Seed/update the Cloudflare reference ledger.
-8. Validate counts, per-type defaults, file references, and secret decryption.
-9. Write the migration marker only after validation succeeds.
-10. Unfreeze writes.
+1. Back up v1 Profile Catalog, legacy config, file metadata, Coordinator state, and
+   Docker SQLite; freeze profile and upload mutations.
+2. Preserve IDs/config/timestamps and existing file references from Cloudflare
+   `storage_profiles:v1` and Docker `storage_configs`. Create deterministic IDs only
+   for legacy/env configurations that have no profile.
+3. Per type, retain an enabled old global default; otherwise choose the earliest
+   enabled profile deterministically. A type with profiles but no enabled profile
+   fails migration for explicit operator correction.
+4. Type-only historical files map to the profile used by the pre-migration runtime;
+   existing `storageConfigId` values never change.
+5. Stage Cloudflare catalog at `storage_profiles:v2:<generation>`, backfill metadata,
+   and stage the reference ledger. Validate counts, references, defaults, and secret
+   decryption before activation.
+6. One Coordinator transaction activates the catalog generation and matching ledger
+   version. Runtimes read that exact generation; visibility failure returns 503 and
+   never falls back. The prior generation remains available for pointer rollback.
+7. Docker performs schema, default, and backfill changes in one SQLite transaction.
+8. Write the migration marker after activation, verify live reads, and unfreeze.
 
 Guest Channel fields are excluded. Re-running a completed migration verifies state
 without creating duplicate profiles. Failure preserves old data and returns
 `STORAGE_MIGRATION_FAILED`; no partially migrated catalog becomes active.
 
 ## 13. Error Model
-
 ```text
 STORAGE_SELECTION_REQUIRED
 STORAGE_PROFILE_NOT_FOUND
@@ -250,9 +257,7 @@ without exposing secrets. Infrastructure or Coordinator outages return 503 and d
 not fall back to environment configuration.
 
 ## 14. Testing
-
 ### 14.1 Contracts and repositories
-
 - Per-type default uniqueness and independent types.
 - First-profile behavior and contradictory input rejection.
 - Default lock for disable/delete.
@@ -262,7 +267,6 @@ not fall back to environment configuration.
 - Cloudflare KV and Docker SQLite contract parity.
 
 ### 14.2 Runtime flows
-
 - Exact profile selection for regular, URL, multipart, Drive, and API v1 upload.
 - Type mismatch, missing, disabled, and unavailable profile failures.
 - File metadata stores the profile ID.
@@ -271,13 +275,13 @@ not fall back to environment configuration.
 - Guest requests cannot override or discover the Guest Channel.
 
 ### 14.3 Migration
-
 - Deterministic IDs, idempotency, marker ordering, and backup artifacts.
+- v1/SQLite ID preservation, deterministic legacy IDs, idempotency, and activation.
+- Active multipart lease protection and completed-reference conversion.
 - Historical file backfill and reference-ledger reconciliation.
 - Fault injection at every persistence stage proves no half-active state.
 
 ### 14.4 Frontend and end-to-end
-
 - Same-type select contents and per-type defaults.
 - Versioned browser memory and visible invalid-selection notice.
 - Queue snapshot behavior.
@@ -286,7 +290,6 @@ not fall back to environment configuration.
 - Desktop/mobile visual regression for both legacy and Vue surfaces.
 
 ## 15. Release Gates
-
 1. Full unit/contract suite passes within the repository timeout policy.
 2. Cloudflare and Docker smoke tests pass.
 3. AMD64 and ARM64 Docker images build.
