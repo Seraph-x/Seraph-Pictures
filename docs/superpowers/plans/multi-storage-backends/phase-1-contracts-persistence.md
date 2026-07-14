@@ -35,7 +35,7 @@ presentProfile(profile)
 Keep secret field ownership in one module and have `contracts.cjs` delegate masking.
 Define one error/status mapping for both runtimes, including
 `STORAGE_PROFILE_NOT_FOUND`, `STORAGE_DEFAULT_LOCKED`,
-`STORAGE_PROFILE_IN_USE`, and `STORAGE_PROFILE_DISABLED`.
+`STORAGE_PROFILE_IN_USE`, and `STORAGE_NOT_WRITABLE`.
 
 - [ ] **Step 4: Verify GREEN and metrics**
 
@@ -45,7 +45,7 @@ file at or below 300 lines.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add shared/storage test/storage-profile-policy.test.js test/storage-contract.test.js
+git add shared/storage server/routes/storage/common.js test/storage-profile-policy.test.js test/storage-contract.test.js
 git commit -m "feat: define multi-profile storage policy"
 ```
 
@@ -57,6 +57,8 @@ git commit -m "feat: define multi-profile storage policy"
 - Create: `server/lib/repos/storage-config/row-mapper.js`
 - Create: `server/lib/repos/storage-config/query-repo.js`
 - Create: `server/lib/repos/storage-config/mutation-repo.js`
+- Create: `server/lib/repos/storage-config/reference-repo.js`
+- Create: `server/lib/repos/storage-config/migration-lock-repo.js`
 - Modify: `server/routes/storage/crud.js`
 - Modify: `server/routes/storage/connections.js`
 - Create: `test/storage-profile-docker.test.js`
@@ -68,7 +70,8 @@ git commit -m "feat: define multi-profile storage policy"
 Assert a partial per-type default index, transactional default changes, first-profile
 rules, disabled reads, file/chunk reference locks, type-change replacement, ID
 preservation, deterministic bootstrap, shared HTTP envelopes/error codes, and stored
-plus draft connection tests for every configured type.
+plus draft connection tests for every configured type. Cover a durable write
+reservation and a database-backed global migration lock that block profile mutation.
 
 - [ ] **Step 2: Verify RED**
 
@@ -89,6 +92,9 @@ ON storage_configs(type) WHERE is_default = 1;
 Check `files` and active `chunk_uploads` before delete/type change.
 Routes delegate all conflicts to the shared error mapping rather than hard-coding
 legacy `STORAGE_NOT_FOUND` or `STORAGE_CONFLICT` responses.
+`reference-repo.js` persists pre-backend-write reservations; ambiguous reservations
+continue to count as references. `migration-lock-repo.js` stores an owner/token and
+is checked in the same transaction as every Docker profile mutation.
 
 - [ ] **Step 4: Verify GREEN**
 

@@ -11,6 +11,8 @@
 - Modify: `workers/coordinator/src/index.js`
 - Create: `scripts/security/storage-profile-migration/executor.mjs`
 - Modify: `scripts/security/migrate-storage-profiles.mjs`
+- Modify: `server/lib/repos/storage-config/migration-lock-repo.js`
+- Modify: `server/routes/storage/crud.js`
 - Create: `test/storage-reference-coordinator.test.js`
 - Modify: `test/coordinator-runtime-contract.test.js`
 - Modify: `test/storage-profile-migration.test.js`
@@ -48,6 +50,10 @@ protected. `committing`, `releasing`, and `transferring` never auto-expire.
 every profile mutation/write entry, stages and validates the generation, atomically
 activates matching ledger/catalog generations, live-verifies, writes the marker, and
 finally releases the freeze. A failed stage remains visible and does not activate.
+For Docker the executor acquires the SQLite migration lock created in Task 2 and
+runs schema/data changes plus verification under exclusive database ownership. For
+Cloudflare it uses Coordinator freeze/activation. Both locks are owner-tokened and
+fail closed on contention; no in-memory lock is permitted.
 
 - [ ] **Step 5: Verify GREEN and fault cases**
 
@@ -58,7 +64,7 @@ the catalog mutation repository and migration executor honor the authority; Task
 - [ ] **Step 6: Commit**
 
 ```bash
-git add workers/coordinator scripts/security test/storage-reference-coordinator.test.js test/coordinator-runtime-contract.test.js test/storage-profile-migration.test.js
+git add workers/coordinator scripts/security server/lib/repos/storage-config/migration-lock-repo.js server/routes/storage/crud.js test/storage-reference-coordinator.test.js test/coordinator-runtime-contract.test.js test/storage-profile-migration.test.js
 git commit -m "feat: coordinate storage profile references"
 ```
 
@@ -120,7 +126,8 @@ git commit -m "feat: resolve Cloudflare storage by profile"
 Require both values from first-party and authenticated API v1 payloads, type-match validation, queue operation
 ID idempotency, reference reservation before backend writes, metadata before
 permanent conversion, migration-freeze rejection, and explicit failures at every
-boundary. Assert `commitStart` precedes the first adapter write.
+boundary. Assert Cloudflare `commitStart` and Docker durable reservation both precede
+the first adapter write.
 
 - [ ] **Step 2: Verify RED**
 
@@ -130,7 +137,11 @@ Run new tests and existing upload-service path tests; expect missing profile IDs
 
 `write-operation.js` owns ordering and receives resolver, reference client, adapter,
 metadata repository, and operation ID. Routes parse input and delegate only.
-Docker preserves the same request/error contract using its SQLite transaction path.
+Docker creates a durable profile reservation in SQLite before adapter IO. Success
+atomically inserts file metadata and removes the reservation; failure cleans the
+backend object before removing it. Ambiguous cleanup keeps the reservation and an
+explicit reconciliation record, so delete/type-change remains blocked. Reservation
+creation checks the migration lock in the same transaction.
 
 - [ ] **Step 4: Verify GREEN and no guest regression**
 
@@ -160,7 +171,9 @@ git commit -m "feat: bind direct uploads to storage profiles"
 
 Assert init snapshots ID/type, active lease blocks profile mutation, cancel releases
 only after confirmed chunk/object cleanup, completion uses the original ID, committing survives expiry, retries
-finalize persisted metadata, and mismatch/disabled targets fail at init.
+finalize persisted metadata, and mismatch/disabled targets fail at init. For Docker,
+assert the `chunk_uploads` reference is committed before the first chunk or multipart
+backend write and remains when cleanup outcome is ambiguous.
 
 - [ ] **Step 2: Verify RED**, running the three multipart test files.
 
@@ -168,7 +181,8 @@ finalize persisted metadata, and mismatch/disabled targets fail at init.
 current default after initialization. Before the first chunk/backend mutation,
 transition to non-expiring `committing`. Cancel enters `releasing`, removes every
 chunk/object/metadata artifact, and finishes release only after cleanup is confirmed.
-Keep route functions below 50 lines.
+Docker init checks the migration lock while inserting `chunk_uploads`; cancel keeps
+that row until cleanup confirmation. Keep route functions below 50 lines.
 
 - [ ] **Step 4: Verify GREEN**, including injected failure after KV metadata write.
 
@@ -184,6 +198,8 @@ git commit -m "feat: persist multipart storage profile selection"
 **Files:**
 - Create: `functions/services/storage-runtime/delete-operation.js`
 - Create: `functions/services/storage-runtime/transfer-operation.js`
+- Refactor: `functions/api/manage/delete/[id].js`
+- Create: `functions/api/drive/files/migrate.js`
 - Modify: `functions/services/drive/deletion.js`
 - Modify: `functions/services/drive/routes.js`
 - Modify: `server/lib/services/upload-service.js`
@@ -195,18 +211,27 @@ git commit -m "feat: persist multipart storage profile selection"
 - [ ] **Step 1: Write failing lifecycle tests** for releasing/transfer ordering,
 operation-ID retries, source and destination protection, legacy count decrement,
 metadata/source cleanup failures, and exact migration destination validation.
+Exercise canonical `DELETE /api/manage/delete/:id`, API v1 reuse, batch deletion, and
+`POST /api/drive/files/migrate` with `{ fileIds, destinationStorageId }`.
 
 - [ ] **Step 2: Verify RED** with the three lifecycle/Drive test files.
 
-- [ ] **Step 3: Implement the orchestrators** so a failure over-protects references;
-only reconciliation after confirmed state may finish a release or transfer.
+- [ ] **Step 3: Implement the orchestrators and canonical routes** so every delete
+entry delegates to `delete-operation.js` and resolves persisted `storageConfigId`
+(or the generation legacy map), never global credentials. The migration endpoint
+authenticates, validates one exact enabled destination profile, then delegates each
+file through `transfer-operation.js`. A failure over-protects references; only
+reconciliation after confirmed state may finish a release or transfer.
+Docker first transactionally marks the source lifecycle state and reserves the
+destination while checking the migration lock; external IO follows, and a final
+transaction commits metadata/reference changes.
 
 - [ ] **Step 4: Verify GREEN** and run all Cloudflare/Docker storage tests.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add functions/services/storage-runtime functions/services/drive server/lib/services server/routes/manage test/storage-profile-lifecycle.test.js test/*drive*.test.js
+git add functions/api/manage/delete functions/api/drive/files/migrate.js functions/services/storage-runtime functions/services/drive server/lib/services server/routes/manage test/storage-profile-lifecycle.test.js test/*drive*.test.js
 git commit -m "feat: protect profile references during file lifecycle"
 ```
 
