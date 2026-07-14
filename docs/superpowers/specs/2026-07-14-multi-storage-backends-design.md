@@ -140,13 +140,18 @@ The exact `storageId` travels through:
 - Drive upload;
 - authenticated API v1 upload;
 - file copy/migration operations.
-An initialized multipart upload is an active profile reference. Docker checks both
-`files` and `chunk_uploads`; Cloudflare records a Coordinator lease with expiry.
-Cancel/expiry releases it, while completion atomically converts it to a file
-reference. Profile delete/type-change fails while either reference kind exists.
+Every Cloudflare write first acquires an idempotent Coordinator reference lease;
+multipart keeps it across chunks. After backend persistence, the lease enters
+`committing`, file metadata is written to KV, then one Coordinator transaction
+converts it to a permanent reference. `committing` leases do not expire or release
+automatically. Retry/reconciliation checks the idempotency key and metadata, then
+finalizes it or releases it only after confirmed backend cleanup. Thus a failure can
+temporarily over-protect a profile but cannot leave a file unprotected. Docker uses
+one SQLite transaction and checks both `files` and `chunk_uploads` references.
+Profile delete/type-change fails while any lease or permanent reference exists.
 Before a write, the runtime loads the decrypted profile, validates type and write
 state, creates an adapter from that profile, and performs the write. Successful
-file metadata persists both `storageType` and `storageConfigId`.
+new file metadata persists both `storageType` and `storageConfigId`.
 
 Reads, deletes, moves, shares, and migrations resolve the adapter using the file's
 persisted profile ID even when that profile is disabled. A missing referenced
@@ -184,11 +189,9 @@ Add or Edit enters form mode. Default-lock and in-use errors are shown adjacent 
 the action area. Guest Channel remains a visually separate section.
 The implementation may extract focused JavaScript/Vue components to satisfy the
 project's file and function size limits, but it must not redesign the page.
-
 ## 10. Upload UI
 Existing storage-type chips remain. Beneath them, a select lists enabled profiles
 of the active type and initially chooses that type's default.
-
 Selection is stored under a versioned localStorage key by type. If a remembered
 profile disappears or becomes disabled, the UI displays a notice and then selects
 the current type default. This is an explicit recovery, not silent fallback.
@@ -201,7 +204,6 @@ storageMode, storageId, storageName, targetFolderPath
 
 Later selector changes affect only newly enqueued files. Queue rows, results, and
 errors display `type · instance name`.
-
 ## 11. Drive, Admin, Status, and Migration UI
 - Filters support All Instances or one exact profile.
 - File rows display storage type and profile name.
@@ -211,10 +213,8 @@ errors display `type · instance name`.
   profiles of that type unavailable.
 - Disabled profiles remain selectable for historical-file filtering and source
   operations, but never as write destinations.
-
 ## 12. Migration
 Migration is explicit, backed up, idempotent, and fail-closed:
-
 1. Back up v1 Profile Catalog, legacy config, file metadata, Coordinator state, and
    Docker SQLite; freeze profile and upload mutations.
 2. Preserve IDs/config/timestamps and existing file references from Cloudflare
@@ -223,15 +223,15 @@ Migration is explicit, backed up, idempotent, and fail-closed:
 3. Per type, retain an enabled old global default; otherwise choose the earliest
    enabled profile deterministically. A type with profiles but no enabled profile
    fails migration for explicit operator correction.
-4. Type-only historical files map to the profile used by the pre-migration runtime;
-   existing `storageConfigId` values never change.
-5. Stage Cloudflare catalog at `storage_profiles:v2:<generation>`, backfill metadata,
-   and stage the reference ledger. Validate counts, references, defaults, and secret
-   decryption before activation.
+4. Existing `storageConfigId` values never change. Type-only Cloudflare files remain
+   unmodified and resolve through a generation-scoped immutable
+   `legacyTypeProfileIds` map matching the pre-migration runtime selection.
+5. Stage Cloudflare catalog at `storage_profiles:v2:<generation>` and its reference
+   ledger, including counts for type-only files. Validate them before activation.
 6. One Coordinator transaction activates the catalog generation and matching ledger
    version. Runtimes read that exact generation; visibility failure returns 503 and
    never falls back. The prior generation remains available for pointer rollback.
-7. Docker performs schema, default, and backfill changes in one SQLite transaction.
+7. Docker can backfill type-only rows with the same mapping inside one transaction.
 8. Write the migration marker after activation, verify live reads, and unfreeze.
 
 Guest Channel fields are excluded. Re-running a completed migration verifies state
@@ -269,7 +269,7 @@ not fall back to environment configuration.
 ### 14.2 Runtime flows
 - Exact profile selection for regular, URL, multipart, Drive, and API v1 upload.
 - Type mismatch, missing, disabled, and unavailable profile failures.
-- File metadata stores the profile ID.
+- New file metadata stores the profile ID; legacy mapping is generation-safe.
 - Reads/deletes/migrations continue through disabled profiles.
 - Cross-Telegram instance upload and read.
 - Guest requests cannot override or discover the Guest Channel.
@@ -277,7 +277,7 @@ not fall back to environment configuration.
 ### 14.3 Migration
 - Deterministic IDs, idempotency, marker ordering, and backup artifacts.
 - v1/SQLite ID preservation, deterministic legacy IDs, idempotency, and activation.
-- Active multipart lease protection and completed-reference conversion.
+- Reference lease ordering, idempotent retry, and reconciliation fault injection.
 - Historical file backfill and reference-ledger reconciliation.
 - Fault injection at every persistence stage proves no half-active state.
 
