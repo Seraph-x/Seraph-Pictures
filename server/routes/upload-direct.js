@@ -56,8 +56,9 @@ async function performUpload(options) {
       retentionDays: reservation?.retentionDays,
     });
   } catch (error) {
-    const normalized = helpers.normalizeUploadError(context, error, 502);
-    return context.json({ ...normalized, traceId: helpers.getTraceId(context) }, 502);
+    const status = error?.status || 502;
+    const normalized = helpers.normalizeUploadError(context, error, status);
+    return context.json({ ...normalized, traceId: helpers.getTraceId(context) }, status);
   }
 }
 

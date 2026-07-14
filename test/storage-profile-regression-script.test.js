@@ -27,7 +27,8 @@ describe('multi-profile storage regression scripts', function () {
     assert.match(regression, /body\.append\('storageId',\s*profile\.id\)/);
     for (const source of [regression, smoke]) {
       assert.match(source, /verifyDisabledHistoricalRead/);
-      assert.match(source, /STORAGE_CONFIG_DISABLED/);
+      assert.match(source, /STORAGE_NOT_WRITABLE/);
+      assert.doesNotMatch(source, /STORAGE_CONFIG_DISABLED/);
     }
   });
 

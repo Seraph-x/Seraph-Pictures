@@ -143,7 +143,8 @@ function verifyDisabledHistoricalRead(context) {
     path: '/upload', method: 'POST',
     file: { storageMode: context.firstProfile.type, storageId: context.firstProfile.id },
   });
-  assert(errorCode(blocked.payload) === 'STORAGE_CONFIG_DISABLED', 'STORAGE_CONFIG_DISABLED not returned.');
+  assert(blocked.status === 409, `Disabled profile returned HTTP ${blocked.status}.`);
+  assert(errorCode(blocked.payload) === 'STORAGE_NOT_WRITABLE', 'STORAGE_NOT_WRITABLE not returned.');
 }
 
 function verifyGuestIsolation() {

@@ -141,7 +141,7 @@ async function verifyDisabledHistoricalRead(context, upload) {
   body.append('storageMode', context.firstProfile.type);
   body.append('storageId', context.firstProfile.id);
   const blocked = await request('/upload', { method: 'POST', body, allowError: true });
-  assert(errorCode(blocked.payload) === 'STORAGE_CONFIG_DISABLED', 'STORAGE_CONFIG_DISABLED not returned.');
+  assert(errorCode(blocked.payload) === 'STORAGE_NOT_WRITABLE', 'STORAGE_NOT_WRITABLE not returned.');
 }
 
 async function verifyGuestIsolation() {

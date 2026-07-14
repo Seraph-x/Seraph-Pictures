@@ -48,6 +48,7 @@ describe('CI workflow contract', function () {
     const workflow = readWorkflow();
 
     assert.match(workflow, /uses:\s*actions\/checkout@v4/);
+    assert.match(workflow, /fetch-depth:\s*0/);
     assert.match(workflow, /uses:\s*actions\/setup-node@v4/);
     assert.match(workflow, /timeout-minutes:\s*\d+/);
   });
