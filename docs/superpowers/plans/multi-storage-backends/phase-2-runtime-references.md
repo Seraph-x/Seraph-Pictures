@@ -123,11 +123,14 @@ git commit -m "feat: resolve Cloudflare storage by profile"
 
 - [ ] **Step 1: Write failing direct/URL tests**
 
-Require both values from first-party and authenticated API v1 payloads, type-match validation, queue operation
-ID idempotency, reference reservation before backend writes, metadata before
-permanent conversion, migration-freeze rejection, and explicit failures at every
-boundary. Assert Cloudflare `commitStart` and Docker durable reservation both precede
-the first adapter write.
+Require both values from first-party administrator payloads. For authenticated API
+v1, test both exact `{ storage, storageId }` forwarding and backward-compatible
+type-only `{ storage }` resolution to that type's enabled default. Reject mismatches
+and never fall across types/profiles. Also cover queue operation ID idempotency,
+reservation before backend writes, metadata before permanent conversion,
+migration-freeze rejection, and explicit failures at every boundary. Assert
+Cloudflare `commitStart` and Docker durable reservation precede the first adapter
+write.
 
 - [ ] **Step 2: Verify RED**
 
@@ -137,6 +140,8 @@ Run new tests and existing upload-service path tests; expect missing profile IDs
 
 `write-operation.js` owns ordering and receives resolver, reference client, adapter,
 metadata repository, and operation ID. Routes parse input and delegate only.
+`functions/api/v1/upload.js` forwards `storageId` when supplied; when absent it passes
+only the requested type to the resolver's enabled per-type default path.
 Docker creates a durable profile reservation in SQLite before adapter IO. Success
 atomically inserts file metadata and removes the reservation; failure cleans the
 backend object before removing it. Ambiguous cleanup keeps the reservation and an
