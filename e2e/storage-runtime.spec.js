@@ -244,6 +244,71 @@ test('Drive filters, labels, uploads, migrates, and reports exact profiles', asy
   await expect(statusGrid.getByText('Status Telegram Two')).toBeVisible();
 });
 
+test('Legacy upload and admin preserve exact profile identities', async ({ page, request }) => {
+  const pageErrors = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  const sourceId = await createPagesR2(request, 'Legacy Source');
+  const destinationId = await createPagesR2(request, 'Legacy Archive');
+  await uploadPagesDriveFile(request, 'legacy-source.png', sourceId);
+  let directBody = '';
+  let urlBody = null;
+  let multipartBody = null;
+  await page.route(/\/upload$/, async (route) => {
+    directBody = route.request().postData() || '';
+    await route.fulfill({ json: [{ src: '/file/legacy-direct' }] });
+  });
+  await page.route('**/api/upload-from-url', async (route) => {
+    urlBody = route.request().postDataJSON();
+    await route.fulfill({ json: [{ src: '/file/legacy-url' }] });
+  });
+  await page.route('**/api/chunked-upload/init', async (route) => {
+    multipartBody = route.request().postDataJSON();
+    await route.fulfill({ json: { uploadId: 'legacy-multipart' } });
+  });
+  await page.route('**/api/chunked-upload/chunk', (route) => route.fulfill({ json: { success: true } }));
+  await page.route('**/api/chunked-upload/complete', (route) => route.fulfill({ json: { src: '/file/legacy-multipart' } }));
+
+  await page.goto(`${PAGES_URL}/`);
+  await page.getByRole('button', { name: 'R2 存储' }).click();
+  const uploadProfile = page.locator('[data-storage-profile-select]');
+  await uploadProfile.selectOption(destinationId);
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'legacy-exact.txt', mimeType: 'text/plain', buffer: Buffer.from('legacy-exact'),
+  });
+  await expect.poll(() => directBody).toContain(destinationId);
+  await page.evaluate(() => {
+    document.querySelector('#app').__vue__.uploadConfig.smallFileThreshold = 1;
+    document.querySelector('#app').__vue__.uploadLimits.r2.directThreshold = 1;
+  });
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'legacy-multipart.txt', mimeType: 'text/plain', buffer: Buffer.from('multipart'),
+  });
+  await expect.poll(() => multipartBody?.storageId).toBe(destinationId);
+  await page.getByRole('button', { name: 'URL上传' }).click();
+  await page.locator('.url-input-container input').fill('https://example.test/legacy.png');
+  await page.locator('.url-input-container button').click();
+  await expect.poll(() => urlBody?.storageId).toBe(destinationId);
+
+  const explorerRequests = [];
+  page.on('request', (event) => {
+    if (event.url().includes('/api/drive/explorer')) explorerRequests.push(event.url());
+  });
+  await page.goto(`${PAGES_URL}/admin`);
+  const filter = page.locator('[data-storage-profile-filter]');
+  await filter.selectOption(sourceId);
+  await expect.poll(() => explorerRequests.some((url) => url.includes(`storageId=${sourceId}`))).toBe(true);
+  await page.evaluate(() => { document.querySelector('#app').__vue__.viewMode = 'list'; });
+  const sourceLabels = page.locator('.el-table__body .cell').filter({ hasText: 'r2 · Legacy Source' });
+  await expect(sourceLabels.first()).toBeVisible();
+  await page.locator('.el-table__body .el-checkbox').first().click();
+  const destination = page.locator('[data-migration-storage-profile]');
+  await expect(destination.locator(`option[value="${sourceId}"]`)).toHaveCount(0);
+  await destination.selectOption(destinationId);
+  await page.getByRole('button', { name: 'Migrate' }).click();
+  await expect(page.getByText('legacy-source.png')).toHaveCount(0);
+  expect(pageErrors).toEqual([]);
+});
+
 test('Pages and Docker expose matching Storage and Drive contracts', async ({ request }) => {
   const pagesStorage = await exerciseStorage(request, PAGES_URL);
   const dockerStorage = await exerciseStorage(request, DOCKER_URL);

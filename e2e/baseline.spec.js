@@ -59,7 +59,16 @@ async function installFixtures(page, fixture) {
     if (pathname === '/api/status') body = fixture.status;
     if (pathname.includes('/manage/list')) body = { items: fixture.files, nextCursor: null };
     if (pathname.includes('/manage/folders')) body = { folders: fixture.folders };
-    if (pathname === '/api/storage/list') body = { success: true, items: [] };
+    if (pathname === '/api/storage/list') {
+      const legacyProfilePage = pagePath === '/' || pagePath === '/admin';
+      body = {
+        success: true,
+        items: legacyProfilePage ? [{
+          id: 'baseline-telegram', name: 'Primary', type: 'telegram',
+          enabled: true, isDefault: true, config: { botToken: '********', chatId: 'baseline' },
+        }] : [],
+      };
+    }
     if (pathname === '/api/storage-config') {
       body = {
         success: true,
@@ -148,6 +157,13 @@ function screenshotOptions(page, route) {
       page.locator('[data-storage-profile-select]'),
       page.locator('.profile-actions'),
       page.locator('#actionbar'),
+    ];
+  }
+  if (route.key === '/') options.mask = [page.locator('[data-storage-profile-select]')];
+  if (route.key === '/admin') {
+    options.mask = [
+      page.locator('[data-storage-profile-filter]'),
+      page.locator('[data-migration-storage-profile]'),
     ];
   }
   return options;

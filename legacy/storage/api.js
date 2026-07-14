@@ -26,7 +26,7 @@
   function storageRequestFactory(options) {
     const fetchImpl = options.fetchImpl || fetch;
     const onUnauthorized = options.onUnauthorized || function redirect() {
-      window.location.href = '/login.html';
+      window.location.href = '/login';
     };
     return async function request(path, init = {}) {
       const headers = {

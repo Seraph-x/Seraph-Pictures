@@ -213,3 +213,243 @@ describe('legacy storage profile settings', function () {
     assert.match(observedInit.headers.Accept, /application\/vnd\.seraph\.v2\+json/);
   });
 });
+
+describe('legacy upload and admin profile interfaces', function () {
+  const uploadModules = [
+    'app', 'state', 'profile-mixin', 'upload-methods', 'multipart-methods',
+    'history-methods', 'url-upload-methods', 'auth-methods', 'i18n',
+  ];
+  const adminModules = [
+    'app', 'state', 'api', 'auth-methods', 'profile-mixin', 'drive-methods',
+    'folder-methods', 'dashboard-methods', 'migration-methods', 'settings-methods',
+  ];
+
+  it('extracts both Vue 2 shells and every planned behavior module', function () {
+    for (const shell of ['index.html', 'admin.html']) {
+      assert.ok(read(shell).split('\n').length <= 300, `${shell} exceeds 300 lines`);
+    }
+    for (const name of uploadModules) {
+      assert.ok(fs.existsSync(path.join(ROOT, `legacy/pages/upload/${name}.js`)), name);
+    }
+    for (const name of adminModules) {
+      assert.ok(fs.existsSync(path.join(ROOT, `legacy/pages/admin/${name}.js`)), name);
+    }
+    assert.doesNotMatch(read('index.html'), /new Vue\s*\(/);
+    assert.doesNotMatch(read('admin.html'), /new Vue\s*\(/);
+  });
+
+  it('keeps every extracted legacy page asset below 300 lines', function () {
+    for (const page of ['upload', 'admin']) {
+      const directory = path.join(ROOT, `legacy/pages/${page}`);
+      const pending = [directory];
+      while (pending.length) {
+        const current = pending.pop();
+        for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+          const target = path.join(current, entry.name);
+          if (entry.isDirectory()) pending.push(target);
+          if (!entry.isFile() || !/\.(?:js|css)$/.test(entry.name)) continue;
+          const lines = fs.readFileSync(target, 'utf8').split('\n').length;
+          assert.ok(lines <= 300, `${path.relative(ROOT, target)} exceeds 300 lines`);
+        }
+      }
+    }
+  });
+
+  it('snapshots exact upload instances and forwards them through every transport', function () {
+    const profileModule = require('../legacy/pages/upload/profile-mixin.js');
+    const target = profileModule.snapshotUploadTarget({
+      storageMode: 'telegram',
+      profile: { id: 'tg-a', type: 'telegram', name: 'Primary', enabled: true },
+      folderPath: 'album',
+    });
+    const next = profileModule.snapshotUploadTarget({
+      storageMode: 'telegram',
+      profile: { id: 'tg-b', type: 'telegram', name: 'Archive', enabled: true },
+      folderPath: 'later',
+    });
+    assert.deepEqual(target, {
+      storageMode: 'telegram', storageId: 'tg-a', storageName: 'Primary', folderPath: 'album',
+    });
+    assert.equal(target.storageId, 'tg-a');
+    assert.equal(next.storageId, 'tg-b');
+    assert.ok(Object.isFrozen(target));
+
+    const appended = [];
+    profileModule.appendUploadTarget({ append: (...args) => appended.push(args) }, target);
+    assert.deepEqual(appended, [
+      ['storageMode', 'telegram'], ['storageId', 'tg-a'], ['folderPath', 'album'],
+    ]);
+    assert.deepEqual(profileModule.buildUrlUploadPayload({ url: 'https://example.test/a.png', target }), {
+      url: 'https://example.test/a.png', storageMode: 'telegram', storageId: 'tg-a', folderPath: 'album',
+    });
+    assert.deepEqual(profileModule.buildMultipartInit({ file: { name: 'a.png', size: 7, type: 'image/png' }, target }), {
+      fileName: 'a.png', fileSize: 7, fileType: 'image/png',
+      storageMode: 'telegram', storageId: 'tg-a', folderPath: 'album',
+    });
+  });
+
+  it('keeps Guest isolated and reports remembered profile replacement', function () {
+    const profileModule = require('../legacy/pages/upload/profile-mixin.js');
+    const profiles = [
+      { id: 'tg-a', type: 'telegram', name: 'Primary', enabled: true, isDefault: true },
+      { id: 'tg-b', type: 'telegram', name: 'Disabled', enabled: false, isDefault: false },
+    ];
+    assert.deepEqual(profileModule.resolveUploadSelection({
+      profiles, storageMode: 'telegram', rememberedId: 'tg-b', isGuest: false,
+    }), { profile: profiles[0], notice: 'STORAGE_PROFILE_SELECTION_RESET' });
+    assert.throws(() => profileModule.resolveUploadSelection({
+      profiles, storageMode: 'telegram', rememberedId: 'tg-a', isGuest: true,
+    }), /GUEST_PROFILE_ENUMERATION_FORBIDDEN/);
+  });
+
+  it('builds exact admin filters, enabled migration targets, and labels', function () {
+    const profileModule = require('../legacy/pages/admin/profile-mixin.js');
+    assert.equal(profileModule.buildProfileQuery({ storageId: 'tg-a' }).toString(), 'storageId=tg-a');
+    const profiles = [
+      { id: 'tg-a', type: 'telegram', name: 'Primary', enabled: true },
+      { id: 'tg-b', type: 'telegram', name: 'Archive', enabled: true },
+      { id: 'tg-c', type: 'telegram', name: 'Disabled', enabled: false },
+    ];
+    assert.deepEqual(
+      profileModule.migrationTargets({ profiles, sourceIds: ['tg-a'] }).map((item) => item.id),
+      ['tg-b'],
+    );
+    assert.equal(profileModule.profileLabel({
+      metadata: { storageType: 'telegram', storageName: 'Archive' },
+    }), 'telegram · Archive');
+  });
+
+  it('wires the upload picker without exposing profiles to Guest', function () {
+    const template = read('legacy/pages/upload/components/storage-target-picker.js');
+    const methods = [
+      read('legacy/pages/upload/upload-methods.js'),
+      read('legacy/pages/upload/upload-methods-2.js'),
+      read('legacy/pages/upload/upload-methods-3.js'),
+      read('legacy/pages/upload/url-upload-methods.js'),
+      read('legacy/pages/upload/multipart-methods.js'),
+    ].join('\n');
+    assert.match(template, /data-storage-profile-select/);
+    assert.match(template, /v-if="!isGuest"/);
+    assert.match(template, /uploadProfileChoices/);
+    assert.match(methods, /snapshotUploadTarget/);
+    assert.match(methods, /uploadTarget:\s*context/);
+    assert.match(methods, /appendUploadTarget/);
+    assert.match(methods, /buildUrlUploadPayload/);
+    assert.match(methods, /buildMultipartInit/);
+    assert.doesNotMatch(methods, /item\.storageMode\s*\|\|\s*this\.storageMode/);
+  });
+
+  it('wires exact admin profile filters, labels, and migration controls', function () {
+    const templates = fs.readdirSync(path.join(ROOT, 'legacy/pages/admin/components'))
+      .map((name) => read(`legacy/pages/admin/components/${name}`)).join('\n');
+    const drive = [
+      read('legacy/pages/admin/drive-methods.js'),
+      read('legacy/pages/admin/drive-methods-2.js'),
+      read('legacy/pages/admin/drive-methods-3.js'),
+    ].join('\n');
+    assert.match(templates, /data-storage-profile-filter/);
+    assert.match(templates, /data-migration-storage-profile/);
+    assert.match(templates, /getProfileLabel\((?:item|scope\.row)\)/);
+    assert.match(drive, /params\.set\('storageId',\s*this\.storageProfileId\)/);
+    assert.match(read('legacy/pages/admin/migration-methods.js'), /migrateSelectedFiles/);
+  });
+
+  it('binds UI design uploads to the exact enabled admin profile', async function () {
+    const previousMixins = global.LegacyAdminMixins;
+    const previousFetch = global.fetch;
+    global.LegacyAdminMixins = [];
+    delete require.cache[require.resolve('../legacy/pages/admin/dashboard-methods.js')];
+    require('../legacy/pages/admin/dashboard-methods.js');
+    const method = global.LegacyAdminMixins[0].methods.uploadUiDesignBackgroundFile;
+    let submitted = null;
+    global.fetch = async (_url, init) => {
+      submitted = init.body;
+      return { ok: true, async json() { return [{ src: '/file/background' }]; } };
+    };
+    try {
+      const context = {
+        baseURL: 'https://example.test', folderPath: 'branding',
+        selectedStorageProfile: { id: 'r2-brand', type: 'r2', enabled: true },
+        t: () => 'upload failed',
+      };
+      const result = await method.call(context, new Blob(['image']));
+      assert.equal(result, 'https://example.test/file/background');
+      assert.equal(submitted.get('storageMode'), 'r2');
+      assert.equal(submitted.get('storageId'), 'r2-brand');
+      await assert.rejects(
+        method.call({ ...context, selectedStorageProfile: null }, new Blob(['image'])),
+        /STORAGE_SELECTION_REQUIRED/,
+      );
+    } finally {
+      global.fetch = previousFetch;
+      global.LegacyAdminMixins = previousMixins;
+    }
+  });
+
+  it('exposes malformed UI design upload responses', async function () {
+    const previousMixins = global.LegacyAdminMixins;
+    const previousFetch = global.fetch;
+    global.LegacyAdminMixins = [];
+    delete require.cache[require.resolve('../legacy/pages/admin/dashboard-methods.js')];
+    require('../legacy/pages/admin/dashboard-methods.js');
+    const method = global.LegacyAdminMixins[0].methods.uploadUiDesignBackgroundFile;
+    global.fetch = async () => ({
+      ok: true,
+      async json() { throw new Error('INVALID_UPLOAD_JSON'); },
+    });
+    try {
+      await assert.rejects(method.call({
+        baseURL: '', folderPath: '', t: () => 'upload failed',
+        selectedStorageProfile: { id: 'tg-a', type: 'telegram', enabled: true },
+      }, new Blob(['image'])), /INVALID_UPLOAD_JSON/);
+    } finally {
+      global.fetch = previousFetch;
+      global.LegacyAdminMixins = previousMixins;
+    }
+  });
+
+  it('distinguishes delete cancellation from confirmation failures', async function () {
+    const previousMixins = global.LegacyAdminMixins;
+    global.LegacyAdminMixins = [];
+    delete require.cache[require.resolve('../legacy/pages/admin/drive-methods-3.js')];
+    require('../legacy/pages/admin/drive-methods-3.js');
+    const methods = global.LegacyAdminMixins[0].methods;
+    const method = methods.handleDelete;
+    const context = {
+      ...methods,
+      $confirm: async () => { throw new Error('CONFIRM_INFRASTRUCTURE_FAILED'); },
+      $message: { info() {}, error() {}, success() {} },
+    };
+    try {
+      await assert.rejects(method.call(context, 0, 'file-a'), /CONFIRM_INFRASTRUCTURE_FAILED/);
+      context.$confirm = async () => { throw 'cancel'; };
+      await method.call(context, 0, 'file-a');
+    } finally {
+      global.LegacyAdminMixins = previousMixins;
+    }
+  });
+
+  it('writes mobile navigation metrics through the document root style', function () {
+    const previousMixins = global.LegacyAdminMixins;
+    const previousDocument = global.document;
+    const previousWindow = global.window;
+    const properties = [];
+    global.LegacyAdminMixins = [];
+    global.document = {
+      documentElement: { style: { setProperty: (...args) => properties.push(args) } },
+      querySelector: () => null,
+    };
+    global.window = { matchMedia: () => ({ matches: false }) };
+    delete require.cache[require.resolve('../legacy/pages/admin/core-methods.js')];
+    require('../legacy/pages/admin/core-methods.js');
+    try {
+      const method = global.LegacyAdminMixins[0].methods.updateMobileNavMetrics;
+      method.call({ $el: null });
+      assert.deepEqual(properties, [['--nav-height', '0px'], ['--nav-offset', '0px']]);
+    } finally {
+      global.document = previousDocument;
+      global.window = previousWindow;
+      global.LegacyAdminMixins = previousMixins;
+    }
+  });
+});
