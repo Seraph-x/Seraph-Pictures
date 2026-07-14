@@ -8,7 +8,10 @@
                 {{ profile.type }} · {{ profile.name }}
               </option>
             </select>
-            <div class="storage-profile-notice" v-if="storageProfileNotice" role="status">
+            <div class="storage-profile-notice" v-if="storageProfileError" role="alert">
+              {{ storageProfileError }}
+            </div>
+            <div class="storage-profile-notice" v-else-if="storageProfileNotice" role="status">
               The saved backend is unavailable. The default backend is selected.
             </div>
           </div>`;

@@ -13,7 +13,7 @@ const RUNTIME_PATH = path.resolve('.wrangler/auth-e2e-runtime.json');
 const REPO_ROOT = process.cwd();
 const WRANGLER_BIN = path.resolve('node_modules/.bin/wrangler');
 const UNBOUND_ASSETS = [
-  'functions', 'login.html', 'favicon.svg', 'favicon.ico', 'logo.png',
+  'functions', 'shared', 'login.html', 'favicon.svg', 'favicon.ico', 'logo.png',
   'theme.css', 'theme.js', 'i18n.js', 'claude-theme.css',
   'mobile-refactor.css', 'claude-layout.css',
 ];

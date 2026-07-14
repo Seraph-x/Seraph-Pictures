@@ -2,6 +2,7 @@ import fileMetadataPolicy from '../shared/security/file-metadata.cjs';
 import { checkAuthentication, isAuthRequired } from './utils/auth.js';
 import { handleGuestUpload } from './services/guest-upload-handler.js';
 import { callAuthCoordinator } from './utils/auth/coordinator-client.js';
+import { withAuthErrorResponse } from './utils/auth/http-errors.js';
 
 const { createAccessMetadata, resolveStoredAccessMetadata } = fileMetadataPolicy;
 const FILE_UPLOAD_PATHS = Object.freeze(new Set([
@@ -147,10 +148,12 @@ function requiresLease(request, pathname) {
   return SIDE_EFFECT_GET_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
-export async function onRequest(context) {
+async function handleRequest(context) {
   const pathname = new URL(context.request.url).pathname.replace(/\/+$/, '') || '/';
   if (!requiresLease(context.request, pathname) || pathname === BARRIER_CONTROL_PATH) {
     return continueRequest(context);
   }
   return guardedMutation(context);
 }
+
+export const onRequest = withAuthErrorResponse(handleRequest);

@@ -90,13 +90,60 @@
     return value;
   }
 
-  function createUploadProfileMixin(options) {
-    const api = options.api;
-    const storage = options.storage;
-    return Object.freeze({
-      data() {
-        return { storageProfiles: [], storageId: '', storageName: '', storageProfileNotice: '' };
+  function profileErrorCode(cause) {
+    return String(cause?.code || cause?.message || 'STORAGE_PROFILE_LOAD_FAILED');
+  }
+
+  function profileMethods(api, storage) {
+    return {
+      async loadStorageProfiles() {
+        if (this.isGuest) return;
+        this.storageProfileError = '';
+        try {
+          this.storageProfiles = Object.freeze(await api.listProfiles());
+          this.resolveStorageProfile();
+        } catch (cause) {
+          this.storageProfiles = Object.freeze([]);
+          this.storageId = '';
+          this.storageName = '';
+          this.storageTarget = '';
+          this.storageProfileError = profileErrorCode(cause);
+        }
       },
+      resolveStorageProfile() {
+        const result = resolveUploadSelection({
+          profiles: this.storageProfiles,
+          storageMode: this.storageMode,
+          rememberedId: readProfileMemory(storage, this.storageMode),
+          isGuest: this.isGuest,
+        });
+        this.storageId = result.profile.id;
+        this.storageName = result.profile.name;
+        this.storageTarget = `${result.profile.type} · ${result.profile.name}`;
+        this.storageProfileNotice = result.notice;
+        return result.profile;
+      },
+      selectStorageProfile(id) {
+        const profile = this.storageProfiles.find((item) => (
+          item.id === id && item.type === this.storageMode && item.enabled
+        ));
+        if (!profile) throw uploadProfileError('STORAGE_NOT_WRITABLE');
+        this.storageId = profile.id;
+        this.storageName = profile.name;
+        this.storageTarget = `${profile.type} · ${profile.name}`;
+        this.storageProfileNotice = '';
+        this.storageProfileError = '';
+        rememberProfile(storage, this.storageMode, profile.id);
+      },
+    };
+  }
+
+  function createUploadProfileMixin(options) {
+    return Object.freeze({
+      data: () => ({
+        storageProfiles: [], storageId: '', storageName: '',
+        storageProfileNotice: '', storageProfileError: '',
+      }),
       computed: {
         uploadProfileChoices() {
           return this.storageProfiles.filter((profile) => (
@@ -104,37 +151,7 @@
           ));
         },
       },
-      methods: {
-        async loadStorageProfiles() {
-          if (this.isGuest) return;
-          this.storageProfiles = Object.freeze(await api.listProfiles());
-          this.resolveStorageProfile();
-        },
-        resolveStorageProfile() {
-          const result = resolveUploadSelection({
-            profiles: this.storageProfiles,
-            storageMode: this.storageMode,
-            rememberedId: readProfileMemory(storage, this.storageMode),
-            isGuest: this.isGuest,
-          });
-          this.storageId = result.profile.id;
-          this.storageName = result.profile.name;
-          this.storageTarget = `${result.profile.type} · ${result.profile.name}`;
-          this.storageProfileNotice = result.notice;
-          return result.profile;
-        },
-        selectStorageProfile(id) {
-          const profile = this.storageProfiles.find((item) => (
-            item.id === id && item.type === this.storageMode && item.enabled
-          ));
-          if (!profile) throw uploadProfileError('STORAGE_NOT_WRITABLE');
-          this.storageId = profile.id;
-          this.storageName = profile.name;
-          this.storageTarget = `${profile.type} · ${profile.name}`;
-          this.storageProfileNotice = '';
-          rememberProfile(storage, this.storageMode, profile.id);
-        },
-      },
+      methods: profileMethods(options.api, options.storage),
     });
   }
 
