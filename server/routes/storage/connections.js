@@ -29,7 +29,7 @@ function registerStoredTest(app, helpers) {
     const { storageRepo, storageFactory } = helpers.getServices(context);
     const item = storageRepo.getById(context.req.param('id'), true);
     if (!item) return storageError(context, helpers, null, {
-      status: 404, code: 'STORAGE_NOT_FOUND', message: 'Storage config not found.',
+      status: 404, code: 'STORAGE_PROFILE_NOT_FOUND', message: 'Storage profile not found.',
     });
     return testAdapter(context, helpers, storageFactory.createAdapter(item));
   });

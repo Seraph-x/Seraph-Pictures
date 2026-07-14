@@ -14,7 +14,27 @@ CREATE TABLE IF NOT EXISTS storage_configs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_storage_configs_type ON storage_configs(type);
-CREATE INDEX IF NOT EXISTS idx_storage_configs_default ON storage_configs(is_default);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_storage_default_per_type
+ON storage_configs(type) WHERE is_default = 1;
+
+CREATE TABLE IF NOT EXISTS storage_write_references (
+  operation_id TEXT PRIMARY KEY,
+  storage_config_id TEXT NOT NULL,
+  state TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  FOREIGN KEY(storage_config_id) REFERENCES storage_configs(id) ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS idx_storage_write_references_profile
+ON storage_write_references(storage_config_id);
+
+CREATE TABLE IF NOT EXISTS storage_migration_lock (
+  singleton_id INTEGER PRIMARY KEY CHECK(singleton_id = 1),
+  owner TEXT NOT NULL,
+  token TEXT NOT NULL,
+  acquired_at INTEGER NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS files (
   id TEXT PRIMARY KEY,

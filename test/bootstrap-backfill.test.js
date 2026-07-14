@@ -39,5 +39,9 @@ describe('Storage bootstrap backfill', function () {
 
     const phase2Types = second.storageRepo.list(false).map((item) => item.type).sort();
     assert.deepStrictEqual(phase2Types, ['github', 'huggingface', 'telegram']);
+    assert.deepStrictEqual(
+      second.storageRepo.list(false).filter((item) => item.isDefault).map((item) => item.type).sort(),
+      ['github', 'huggingface', 'telegram'],
+    );
   });
 });
