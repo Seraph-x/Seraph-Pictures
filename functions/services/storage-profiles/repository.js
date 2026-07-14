@@ -59,6 +59,14 @@ export function createStorageProfileRepository(env, dependencies = {}) {
   }
 
   return Object.freeze({
+    async runtimeSnapshot() {
+      const { catalog, items } = await read();
+      return Object.freeze({
+        generation: catalog.generation,
+        items,
+        legacyTypeProfileIds: catalog.legacyTypeProfileIds,
+      });
+    },
     async list(options = {}) {
       const { items } = await read();
       return items.map((item) => publicProfile(item, options.includeSecrets));
