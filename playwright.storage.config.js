@@ -2,7 +2,7 @@ const { defineConfig } = require('@playwright/test');
 
 module.exports = defineConfig({
   testDir: './e2e',
-  testMatch: 'storage-runtime.spec.js',
+  testMatch: ['storage-runtime.spec.js', 'storage-profile-settings.spec.js'],
   workers: 1,
   fullyParallel: false,
   timeout: 90_000,

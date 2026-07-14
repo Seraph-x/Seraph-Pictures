@@ -19,15 +19,27 @@ async function expectJson(response, status = 200) {
   return body;
 }
 
-async function initialize(request, fileName) {
+async function initialize(request, fileName, storageId) {
   const bytes = Buffer.alloc(PART_SIZE, fileName.charCodeAt(0));
   const body = await expectJson(await request.post(`${PAGES_URL}/api/chunked-upload/init`, {
     data: {
       fileName, fileType: 'image/png', fileSize: bytes.length,
-      totalChunks: 1, rootDigest: digest(bytes), storageMode: 'r2', visibility: 'private',
+      totalChunks: 1, rootDigest: digest(bytes), storageMode: 'r2', storageId,
+      visibility: 'private',
     },
   }));
   return Object.freeze({ bytes, uploadId: body.uploadId });
+}
+
+async function createPagesR2(request) {
+  const body = await expectJson(await request.post(`${PAGES_URL}/api/storage`, {
+    headers: APP_HEADERS,
+    data: {
+      name: 'E2E R2', type: 'r2',
+      config: { adapterMode: 'binding', bindingName: 'R2_BUCKET' },
+    },
+  }));
+  return body.item.id;
 }
 
 function partForm(upload, bytes = upload.bytes) {
@@ -70,7 +82,8 @@ async function exerciseDrive(request, baseURL, suffix) {
 }
 
 test('real Pages R2 multipart persists retries, conflicts, completion, and cancellation', async ({ request }) => {
-  const upload = await initialize(request, 'success.png');
+  const storageConfigId = await createPagesR2(request);
+  const upload = await initialize(request, 'success.png', storageConfigId);
   const first = await request.post(`${PAGES_URL}/api/chunked-upload/chunk`, { multipart: partForm(upload) });
   await expectJson(first);
   await expectJson(await request.post(`${PAGES_URL}/api/chunked-upload/chunk`, {
@@ -91,7 +104,7 @@ test('real Pages R2 multipart persists retries, conflicts, completion, and cance
     data: { uploadId: upload.uploadId },
   }));
 
-  const cancelled = await initialize(request, 'cancel.png');
+  const cancelled = await initialize(request, 'cancel.png', storageConfigId);
   const cancel = await expectJson(await request.delete(`${PAGES_URL}/api/chunked-upload/cancel`, {
     data: { uploadId: cancelled.uploadId },
   }));

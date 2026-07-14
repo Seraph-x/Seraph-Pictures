@@ -19,6 +19,9 @@ function resolveErrorMessage(payload, fallback) {
   if (!isPlainObject(payload)) return fallback;
 
   if (typeof payload.error === 'string' && payload.error.trim()) return payload.error.trim();
+  if (isPlainObject(payload.error) && typeof payload.error.code === 'string' && payload.error.code.trim()) {
+    return payload.error.code.trim();
+  }
   if (isPlainObject(payload.error) && typeof payload.error.message === 'string' && payload.error.message.trim()) {
     return payload.error.message.trim();
   }
