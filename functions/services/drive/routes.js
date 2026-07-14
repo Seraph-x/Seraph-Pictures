@@ -5,12 +5,19 @@ import paginationModule from '../../../shared/storage/pagination.cjs';
 import { createDriveRepository } from './repository.js';
 import { deleteFileBatch, deleteFolder } from './deletion.js';
 import { normalizeDrivePath } from './records.js';
+import { migrateFileBatch } from './migration.js';
 
 const { driveEnvelope } = contractModule;
 const { normalizePageRequest } = paginationModule;
 
 function success(kind, payload) {
   return Response.json(driveEnvelope(kind, payload));
+}
+
+function repository(context) {
+  return createDriveRepository(context.env, {
+    profileSnapshot: context.data?.storageProfileSnapshot,
+  });
 }
 
 function errorResponse(error) {
@@ -62,7 +69,8 @@ function explorerFilters(url) {
   }
   return Object.freeze({
     path: normalizeDrivePath(url.searchParams.get('path') || ''),
-    storage: String(url.searchParams.get('storage') || 'all').toLowerCase(),
+    storageId: String(url.searchParams.get('storageId') || 'all').trim(),
+    storageType: String(url.searchParams.get('storage') || 'all').toLowerCase(),
     search: String(url.searchParams.get('search') || '').trim().toLowerCase(),
     listType: String(url.searchParams.get('listType') || 'all').toLowerCase(),
     visibility,
@@ -74,7 +82,7 @@ export async function listTree(context) {
   const page = normalizePageRequest({
     limit: url.searchParams.get('limit'), cursor: url.searchParams.get('cursor'),
   });
-  const result = await createDriveRepository(context.env).listFolderPage(page);
+  const result = await repository(context).listFolderPage(page);
   return Response.json({ ...driveEnvelope('nodes', result.nodes), nextCursor: result.nextCursor });
 }
 
@@ -83,7 +91,7 @@ export async function listExplorer(context) {
   const page = normalizePageRequest({
     limit: url.searchParams.get('limit'), cursor: url.searchParams.get('cursor'),
   });
-  const result = await createDriveRepository(context.env).listExplorerPage({
+  const result = await repository(context).listExplorerPage({
     ...page, filters: explorerFilters(url),
     includeStats: truthy(url.searchParams.get('includeStats')),
   });
@@ -92,13 +100,13 @@ export async function listExplorer(context) {
 
 export async function createFolderRoute(context) {
   const input = await body(context);
-  const folder = await createDriveRepository(context.env).createFolder(input.path);
+  const folder = await repository(context).createFolder(input.path);
   return success('folder', folder);
 }
 
 export async function moveFolderRoute(context) {
   const input = await body(context);
-  const result = await createDriveRepository(context.env).moveFolder(input.sourcePath, input.targetPath);
+  const result = await repository(context).moveFolder(input.sourcePath, input.targetPath);
   return success('mutation', result);
 }
 
@@ -106,25 +114,33 @@ export async function deleteFolderRoute(context) {
   const url = new URL(context.request.url);
   const path = normalizeDrivePath(url.searchParams.get('path'));
   if (!path) throw Object.assign(new Error('DRIVE_PATH_REQUIRED'), { code: 'DRIVE_PATH_REQUIRED', status: 400 });
-  const repository = createDriveRepository(context.env);
-  return success('mutation', await deleteFolder(context, repository, path, truthy(url.searchParams.get('recursive'))));
+  const driveRepository = repository(context);
+  return success('mutation', await deleteFolder({
+    context,
+    repository: driveRepository,
+    path,
+    recursive: truthy(url.searchParams.get('recursive')),
+  }));
 }
 
 export async function moveFilesRoute(context) {
   const input = await body(context);
-  const result = await createDriveRepository(context.env).moveFiles(input.ids || [], input.targetFolderPath || '');
+  const result = await repository(context).moveFiles(input.ids || [], input.targetFolderPath || '');
   return success('mutation', result);
 }
 
 export async function renameFileRoute(context) {
   const input = await body(context);
-  const file = await createDriveRepository(context.env).renameFile(input.id, input.fileName);
+  const file = await repository(context).renameFile(input.id, input.fileName);
   if (!file) throw Object.assign(new Error('FILE_NOT_FOUND'), { code: 'FILE_NOT_FOUND', status: 404 });
   return success('file', file);
 }
 
 export async function deleteFilesRoute(context) {
   const input = await body(context);
-  const repository = createDriveRepository(context.env);
-  return success('mutation', await deleteFileBatch(context, repository, input.ids));
+  return success('mutation', await deleteFileBatch(context, repository(context), input.ids));
+}
+
+export async function migrateFilesRoute(context) {
+  return success('mutation', await migrateFileBatch(context, await body(context)));
 }

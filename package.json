@@ -24,7 +24,8 @@
     "docker:down": "docker compose down",
     "docker:doctor": "node scripts/docker-storage-doctor.js",
     "docker:smoke:ci": "node scripts/docker-ci-smoke.js",
-    "regression:storage": "node scripts/storage-regression.js"
+    "regression:storage": "node scripts/storage-regression.js",
+    "migrate:storage-profiles": "node scripts/security/migrate-storage-profiles.mjs"
   },
   "dependencies": {
     "@cloudflare/pages-plugin-sentry": "^1.1.4",
@@ -32,6 +33,7 @@
     "@simplewebauthn/server": "^13.3.1"
   },
   "devDependencies": {
+    "@babel/parser": "^7.29.7",
     "@playwright/test": "1.61.1",
     "concurrently": "^10.0.3",
     "hono": "^4.12.25",

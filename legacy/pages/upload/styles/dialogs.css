@@ -1,0 +1,48 @@
+.action-btn{width:32px;height:32px;border:none;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.3s;background:rgba(217, 119, 87, 0.1);color:var(--primary-color);}
+.action-btn:hover{background:var(--primary-color);color:white;transform:scale(1.1);}
+.action-btn.delete{background:rgba(245, 108, 108, 0.1);color:#f56c6c;}
+.action-btn.delete:hover{background:#f56c6c;color:white;}
+/* 链接格式选择 */
+.link-format-tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+.format-tab{padding:8px 16px;border:1px solid var(--input-border);border-radius:8px;cursor:pointer;font-size:0.85em;transition:all 0.3s;background:var(--surface-1);color:var(--text-secondary);}
+.format-tab:hover{border-color:var(--primary-color);}
+.format-tab.active{background:var(--primary-color);color:white;border-color:var(--primary-color);}
+/* 上传结果区：顶部两栏居中（仅限右侧结果卡片） */
+.result-section .card-header{flex-direction:column;align-items:center;}
+.result-section .result-actions{justify-content:center;position:relative;width:100%;}
+.result-section .link-format-tabs{justify-content:center;position:relative;width:100%;}
+/* 两行切换按钮各居本行右端,上下对齐 */
+.result-section .result-actions > .result-view-toggle,.result-section .link-format-tabs > .result-view-toggle{position:absolute;right:0;top:50%;transform:translateY(-50%);}
+/* 统一已有按钮形状与大小:格式标签(Direct URL 等)对齐操作按钮(Select All 等 el-button mini:32px 高 / 3px 圆角 / 12px 字号) */
+.result-section .link-format-tabs .format-tab{height:32px;padding:0 15px;display:inline-flex;align-items:center;font-size:12px;border-radius:3px;}
+/* 上传结果/历史 操作按钮:背景跟随 UI 透明度(玻璃化),保留语义色作为文字/描边。覆盖 claude-theme.css 的 !important 实心填充。 */
+.result-section .result-actions .el-button,.history-section .result-actions .el-button{background:rgba(var(--ui-surface-rgb), var(--ui-card-opacity)) !important;backdrop-filter:var(--ui-card-backdrop-filter);-webkit-backdrop-filter:var(--ui-card-backdrop-filter);box-shadow:none !important;}
+.result-section .result-actions .el-button--primary,.history-section .result-actions .el-button--primary{color:var(--primary-color) !important;border:1px solid var(--primary-color) !important;}
+.result-section .result-actions .el-button--success,.history-section .result-actions .el-button--success{color:#67c23a !important;border:1px solid #67c23a !important;}
+.result-section .result-actions .el-button--warning,.history-section .result-actions .el-button--warning{color:#e6a23c !important;border:1px solid #e6a23c !important;}
+.result-section .result-actions .el-button--danger,.history-section .result-actions .el-button--danger{color:#f56c6c !important;border:1px solid #f56c6c !important;}
+.result-section .result-actions .el-button.is-disabled,.history-section .result-actions .el-button.is-disabled{color:var(--text-muted) !important;border-color:rgba(var(--ui-border-rgb), 0.46) !important;}
+/* 上传结果：列表 / 网格 视图切换注意:seraph-ui-polish.css 用 !important 把 .result-list 强制成多列 grid,这里用更高优先级(.result-section 前缀 + !important)接管两种视图。 */
+/* 列表视图(默认):单列,每个条目为横向行 */
+.result-section .result-list:not(.is-grid){display:grid !important;grid-template-columns:1fr !important;gap:10px;}
+/* 网格视图:多列卡片,条目纵向排列 */
+.result-section .result-list.is-grid{display:grid !important;grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)) !important;gap:12px;}
+.result-section .result-list.is-grid .result-item{display:flex !important;flex-direction:column !important;align-items:stretch !important;gap:10px;}
+.result-section .result-list.is-grid .result-item:hover{transform:none;}
+.result-section .result-list.is-grid .result-item-preview{width:100% !important;height:140px !important;}
+.result-section .result-list.is-grid .result-item-actions{justify-content:center;}
+/* 上传结果：视图/排序切换按钮(与 el-button mini 同高同圆角,形状统一) */
+.result-view-toggle{background:var(--surface-1);border:1px solid var(--input-border);color:var(--text-secondary);border-radius:3px;width:32px;height:32px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all 0.3s;}
+.result-view-toggle:hover{border-color:var(--primary-color);color:var(--primary-color);}
+/* 批量链接文本框 */
+.batch-links{width:100%;min-height:120px;padding:12px;border:2px solid var(--input-border);border-radius:12px;background:var(--surface-1);color:var(--text-primary);font-family:"Consolas", monospace;font-size:0.85em;resize:vertical;margin-top:12px;}
+.batch-links:focus{border-color:var(--primary-color);outline:none;}
+/* 历史记录 */
+.history-section{margin-top:20px;}
+.history-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(100px, 1fr));gap:12px;margin-top:16px;}
+.history-item{position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden;cursor:pointer;transition:all 0.2s ease;background:var(--surface-3);}
+.history-item:hover{transform:scale(1.03);}
+.history-item img{width:100%;height:100%;object-fit:cover;}
+/* 非图片文件图标显示 */
+.history-file-icon{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);padding:8px;}
+.history-file-icon i{font-size:2.2em;margin-bottom:6px;}

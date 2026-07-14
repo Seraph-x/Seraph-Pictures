@@ -1,31 +1,35 @@
-import { apiFetch } from './client';
+import { apiFetch } from './client.js';
+import {
+  buildDriveExplorerPath,
+  buildDriveTreePath,
+  buildMigrationPayload,
+} from '../utils/drive-profile-contract.js';
 
-export async function getDriveTree(storage = 'all') {
-  const query = new URLSearchParams();
-  if (storage && storage !== 'all') query.set('storage', storage);
-  const data = await apiFetch(`/api/drive/tree?${query.toString()}`);
+export async function getDriveTree(options = 'all') {
+  const data = await apiFetch(buildDriveTreePath(options));
   return data.nodes || [];
 }
 
 export async function getDriveExplorer({
   path = '',
   storage = 'all',
+  storageId = '',
   search = '',
   listType = 'all',
   limit = 100,
   cursor = '',
   includeStats = true,
 } = {}) {
-  const query = new URLSearchParams();
-  if (path) query.set('path', path);
-  if (storage && storage !== 'all') query.set('storage', storage);
-  if (search) query.set('search', search);
-  if (listType && listType !== 'all') query.set('listType', listType);
-  query.set('limit', String(limit));
-  if (cursor) query.set('cursor', cursor);
-  if (includeStats) query.set('includeStats', '1');
+  return apiFetch(buildDriveExplorerPath({
+    path, storage, storageId, search, listType, limit, cursor, includeStats,
+  }));
+}
 
-  return apiFetch(`/api/drive/explorer?${query.toString()}`);
+export async function migrateFiles(ids, destinationStorageId) {
+  return apiFetch('/api/drive/files/migrate', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(buildMigrationPayload({ ids, destinationStorageId })),
+  });
 }
 
 export async function createFolder(path) {

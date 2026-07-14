@@ -7,7 +7,10 @@ import { hasGitHubConfig } from './utils/github.js';
 import { resolveStorageEnv } from './utils/storage-config.js';
 import capabilityModule from '../shared/storage/capabilities.cjs';
 import { normalizeFileExtension, normalizeFolderPath, uploadError } from './services/direct-upload-common.js';
+import { executeProfileUpload } from './services/profile-upload.js';
+import { normalizeUploadSelection } from './services/upload-selection.js';
 import { uploadToTelegramStorage } from './services/direct-upload-telegram.js';
+import { normalizeFirstPartyUploadAccess } from './services/upload-access.js';
 import {
   uploadToR2, uploadToS3, uploadToDiscordStorage, uploadToHFStorage,
   uploadToWebDAVStorage, uploadToGitHubStorage,
@@ -31,11 +34,18 @@ async function parseUpload(context) {
     const check = await checkGuestUpload(context.request, context.env, file.size, guestConfig);
     if (!check.allowed) throw Object.assign(new Error(check.reason), { status: check.status || 403 });
   }
+  const selection = normalizeUploadSelection({
+    isAdmin,
+    isApi: Boolean(context?.data?.apiToken),
+    storageMode: form.get('storageMode'),
+    storageId: form.get('storageId'),
+  });
   return Object.freeze({
     file, isAdmin, guestConfig,
     fileName: String(file.name || 'upload.bin'),
     folderPath: normalizeFolderPath(form.get('folderPath')),
-    storageMode: isAdmin ? String(form.get('storageMode') || 'telegram').toLowerCase() : 'telegram',
+    uploadSource: String(form.get('uploadSource') || 'image-host'),
+    ...selection,
   });
 }
 
@@ -85,6 +95,34 @@ async function dispatchUpload(input, env, request) {
   });
 }
 
+function profileUploadAccess(context, input) {
+  const pathname = new URL(context.request.url).pathname;
+  return normalizeFirstPartyUploadAccess({
+    api: pathname === '/api/v1/upload',
+    requestedVisibility: context.data?.fileVisibility,
+    uploadSource: input.uploadSource,
+  });
+}
+
+function profileUploadOptions(input, context) {
+  return Object.freeze({
+    file: input.file,
+    fileName: input.fileName,
+    extension: normalizeFileExtension(input.fileName),
+    folderPath: input.folderPath,
+    origin: new URL(context.request.url).origin,
+    access: profileUploadAccess(context, input),
+  });
+}
+
+async function executeAdminUpload(input, context) {
+  return executeProfileUpload({
+    context,
+    selection: { storageMode: input.storageMode, storageId: input.storageId },
+    upload: profileUploadOptions(input, context),
+  });
+}
+
 async function settleGuest(input, context, result) {
   if (input.isAdmin || !(result instanceof Response) || !result.ok) return;
   await incrementGuestCount(context.request, context.env, input.guestConfig);
@@ -94,6 +132,7 @@ export async function onRequestPost(context) {
   try {
     const input = await parseUpload(context);
     validateUpload(input);
+    if (input.isAdmin) return await executeAdminUpload(input, context);
     const env = await resolveStorageEnv(context.env);
     const result = await dispatchUpload(input, env, context.request);
     await settleGuest(input, context, result);

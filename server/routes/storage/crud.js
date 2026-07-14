@@ -17,19 +17,22 @@ function validateInput(body, current = {}) {
 
 function createInput(body) {
   const valid = validateInput(body);
-  return Object.freeze({
+  const input = {
     name: valid.name, type: valid.type, config: body.config || {},
-    enabled: body.enabled !== false, isDefault: Boolean(body.isDefault),
+    enabled: body.enabled !== false,
     metadata: body.metadata || {},
-  });
+  };
+  if (Object.hasOwn(body, 'isDefault')) input.isDefault = Boolean(body.isDefault);
+  return Object.freeze(input);
 }
 
 function updateInput(body, current) {
   const valid = validateInput(body, current);
-  return Object.freeze({
-    name: valid.name, type: valid.type, config: body.config,
-    enabled: body.enabled, isDefault: body.isDefault, metadata: body.metadata,
-  });
+  const patch = { name: valid.name, type: valid.type };
+  for (const field of ['config', 'enabled', 'isDefault', 'metadata']) {
+    if (body[field] !== undefined) patch[field] = body[field];
+  }
+  return Object.freeze(patch);
 }
 
 function registerReadCreate(app, helpers) {
@@ -45,7 +48,7 @@ function registerReadCreate(app, helpers) {
       const repo = helpers.getServices(context).storageRepo;
       return storageResponse(context, 'item', repo.create(createInput(await context.req.json())));
     } catch (error) {
-      return storageError(context, helpers, error);
+      return storageError(context, { helpers, error });
     }
   });
 }
@@ -58,16 +61,18 @@ function registerUpdate(app, helpers) {
       const repo = helpers.getServices(context).storageRepo;
       const id = context.req.param('id');
       const current = repo.getById(id, true);
-      if (!current) return storageError(context, helpers, null, {
-        status: 404, code: 'STORAGE_NOT_FOUND', message: 'Storage config not found.',
+      if (!current) return storageError(context, {
+        helpers,
+        options: { status: 404, code: 'STORAGE_PROFILE_NOT_FOUND', message: 'Storage profile not found.' },
       });
       const item = repo.update(id, updateInput(await context.req.json(), current));
-      if (!item) return storageError(context, helpers, null, {
-        status: 404, code: 'STORAGE_NOT_FOUND', message: 'Storage config not found.',
+      if (!item) return storageError(context, {
+        helpers,
+        options: { status: 404, code: 'STORAGE_PROFILE_NOT_FOUND', message: 'Storage profile not found.' },
       });
       return storageResponse(context, 'item', item);
     } catch (error) {
-      return storageError(context, helpers, error);
+      return storageError(context, { helpers, error });
     }
   });
 }
@@ -80,18 +85,26 @@ function registerDeleteDefault(app, helpers) {
       const deleted = helpers.getServices(context).storageRepo.delete(context.req.param('id'));
       return deleted
         ? storageResponse(context, 'success')
-        : storageError(context, helpers, null, { status: 404, code: 'STORAGE_NOT_FOUND' });
+        : storageError(context, {
+          helpers, options: { status: 404, code: 'STORAGE_PROFILE_NOT_FOUND' },
+        });
     } catch (error) {
-      return storageError(context, helpers, error, { status: 409, code: 'STORAGE_CONFLICT' });
+      return storageError(context, { helpers, error });
     }
   });
   app.post('/api/storage/default/:id', (context) => {
     const unauthorized = requireStorageAuth(context, helpers);
     if (unauthorized) return unauthorized;
-    const item = helpers.getServices(context).storageRepo.setDefault(context.req.param('id'));
-    return item
-      ? storageResponse(context, 'item', item)
-      : storageError(context, helpers, null, { status: 404, code: 'STORAGE_NOT_FOUND' });
+    try {
+      const item = helpers.getServices(context).storageRepo.setDefault(context.req.param('id'));
+      return item
+        ? storageResponse(context, 'item', item)
+        : storageError(context, {
+          helpers, options: { status: 404, code: 'STORAGE_PROFILE_NOT_FOUND' },
+        });
+    } catch (error) {
+      return storageError(context, { helpers, error });
+    }
   });
 }
 

@@ -36,8 +36,34 @@ export function isFileKey(key) {
     && key.metadata.TimeStamp !== null;
 }
 
-export function driveFileFromKey(key) {
-  return normalizeDriveFile({ name: key.name, metadata: key.metadata });
+function integrityError() {
+  return Object.assign(new Error('STORAGE_PROFILE_INTEGRITY_ERROR'), {
+    code: 'STORAGE_PROFILE_INTEGRITY_ERROR', status: 500,
+  });
+}
+
+function profileIdentity(metadata, snapshot) {
+  const persistedId = String(metadata?.storageConfigId || metadata?.storageId || '').trim();
+  if (!snapshot) return Object.freeze({
+    storageId: persistedId,
+    storageName: String(metadata?.storageName || ''),
+    storageType: String(metadata?.storageType || ''),
+  });
+  const storageType = String(metadata?.storageType || '').trim().toLowerCase();
+  const storageId = persistedId || snapshot.legacyTypeProfileIds?.[storageType];
+  const profile = snapshot.items?.find((item) => item.id === storageId);
+  if (!profile || (storageType && profile.type !== storageType)) throw integrityError();
+  return Object.freeze({
+    storageId: profile.id, storageName: profile.name, storageType: profile.type,
+  });
+}
+
+export function driveFileFromKey(key, snapshot) {
+  const identity = profileIdentity(key.metadata, snapshot);
+  return normalizeDriveFile({
+    name: key.name,
+    metadata: Object.freeze({ ...key.metadata, ...identity }),
+  });
 }
 
 export function driveFolderFromKey(key) {
@@ -62,7 +88,10 @@ export function replacePath(value, sourceValue, targetValue) {
 export function fileMatches(file, filters, metadata = {}) {
   const normalized = file.metadata;
   if (filters.path !== normalized.folderPath) return false;
-  if (filters.storage !== 'all' && filters.storage !== normalized.storageType) return false;
+  if (filters.storageId && filters.storageId !== 'all'
+    && filters.storageId !== normalized.storageId) return false;
+  const storageType = filters.storageType || filters.storage;
+  if (storageType && storageType !== 'all' && storageType !== normalized.storageType) return false;
   if (filters.visibility !== 'all' && filters.visibility !== normalized.visibility) return false;
   if (filters.search && !normalized.fileName.toLowerCase().includes(filters.search)) return false;
   if (filters.listType !== 'all') {

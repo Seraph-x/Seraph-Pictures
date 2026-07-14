@@ -14,7 +14,47 @@ CREATE TABLE IF NOT EXISTS storage_configs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_storage_configs_type ON storage_configs(type);
-CREATE INDEX IF NOT EXISTS idx_storage_configs_default ON storage_configs(is_default);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_storage_default_per_type
+ON storage_configs(type) WHERE is_default = 1;
+
+CREATE TABLE IF NOT EXISTS storage_write_references (
+  operation_id TEXT PRIMARY KEY,
+  storage_config_id TEXT NOT NULL,
+  state TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  FOREIGN KEY(storage_config_id) REFERENCES storage_configs(id) ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS idx_storage_write_references_profile
+ON storage_write_references(storage_config_id);
+
+CREATE TABLE IF NOT EXISTS storage_file_lifecycle (
+  operation_id TEXT PRIMARY KEY,
+  file_id TEXT NOT NULL UNIQUE,
+  operation_type TEXT NOT NULL,
+  source_storage_config_id TEXT NOT NULL,
+  destination_storage_config_id TEXT,
+  state TEXT NOT NULL,
+  artifact_json TEXT,
+  error_message TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  FOREIGN KEY(source_storage_config_id) REFERENCES storage_configs(id) ON DELETE RESTRICT,
+  FOREIGN KEY(destination_storage_config_id) REFERENCES storage_configs(id) ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS idx_storage_file_lifecycle_source
+ON storage_file_lifecycle(source_storage_config_id);
+CREATE INDEX IF NOT EXISTS idx_storage_file_lifecycle_destination
+ON storage_file_lifecycle(destination_storage_config_id);
+
+CREATE TABLE IF NOT EXISTS storage_migration_lock (
+  singleton_id INTEGER PRIMARY KEY CHECK(singleton_id = 1),
+  owner TEXT NOT NULL,
+  token TEXT NOT NULL,
+  acquired_at INTEGER NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS files (
   id TEXT PRIMARY KEY,
@@ -111,7 +151,8 @@ CREATE TABLE IF NOT EXISTS chunk_uploads (
   visibility TEXT NOT NULL DEFAULT 'public',
   folder_path TEXT NOT NULL DEFAULT '',
   created_at INTEGER NOT NULL,
-  expires_at INTEGER NOT NULL
+  expires_at INTEGER NOT NULL,
+  FOREIGN KEY(storage_config_id) REFERENCES storage_configs(id) ON DELETE RESTRICT
 );
 
 CREATE INDEX IF NOT EXISTS idx_chunk_uploads_expires_at ON chunk_uploads(expires_at);

@@ -116,12 +116,15 @@ function makeUninitializedCoordinator() {
   const stub = {
     async fetch(request) {
       const operation = new URL(request.url).pathname.split('/').at(-1);
-      if (operation !== 'configReadAuthority') {
-        return Response.json({ error: { code: 'COORDINATOR_OPERATION_UNKNOWN' } }, { status: 404 });
+      if (operation === 'storageProfileCatalogReadAuthority') {
+        return Response.json({ data: {
+          initialized: true, generation: 'test-generation', ledgerGeneration: 'test-generation',
+        } });
       }
-      return Response.json({
+      if (operation === 'configReadAuthority') return Response.json({
         data: { initialized: false, committedVersion: null, digest: null },
       });
+      return Response.json({ error: { code: 'COORDINATOR_OPERATION_UNKNOWN' } }, { status: 404 });
     },
   };
   return {
@@ -137,6 +140,15 @@ async function createEnvAndToken(scopes = ['read'], tokenOptions = {}) {
     R2_BUCKET: new MemoryR2(),
     AUTH_COORDINATOR: makeUninitializedCoordinator(),
   };
+  await env.img_url.put('storage_profiles:v2:test-generation', JSON.stringify({
+    schemaVersion: 2,
+    generation: 'test-generation',
+    items: [{
+      id: 'test-r2', name: 'Test R2', type: 'r2', enabled: true, isDefault: true,
+      config: { adapterMode: 'binding', bindingName: 'R2_BUCKET' },
+    }],
+    legacyTypeProfileIds: { r2: 'test-r2' },
+  }));
 
   const created = await createApiToken(
     {

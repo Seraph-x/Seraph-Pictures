@@ -19,12 +19,15 @@ export function createUploadRecord(plan) {
       uploadId: plan.uploadId,
       rootDigest: plan.rootDigest,
       expectedSize: String(plan.expectedSize),
+      storageConfigId: plan.storageConfigId,
+      storageGeneration: plan.storageGeneration,
     }),
     operations: Object.freeze({
       reserve: operationId(plan.uploadId, 1, 'reserve'),
       publish: operationId(plan.uploadId, publishSequence, 'publish'),
       consume: operationId(plan.uploadId, publishSequence + 1, 'consume'),
       cancel: operationId(plan.uploadId, publishSequence + 2, 'cancel'),
+      reference: operationId(plan.uploadId, publishSequence + 3, 'storage-reference'),
     }),
   });
 }

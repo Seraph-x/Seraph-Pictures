@@ -10,6 +10,7 @@ async function deleteFile(context, id) {
       method: 'DELETE',
     }),
     env: context.env,
+    data: context.data,
     params: { id },
   });
   return response.ok;
@@ -45,7 +46,8 @@ async function containsFolderContent(repository, path) {
   return found;
 }
 
-export async function deleteFolder(context, repository, path, recursive) {
+export async function deleteFolder(options) {
+  const { context, repository, path, recursive } = options;
   if (!recursive && await containsFolderContent(repository, path)) {
     throw Object.assign(new Error('DRIVE_FOLDER_NOT_EMPTY'), {
       code: 'DRIVE_FOLDER_NOT_EMPTY', status: 409,

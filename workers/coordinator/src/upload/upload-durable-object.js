@@ -1,6 +1,8 @@
 import { UploadCoordinatorService } from './upload-coordinator.js';
 import { UploadRepository } from './repository.js';
-import { KvMetadataPublisher, UploadQuotaAuthority } from './runtime-adapters.js';
+import {
+  KvMetadataPublisher, StorageReferenceAuthority, UploadQuotaAuthority,
+} from './runtime-adapters.js';
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -52,6 +54,7 @@ export class UploadCoordinator {
       r2: env.UPLOAD_BUCKET,
       quota: new UploadQuotaAuthority(repository),
       metadata: new KvMetadataPublisher(env.FILE_METADATA),
+      references: new StorageReferenceAuthority(env.AUTH_COORDINATOR),
       alarms: { schedule: (timestamp) => ctx.storage.setAlarm(timestamp) },
     });
   }

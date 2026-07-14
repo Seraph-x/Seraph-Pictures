@@ -66,25 +66,33 @@ export async function createProfile(context) {
 
 export async function updateProfile(context) {
   const item = await createStorageProfileRepository(context.env).update(profileId(context), await readBody(context));
-  if (!item) throw Object.assign(new Error('STORAGE_NOT_FOUND'), { code: 'STORAGE_NOT_FOUND', status: 404 });
+  if (!item) throw Object.assign(new Error('STORAGE_PROFILE_NOT_FOUND'), {
+    code: 'STORAGE_PROFILE_NOT_FOUND', status: 404,
+  });
   return response('item', item);
 }
 
 export async function deleteProfile(context) {
   const deleted = await createStorageProfileRepository(context.env).delete(profileId(context));
-  if (!deleted) throw Object.assign(new Error('STORAGE_NOT_FOUND'), { code: 'STORAGE_NOT_FOUND', status: 404 });
+  if (!deleted) throw Object.assign(new Error('STORAGE_PROFILE_NOT_FOUND'), {
+    code: 'STORAGE_PROFILE_NOT_FOUND', status: 404,
+  });
   return response('success');
 }
 
 export async function setDefaultProfile(context) {
   const item = await createStorageProfileRepository(context.env).setDefault(profileId(context));
-  if (!item) throw Object.assign(new Error('STORAGE_NOT_FOUND'), { code: 'STORAGE_NOT_FOUND', status: 404 });
+  if (!item) throw Object.assign(new Error('STORAGE_PROFILE_NOT_FOUND'), {
+    code: 'STORAGE_PROFILE_NOT_FOUND', status: 404,
+  });
   return response('item', item);
 }
 
 export async function testProfileById(context) {
   const item = await createStorageProfileRepository(context.env).get(profileId(context), { includeSecrets: true });
-  if (!item) throw Object.assign(new Error('STORAGE_NOT_FOUND'), { code: 'STORAGE_NOT_FOUND', status: 404 });
+  if (!item) throw Object.assign(new Error('STORAGE_PROFILE_NOT_FOUND'), {
+    code: 'STORAGE_PROFILE_NOT_FOUND', status: 404,
+  });
   return response('result', await testStorageProfile({ env: context.env, type: item.type, config: item.config }));
 }
 

@@ -1,0 +1,17 @@
+{
+  "preMigrationGlobalDefaultType": "r2",
+  "cloudflare": {
+    "legacyConfig": {
+      "r2": { "bucket": "legacy-only-bucket" },
+      "telegram": { "botToken": "legacy-token", "chatId": "-2001" },
+      "telegramGuest": { "botToken": "excluded-guest", "chatId": "guest" }
+    },
+    "files": []
+  },
+  "docker": {
+    "legacyConfig": {
+      "github": { "owner": "fixture", "repo": "pictures", "token": "legacy-github-token" }
+    },
+    "files": []
+  }
+}

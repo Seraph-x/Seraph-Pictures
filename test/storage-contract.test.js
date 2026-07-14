@@ -33,11 +33,24 @@ describe('shared Storage API contract', function () {
     });
     assert.deepStrictEqual(item, {
       id: 'sc:primary', name: 'Primary', type: 'r2', enabled: true, isDefault: true,
-      config: { bucket: 'files', secretAccessKey: '********' },
+      config: { bucket: 'files', accessKeyId: '', secretAccessKey: '********' },
+      secretsPresent: { accessKeyId: false, secretAccessKey: true },
       metadata: { source: 'kv' }, createdAt: 10, updatedAt: 20,
     });
     assert.ok(Object.isFrozen(item) && Object.isFrozen(item.config));
     assert.strictEqual('encrypted_payload' in item, false);
+  });
+
+  it('shares profile policy error statuses with runtime routes', function () {
+    const contract = require('../shared/storage/contracts.cjs');
+    assert.deepStrictEqual(contract.storageErrorDetails({ code: 'STORAGE_PROFILE_NOT_FOUND' }), {
+      code: 'STORAGE_PROFILE_NOT_FOUND', status: 404,
+    });
+    for (const code of [
+      'STORAGE_DEFAULT_LOCKED', 'STORAGE_PROFILE_IN_USE', 'STORAGE_NOT_WRITABLE',
+    ]) {
+      assert.deepStrictEqual(contract.storageErrorDetails({ code }), { code, status: 409 });
+    }
   });
 
   it('preserves stored secrets for blank and masked update fields', function () {

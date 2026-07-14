@@ -10,6 +10,8 @@
       </button>
     </div>
 
+    <StorageProfileStatusGrid v-if="storageProfiles.length" :profiles="storageProfiles" />
+
     <div class="adapter-grid">
       <article v-for="item in adapters" :key="item.type" class="adapter-card">
         <div class="adapter-card-top">
@@ -47,6 +49,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import { apiFetch } from '../api/client';
+import StorageProfileStatusGrid from '../components/storage/StorageProfileStatusGrid.vue';
 import { useI18n } from '../i18n';
 
 const { t } = useI18n();
@@ -73,6 +76,9 @@ const adapters = computed(() => {
 });
 
 const telegramDiag = computed(() => status.value?.diagnostics?.telegram || null);
+const storageProfiles = computed(() => (
+  Array.isArray(status.value?.storageProfiles) ? status.value.storageProfiles : []
+));
 
 onMounted(() => {
   void loadStatus();

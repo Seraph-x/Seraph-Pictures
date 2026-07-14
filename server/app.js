@@ -56,14 +56,33 @@ function preflightResponse(c, allowOrigin) {
   return new Response(null, { headers: c.res.headers, status: 204 });
 }
 
-function createApp() {
-  const app = new Hono();
-  const container = createContainer(process.env);
-  const helpers = createRouteHelpers(container);
+function errorEnvelope(error, traceId) {
+  const payload = toStorageErrorPayload(error, 500);
+  return Object.freeze({
+    success: false,
+    error: Object.freeze({
+      code: payload.code || 'INTERNAL_ERROR',
+      message: payload.message || 'Internal Server Error',
+      detail: payload.detail || String(error?.message || 'unknown'),
+      retriable: payload.retriable === true,
+    }),
+    traceId,
+  });
+}
 
-  app.use('*', createCorsMiddleware(process.env));
+function legacyErrorEnvelope(envelope) {
+  return {
+    success: false,
+    error: envelope.error.message,
+    errorCode: envelope.error.code,
+    errorDetail: envelope.error.detail,
+    retriable: envelope.error.retriable,
+    traceId: envelope.traceId,
+  };
+}
 
-  app.use('*', async (c, next) => {
+function createTraceMiddleware(container, helpers) {
+  return async (c, next) => {
     const traceId = crypto.randomUUID();
     c.set('traceId', traceId);
     c.header('X-Trace-Id', traceId);
@@ -72,33 +91,14 @@ function createApp() {
       await next();
     } catch (error) {
       console.error(error);
-      const payload = toStorageErrorPayload(error, 500);
-      const envelope = {
-        success: false,
-        error: {
-          code: payload.code || 'INTERNAL_ERROR',
-          message: payload.message || 'Internal Server Error',
-          detail: payload.detail || String(error?.message || 'unknown'),
-          retriable: payload.retriable === true,
-        },
-        traceId,
-      };
-
-      if (helpers.prefersV2Envelope(c)) {
-        return c.json(envelope, 500);
-      }
-
-      return c.json({
-        success: false,
-        error: envelope.error.message,
-        errorCode: envelope.error.code,
-        errorDetail: envelope.error.detail,
-        retriable: envelope.error.retriable,
-        traceId,
-      }, 500);
+      const envelope = errorEnvelope(error, traceId);
+      if (helpers.prefersV2Envelope(c)) return c.json(envelope, 500);
+      return c.json(legacyErrorEnvelope(envelope), 500);
     }
-  });
+  };
+}
 
+function registerRoutes(app, container, helpers) {
   registerAuthRoutes(app, container, helpers);
   registerSettingsRoutes(app, container, helpers);
   registerStatusRoutes(app, container, helpers);
@@ -110,7 +110,15 @@ function createApp() {
   registerManageRoutes(app, container, helpers);
   registerVisibilityRoutes(app, container, helpers);
   registerTelegramRoutes(app, container, helpers);
+}
 
+function createApp(options = {}) {
+  const app = new Hono();
+  const container = options.container || createContainer(process.env);
+  const helpers = createRouteHelpers(container);
+  app.use('*', createCorsMiddleware(process.env));
+  app.use('*', createTraceMiddleware(container, helpers));
+  registerRoutes(app, container, helpers);
   return app;
 }
 

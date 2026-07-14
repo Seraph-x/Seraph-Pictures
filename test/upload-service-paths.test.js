@@ -6,6 +6,8 @@ describe('UploadService storage key routing', function () {
     let capturedStorageKey = '';
 
     const storageRepo = {
+      reserveReference() {},
+      commitReference(_operationId, operation) { return operation(); },
       resolveStorageSelection() {
         return {
           id: 'sc_hf',

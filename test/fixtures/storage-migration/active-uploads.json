@@ -1,0 +1,7 @@
+{
+  "freeze": {
+    "generation": "freeze-active-uploads",
+    "audience": "storage-profiles",
+    "active": 2
+  }
+}

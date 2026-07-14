@@ -9,10 +9,11 @@ const { createChunkPlan, validateChunkPart } = require('./chunk-policy');
 const CHUNK_TASK_TTL_MS = 60 * 60 * 1000;
 
 class ChunkUploadService {
-  constructor({ db, config, uploadService }) {
+  constructor({ db, config, uploadService, storageRepo }) {
     this.db = db;
     this.config = config;
     this.uploadService = uploadService;
+    this.storageRepo = storageRepo;
     this.ensureSchema();
     fs.mkdirSync(this.config.chunkDir, { recursive: true });
   }
@@ -24,6 +25,7 @@ class ChunkUploadService {
     this.ensureColumn(columns, 'received_bytes', 'INTEGER NOT NULL DEFAULT 0');
     this.ensureColumn(columns, 'upload_source', "TEXT NOT NULL DEFAULT 'image-host'");
     this.ensureColumn(columns, 'visibility', "TEXT NOT NULL DEFAULT 'public'");
+    this.ensureColumn(columns, 'write_state', "TEXT NOT NULL DEFAULT 'reserved'");
   }
 
   ensureColumn(columns, name, definition) {
@@ -36,13 +38,14 @@ class ChunkUploadService {
       fileName, fileSize, fileType, totalChunks, storageMode, storageId, folderPath,
       uploadSource = 'image-host', visibility = 'public',
     } = options;
+    const storage = this.uploadService.resolveStorage({ storageId, storageMode });
     const plan = createChunkPlan({ fileSize, chunkSize: this.config.chunkSize, totalChunks });
     const uploadId = crypto.randomUUID();
     const now = Date.now();
     const expiresAt = now + CHUNK_TASK_TTL_MS;
     const normalizedFolderPath = normalizeFolderPath(folderPath);
 
-    run(
+    this.storageRepo.createChunkReference(() => run(
       this.db,
       `INSERT INTO chunk_uploads(
          upload_id, file_name, file_size, file_type, total_chunks, chunk_size,
@@ -57,15 +60,15 @@ class ChunkUploadService {
         plan.totalChunks,
         plan.chunkSize,
         0,
-        storageMode || null,
-        storageId || null,
+        storage.type,
+        storage.id,
         uploadSource,
         visibility,
         normalizedFolderPath,
         now,
         expiresAt,
       ]
-    );
+    ));
 
     fs.mkdirSync(this.taskDir(uploadId), { recursive: true });
 
@@ -79,9 +82,9 @@ class ChunkUploadService {
   getTask(uploadId) {
     const task = get(this.db, 'SELECT * FROM chunk_uploads WHERE upload_id = ?', [uploadId]);
     if (!task) return null;
-    if (Date.now() > task.expires_at) {
-      run(this.db, 'DELETE FROM chunk_uploads WHERE upload_id = ?', [uploadId]);
+    if (Date.now() > task.expires_at && task.write_state === 'reserved') {
       fs.rmSync(this.taskDir(uploadId), { recursive: true, force: true });
+      run(this.db, 'DELETE FROM chunk_uploads WHERE upload_id = ?', [uploadId]);
       return null;
     }
     return task;
@@ -129,29 +132,61 @@ class ChunkUploadService {
     const plan = this.taskPlan(task);
     const combinedPath = path.join(this.taskDir(uploadId), 'combined.tmp');
     const combinedSize = await this.mergeParts(uploadId, plan, combinedPath);
-    if (combinedSize !== plan.fileSize) {
-      const error = new Error('Combined upload size does not match the declared file size.');
-      error.code = 'UPLOAD_SIZE_MISMATCH';
-      error.status = 400;
+    this.assertCombinedSize(combinedSize, plan.fileSize);
+    const combined = await fsp.readFile(combinedPath);
+    run(this.db, `UPDATE chunk_uploads SET write_state = 'committing'
+      WHERE upload_id = ?`, [uploadId]);
+    const result = await this.uploadCombined({ task, uploadId, combined });
+    await this.cleanupTask(uploadId);
+    return result;
+  }
+
+  async uploadCombined({ task, uploadId, combined }) {
+    try {
+      return await this.uploadService.uploadFile({
+        fileName: task.file_name,
+        mimeType: task.file_type,
+        fileSize: combined.byteLength,
+        buffer: combined,
+        storageMode: task.storage_mode,
+        storageId: task.storage_config_id,
+        folderPath: normalizeFolderPath(task.folder_path),
+        uploadSource: task.upload_source,
+        visibility: task.visibility,
+        operationId: `chunk:${uploadId}`,
+        onMetadataCommitted: () => run(
+          this.db, 'DELETE FROM chunk_uploads WHERE upload_id = ?', [uploadId],
+        ),
+      });
+    } catch (error) {
+      if (error.storageCleanupConfirmed) {
+        run(this.db, `UPDATE chunk_uploads SET write_state = 'reserved'
+          WHERE upload_id = ?`, [uploadId]);
+      }
       throw error;
     }
-    const combined = await fsp.readFile(combinedPath);
+  }
 
-    const result = await this.uploadService.uploadFile({
-      fileName: task.file_name,
-      mimeType: task.file_type,
-      fileSize: combined.byteLength,
-      buffer: combined,
-      storageMode: task.storage_mode,
-      storageId: task.storage_config_id,
-      folderPath: normalizeFolderPath(task.folder_path),
-      uploadSource: task.upload_source,
-      visibility: task.visibility,
-    });
+  assertCombinedSize(actual, expected) {
+    if (actual === expected) return;
+    const error = new Error('Combined upload size does not match the declared file size.');
+    error.code = 'UPLOAD_SIZE_MISMATCH';
+    error.status = 400;
+    throw error;
+  }
 
-    await this.cleanupTask(uploadId);
-
-    return result;
+  async cancel(uploadId) {
+    const task = get(this.db, 'SELECT * FROM chunk_uploads WHERE upload_id = ?', [uploadId]);
+    if (!task) return { cancelled: true };
+    if (task.write_state === 'committing') {
+      const error = new Error('CHUNK_CLEANUP_AMBIGUOUS');
+      error.code = 'CHUNK_CLEANUP_AMBIGUOUS';
+      error.status = 409;
+      throw error;
+    }
+    await fsp.rm(this.taskDir(uploadId), { recursive: true, force: true });
+    run(this.db, 'DELETE FROM chunk_uploads WHERE upload_id = ?', [uploadId]);
+    return { cancelled: true };
   }
 
   taskPlan(task) {
@@ -202,8 +237,8 @@ class ChunkUploadService {
   }
 
   async cleanupTask(uploadId) {
-    run(this.db, 'DELETE FROM chunk_uploads WHERE upload_id = ?', [uploadId]);
     await fsp.rm(this.taskDir(uploadId), { recursive: true, force: true });
+    run(this.db, 'DELETE FROM chunk_uploads WHERE upload_id = ?', [uploadId]);
   }
 }
 

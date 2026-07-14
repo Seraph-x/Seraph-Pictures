@@ -46,16 +46,15 @@ describe('Pages mutation barrier middleware', function () {
 
   it('rejects an allowed mutation response that has no lease id', async function () {
     const middleware = await import('../functions/_middleware.js');
-    await assert.rejects(
-      middleware.onRequest({
-        request: new Request('https://pictures.example/upload', { method: 'POST' }),
-        env: { AUTH_COORDINATOR: coordinator({
-          mutationEnter: { allowed: true, leaseId: null, active: 1 },
-        }, []) },
-        next: async () => Response.json({ ok: true }),
-      }),
-      (error) => error?.code === 'AUTH_COORDINATOR_RESPONSE_INVALID',
-    );
+    const response = await middleware.onRequest({
+      request: new Request('https://pictures.example/upload', { method: 'POST' }),
+      env: { AUTH_COORDINATOR: coordinator({
+        mutationEnter: { allowed: true, leaseId: null, active: 1 },
+      }, []) },
+      next: async () => Response.json({ ok: true }),
+    });
+    assert.strictEqual(response.status, 503);
+    assert.strictEqual((await response.json()).error.code, 'AUTH_COORDINATOR_RESPONSE_INVALID');
   });
 
   it('does not lease read-only requests', async function () {
@@ -67,6 +66,22 @@ describe('Pages mutation barrier middleware', function () {
     });
 
     assert.deepStrictEqual(await response.json(), { status: 'ok' });
+  });
+
+  it('returns the explicit authentication outage envelope when lease authority is missing', async function () {
+    const middleware = await import('../functions/_middleware.js');
+    const response = await middleware.onRequest({
+      request: new Request('https://pictures.example/api/auth/login', { method: 'POST' }),
+      env: {},
+      next: async () => Response.json({ success: true }),
+    });
+
+    assert.strictEqual(response.status, 503);
+    assert.deepStrictEqual(await response.json(), {
+      success: false,
+      message: '认证服务暂不可用',
+      error: { code: 'AUTH_STATE_UNAVAILABLE' },
+    });
   });
 
   it('keeps a GET lease until background metadata writes complete', async function () {

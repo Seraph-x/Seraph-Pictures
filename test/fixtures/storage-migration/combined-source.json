@@ -1,0 +1,57 @@
+{
+  "preferredType": "telegram",
+  "cloudflare": {
+    "v1Catalog": {
+      "schemaVersion": 1,
+      "items": [
+        {
+          "id": "cf-primary",
+          "name": "Primary Telegram",
+          "type": "telegram",
+          "enabled": true,
+          "isDefault": true,
+          "config": { "botToken": "enc:v1:primary", "chatId": "-1001" },
+          "createdAt": 10,
+          "updatedAt": 11
+        },
+        {
+          "id": "cf-archive",
+          "name": "Archive Telegram",
+          "type": "telegram",
+          "enabled": true,
+          "isDefault": false,
+          "config": { "botToken": "enc:v1:archive", "chatId": "-1002" },
+          "createdAt": 20,
+          "updatedAt": 21
+        }
+      ]
+    },
+    "legacyConfig": {
+      "r2": { "bucket": "rehearsal-bucket" },
+      "telegramGuest": { "botToken": "excluded-guest", "chatId": "guest" }
+    },
+    "files": [
+      { "id": "cf-type-only", "storageType": "telegram" },
+      { "id": "cf-exact", "storageType": "telegram", "storageConfigId": "cf-archive" },
+      { "id": "cf-r2-type-only", "storageType": "r2" }
+    ]
+  },
+  "docker": {
+    "profiles": [
+      {
+        "id": "docker-webdav",
+        "name": "Docker WebDAV",
+        "type": "webdav",
+        "enabled": true,
+        "isDefault": false,
+        "config": { "baseUrl": "https://dav.invalid/storage" },
+        "createdAt": 5,
+        "updatedAt": 6
+      }
+    ],
+    "files": [
+      { "id": "docker-exact", "storageType": "webdav", "storageConfigId": "docker-webdav" },
+      { "id": "docker-type-only", "storageType": "webdav" }
+    ]
+  }
+}

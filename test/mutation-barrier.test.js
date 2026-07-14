@@ -86,6 +86,17 @@ describe('coordinator mutation barrier', function () {
     });
   });
 
+  it('supports owner-tokened migration abort without claiming marker verification', async function () {
+    const barrierModule = await import('../shared/security/mutation-barrier-service.cjs');
+    const service = new barrierModule.MutationBarrierService(harness().dependencies);
+    const frozen = await service.freezeBegin({ audience: 'storage-profiles' });
+
+    await assert.rejects(service.freezeAbort({ generation: 'wrong' }), /BARRIER_GENERATION_MISMATCH/);
+    assert.deepStrictEqual(await service.freezeAbort({ generation: frozen.generation }), {
+      frozen: false, generation: null, audience: null, active: 0,
+    });
+  });
+
   it('releases abandoned leases explicitly through expiry processing', async function () {
     const barrierModule = await import('../shared/security/mutation-barrier-service.cjs');
     const state = harness();

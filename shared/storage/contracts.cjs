@@ -2,19 +2,10 @@
 
 const { normalizeNextCursor } = require('./pagination.cjs');
 const { resolveCapability } = require('./capabilities.cjs');
+const profilePolicy = require('./profile-policy.cjs');
 
 const ADMIN_AUTH = 'admin';
-const MASKED_SECRET = '********';
 const VISIBILITIES = Object.freeze(new Set(['public', 'private']));
-const STORAGE_SECRET_FIELDS = Object.freeze({
-  telegram: Object.freeze(['botToken']),
-  r2: Object.freeze(['accessKeyId', 'secretAccessKey']),
-  s3: Object.freeze(['accessKeyId', 'secretAccessKey']),
-  discord: Object.freeze(['botToken', 'webhookUrl']),
-  huggingface: Object.freeze(['token']),
-  webdav: Object.freeze(['password', 'bearerToken', 'token']),
-  github: Object.freeze(['token']),
-});
 
 class ApiContractError extends Error {
   constructor(code, status = 400) {
@@ -94,31 +85,31 @@ function validateStorageType(value) {
 function maskStorageConfig(typeValue, configValue) {
   const type = validateStorageType(typeValue);
   const config = { ...parseObject(configValue, 'STORAGE_CONFIG_INVALID') };
-  for (const field of STORAGE_SECRET_FIELDS[type]) {
-    if (config[field]) config[field] = MASKED_SECRET;
-  }
-  return Object.freeze(config);
+  return profilePolicy.presentProfile({ type, config }).config;
 }
 
 function mergeStorageConfig(typeValue, currentValue, patchValue) {
   const type = validateStorageType(typeValue);
   const current = { ...parseObject(currentValue, 'STORAGE_CONFIG_INVALID') };
   const patch = { ...parseObject(patchValue, 'STORAGE_CONFIG_INVALID') };
-  for (const field of STORAGE_SECRET_FIELDS[type]) {
-    if (patch[field] === '' || patch[field] === MASKED_SECRET) delete patch[field];
+  for (const field of profilePolicy.storageSecretFields(type)) {
+    if (patch[field] === '' || patch[field] === profilePolicy.MASKED_SECRET) delete patch[field];
   }
   return Object.freeze({ ...current, ...patch });
 }
 
 function storageSecretFields(typeValue) {
   const type = validateStorageType(typeValue);
-  return STORAGE_SECRET_FIELDS[type];
+  return profilePolicy.storageSecretFields(type);
 }
 
 function normalizeStorageItem(record) {
   const id = requiredString(record?.id, 'STORAGE_ID_REQUIRED');
   const type = validateStorageType(record?.type);
-  const config = maskStorageConfig(type, record.config);
+  const presented = profilePolicy.presentProfile({
+    type,
+    config: parseObject(record.config, 'STORAGE_CONFIG_INVALID'),
+  });
   const metadataSource = record.metadata ?? record.metadata_json;
   const metadata = Object.freeze({ ...parseObject(metadataSource, 'STORAGE_METADATA_INVALID') });
   return Object.freeze({
@@ -127,7 +118,8 @@ function normalizeStorageItem(record) {
     type,
     enabled: Boolean(record.enabled),
     isDefault: Boolean(record.isDefault ?? record.is_default),
-    config,
+    config: presented.config,
+    secretsPresent: presented.secretsPresent,
     metadata,
     createdAt: record.createdAt ?? record.created_at ?? null,
     updatedAt: record.updatedAt ?? record.updated_at ?? null,
@@ -199,6 +191,14 @@ function inferFileType(metadata) {
 function normalizeDriveFile(record = {}) {
   const metadata = record.metadata && typeof record.metadata === 'object' ? record.metadata : record;
   const id = requiredString(record.id ?? record.name, 'FILE_ID_REQUIRED');
+  const storageId = String(metadata.storageId ?? metadata.storageConfigId ?? metadata.storage_config_id ?? '');
+  const storageName = String(metadata.storageName ?? metadata.storage_name ?? '');
+  const profileIdentity = storageId || storageName ? { storageId, storageName } : {};
+  const uploadSource = String(metadata.uploadSource ?? metadata.upload_source ?? '');
+  const accessIdentity = uploadSource ? {
+    uploadSource,
+    accessVersion: normalizedNumber(metadata.accessVersion ?? metadata.access_version, 0),
+  } : {};
   return Object.freeze({
     name: id,
     metadata: Object.freeze({
@@ -206,8 +206,10 @@ function normalizeDriveFile(record = {}) {
       fileSize: normalizedNumber(metadata.fileSize ?? metadata.file_size, 0),
       mimeType: String(metadata.mimeType ?? metadata.mime_type ?? ''),
       storageType: String(metadata.storageType ?? metadata.storage_type ?? ''),
+      ...profileIdentity,
       folderPath: normalizeDrivePath(metadata.folderPath ?? metadata.folder_path),
       visibility: normalizeVisibility(metadata.visibility),
+      ...accessIdentity,
       TimeStamp: normalizedNumber(metadata.createdAt ?? metadata.created_at ?? metadata.TimeStamp, null),
       ListType: String(metadata.ListType ?? metadata.listType ?? metadata.list_type ?? 'None'),
       Label: String(metadata.Label ?? metadata.label ?? 'None'),
@@ -282,4 +284,5 @@ module.exports = Object.freeze({
   normalizeDriveFile,
   storageEnvelope,
   driveEnvelope,
+  storageErrorDetails: profilePolicy.storageErrorDetails,
 });

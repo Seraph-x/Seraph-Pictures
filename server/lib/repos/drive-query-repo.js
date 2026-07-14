@@ -31,6 +31,10 @@ function fileWhere(options) {
     const term = `%${String(filters.search).toLowerCase()}%`;
     params.push(term, term);
   }
+  if (filters.storageId && filters.storageId !== 'all') {
+    clauses.push('storage_config_id = ?');
+    params.push(String(filters.storageId));
+  }
   for (const [field, value] of [
     ['storage_type', filters.storageType], ['list_type', filters.listType],
     ['visibility', filters.visibility],
@@ -51,7 +55,9 @@ function fileMetadata(row) {
     liked: Boolean(row.liked),
     fileName: row.file_name,
     fileSize: row.file_size || 0,
-    storageType: row.storage_type,
+    storageType: row.profile_type || row.storage_type,
+    storageId: row.storage_config_id,
+    storageName: row.storage_name || '',
     mimeType: row.mime_type || '',
     folderPath: normalizeFolderPath(row.folder_path),
     visibility: row.visibility,
@@ -110,8 +116,10 @@ class DriveQueryRepository {
     const path = normalizeFolderPath(options.folderPath);
     const page = pageValues(options);
     const where = fileWhere({ ...options, folderPath: path });
-    const rows = all(this.db, `SELECT * FROM files ${where.sql}
-      ORDER BY created_at DESC LIMIT ? OFFSET ?`, [...where.params, page.limit, page.offset]);
+    const rows = all(this.db, `SELECT files.*, storage_configs.name AS storage_name,
+      storage_configs.type AS profile_type FROM files
+      JOIN storage_configs ON storage_configs.id = files.storage_config_id ${where.sql}
+      ORDER BY files.created_at DESC LIMIT ? OFFSET ?`, [...where.params, page.limit, page.offset]);
     const total = Number(get(this.db, `SELECT COUNT(1) AS c FROM files ${where.sql}`, where.params)?.c || 0);
     const nextOffset = page.offset + rows.length;
     return Object.freeze({
@@ -130,7 +138,7 @@ class DriveQueryRepository {
     const query = directFolderQuery(parentPath);
     const rows = all(this.db, `SELECT path FROM virtual_folders ${query.sql} ORDER BY path`, query.params);
     const search = String(filters.search || '').trim().toLowerCase();
-    return rows.map((row) => this.folderNode(row.path, filters.storageType))
+    return rows.map((row) => this.folderNode(row.path, filters))
       .filter((folder) => !search || folder.name.toLowerCase().includes(search));
   }
 
@@ -142,8 +150,8 @@ class DriveQueryRepository {
     const rows = rowLimit > 0
       ? all(this.db, 'SELECT path FROM virtual_folders ORDER BY path LIMIT ? OFFSET ?', [rowLimit, rowOffset])
       : [];
-    const nodes = rows.map((row) => this.folderNode(row.path, options.storageType));
-    if (includeRoot) nodes.unshift(this.folderNode('', options.storageType));
+    const nodes = rows.map((row) => this.folderNode(row.path, options.filters));
+    if (includeRoot) nodes.unshift(this.folderNode('', options.filters));
     const total = 1 + Number(get(this.db, 'SELECT COUNT(1) AS c FROM virtual_folders')?.c || 0);
     const nextOffset = page.offset + nodes.length;
     return Object.freeze({
@@ -152,20 +160,23 @@ class DriveQueryRepository {
     });
   }
 
-  folderNode(path, storageType) {
+  folderNode(path, filters = {}) {
     return Object.freeze({
       path, name: folderName(path), parentPath: folderParent(path),
-      fileCount: this.fileCount(path, storageType),
+      fileCount: this.fileCount(path, filters),
       childCount: this.childCount(path),
     });
   }
 
-  fileCount(path, storageType) {
+  fileCount(path, filters = {}) {
     const clauses = ['folder_path = ?'];
     const params = [path];
-    if (storageType && storageType !== 'all') {
+    if (filters.storageId && filters.storageId !== 'all') {
+      clauses.push('storage_config_id = ?');
+      params.push(String(filters.storageId));
+    } else if (filters.storageType && filters.storageType !== 'all') {
       clauses.push('storage_type = ?');
-      params.push(String(storageType));
+      params.push(String(filters.storageType));
     }
     return Number(get(this.db, `SELECT COUNT(1) AS c FROM files WHERE ${clauses.join(' AND ')}`, params)?.c || 0);
   }
@@ -178,7 +189,11 @@ class DriveQueryRepository {
   stats(filters = {}) {
     const clauses = [];
     const params = [];
-    for (const [field, value] of [['storage_type', filters.storageType], ['visibility', filters.visibility]]) {
+    for (const [field, value] of [
+      ['storage_config_id', filters.storageId],
+      ['storage_type', filters.storageType],
+      ['visibility', filters.visibility],
+    ]) {
       if (value && value !== 'all') {
         clauses.push(`${field} = ?`);
         params.push(String(value));

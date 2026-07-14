@@ -3,6 +3,24 @@ import { apiError, apiSuccess } from '../utils/api-v1.js';
 import { readStorageConfig, writeStorageConfig, describeStorageSchema } from '../utils/storage-config.js';
 import { withAuthErrorResponse } from '../utils/auth/http-errors.js';
 
+const GUEST_CONFIG_TYPES = Object.freeze(new Set(['telegramGuest']));
+
+function guestOnly(value = {}) {
+  return Object.freeze(Object.fromEntries(
+    Object.entries(value).filter(([type]) => GUEST_CONFIG_TYPES.has(type)),
+  ));
+}
+
+function assertGuestPatch(patch) {
+  const forbidden = Object.keys(patch || {}).filter((type) => !GUEST_CONFIG_TYPES.has(type));
+  if (forbidden.length > 0) {
+    throw Object.assign(new Error('Administrator profiles use /api/storage.'), {
+      code: 'STORAGE_PROFILE_CONFIG_FORBIDDEN', status: 400,
+    });
+  }
+  return patch;
+}
+
 async function requireAdmin(context) {
   if (!isAuthRequired(context.env)) return null;
   const auth = await checkAuthentication(context);
@@ -22,7 +40,12 @@ async function handleGet(context) {
 
   try {
     const { config, secretsPresent } = await readStorageConfig(context.env);
-    return apiSuccess({ config, secretsPresent, schema: describeStorageSchema() });
+    return apiSuccess({
+      config: guestOnly(config),
+      secretsPresent: guestOnly(secretsPresent),
+      schema: describeStorageSchema().filter((item) => GUEST_CONFIG_TYPES.has(item.type)),
+      preferredStorageType: String(context.env.DEFAULT_STORAGE_TYPE || 'telegram').toLowerCase(),
+    });
   } catch (error) {
     console.error('[storage-config] GET failed:', error?.message || String(error));
     if (error?.code === 'STORAGE_CONFIG_UNAVAILABLE') {
@@ -50,9 +73,14 @@ async function handlePost(context) {
     : body;
 
   try {
-    const { config, secretsPresent } = await writeStorageConfig(context.env, patch || {});
-    return apiSuccess({ config, secretsPresent });
+    const { config, secretsPresent } = await writeStorageConfig(
+      context.env, assertGuestPatch(patch || {}),
+    );
+    return apiSuccess({ config: guestOnly(config), secretsPresent: guestOnly(secretsPresent) });
   } catch (error) {
+    if (error?.code === 'STORAGE_PROFILE_CONFIG_FORBIDDEN') {
+      return apiError(error.code, error.message, error.status);
+    }
     if (error?.code === 'STORAGE_CONFIG_UNAVAILABLE') {
       return apiError('STORAGE_CONFIG_UNAVAILABLE', '存储配置暂时不可用，请稍后重试。', 503);
     }

@@ -17,12 +17,35 @@ class MemoryKV {
 }
 
 function authCoordinator() {
+  const state = { generation: null };
   const stub = Object.freeze({
-    fetch: async () => Response.json({
-      data: { initialized: true, schemaVersion: 1, legacyCleanupRequired: false },
-    }),
+    async fetch(request) {
+      const operation = new URL(request.url).pathname.split('/').at(-1);
+      const payload = await request.json();
+      if (operation === 'storageProfileCatalogReadAuthority') {
+        return Response.json({ data: {
+          initialized: state.generation !== null, generation: state.generation,
+          ledgerGeneration: state.generation,
+        } });
+      }
+      if (operation === 'storageProfileCatalogActivate') {
+        if (payload.generation !== state.generation
+          && payload.expectedGeneration !== state.generation) {
+          return Response.json({ data: {
+            ok: false, code: 'STORAGE_GENERATION_CONFLICT', generation: state.generation,
+          } });
+        }
+        state.generation = payload.generation;
+        return Response.json({ data: {
+          ok: true, generation: state.generation, ledgerGeneration: state.generation,
+        } });
+      }
+      return Response.json({
+        data: { initialized: true, schemaVersion: 1, legacyCleanupRequired: false },
+      });
+    },
   });
-  return Object.freeze({ idFromName: () => 'admin-auth', get: () => stub });
+  return Object.freeze({ idFromName: () => 'admin-auth', get: () => stub, state });
 }
 
 function env(overrides = {}) {
@@ -30,6 +53,7 @@ function env(overrides = {}) {
     APP_ENV: 'local', AUTH_DISABLED: 'true',
     CONFIG_ENCRYPTION_KEY: 'storage-route-test-key',
     img_url: new MemoryKV(),
+    AUTH_COORDINATOR: authCoordinator(),
     R2_BUCKET: { list: async () => ({ objects: [] }) },
     ...overrides,
   };
@@ -87,7 +111,10 @@ describe('Cloudflare Storage API routes', function () {
       method: 'POST',
       body: {
         name: 'Primary R2', type: 'r2', enabled: true,
-        config: { bucket: 'images', accessKeyId: 'access', secretAccessKey: 'secret' },
+        config: {
+          adapterMode: 's3', endpoint: 'https://r2.example', bucket: 'images',
+          accessKeyId: 'access', secretAccessKey: 'secret',
+        },
       },
     })));
     const id = created.item.id;
@@ -114,25 +141,43 @@ describe('Cloudflare Storage API routes', function () {
     )));
     assert.strictEqual(defaulted.item.isDefault, true);
 
+    const locked = await body(await routes.item.onRequestDelete(context(
+      `/api/storage/${id}`, environment, { method: 'DELETE', params: { id } },
+    )), 409);
+    assert.strictEqual(locked.error.code, 'STORAGE_DEFAULT_LOCKED');
+    const backup = await body(await routes.create.onRequestPost(context('/api/storage', environment, {
+      method: 'POST', body: {
+        name: 'Backup R2', type: 'r2',
+        config: { adapterMode: 'binding', bindingName: 'R2_BUCKET' },
+      },
+    })));
+    await body(await routes.setDefault.onRequestPost(context(
+      `/api/storage/default/${backup.item.id}`, environment,
+      { method: 'POST', params: { id: backup.item.id } },
+    )));
     assert.deepStrictEqual(await body(await routes.item.onRequestDelete(context(
       `/api/storage/${id}`, environment, { method: 'DELETE', params: { id } },
     ))), { success: true });
     assert.deepStrictEqual((await body(await routes.list.onRequestGet(
       context('/api/storage/list', environment),
-    ))).items, []);
+    ))).items.map((item) => item.id), [backup.item.id]);
   });
 
   it('tests stored and draft R2 profiles through the native binding', async function () {
     const environment = env();
     const created = await body(await routes.create.onRequestPost(context('/api/storage', environment, {
-      method: 'POST', body: { name: 'R2', type: 'r2', config: {} },
+      method: 'POST', body: {
+        name: 'R2', type: 'r2', config: { adapterMode: 'binding', bindingName: 'R2_BUCKET' },
+      },
     })));
     const byId = await body(await routes.testById.onRequestPost(context(
       `/api/storage/${created.item.id}/test`, environment,
       { method: 'POST', params: { id: created.item.id } },
     )));
     const draft = await body(await routes.testDraft.onRequestPost(context('/api/storage/test', environment, {
-      method: 'POST', body: { type: 'r2', config: {} },
+      method: 'POST', body: {
+        type: 'r2', config: { adapterMode: 'binding', bindingName: 'R2_BUCKET' },
+      },
     })));
     assert.strictEqual(byId.result.connected, true);
     assert.strictEqual(draft.result.connected, true);
@@ -147,21 +192,25 @@ describe('Cloudflare Storage API routes', function () {
     const missing = await body(await routes.item.onRequestDelete(context(
       '/api/storage/missing', environment, { method: 'DELETE', params: { id: 'missing' } },
     )), 404);
-    assert.strictEqual(missing.error.code, 'STORAGE_NOT_FOUND');
+    assert.strictEqual(missing.error.code, 'STORAGE_PROFILE_NOT_FOUND');
   });
 
   it('fails closed on KV outages and missing encryption keys', async function () {
     const brokenKv = new MemoryKV();
     brokenKv.get = async () => { throw new Error('KV unavailable'); };
+    const brokenEnv = env({ img_url: brokenKv });
+    brokenEnv.AUTH_COORDINATOR.state.generation = 'active-generation';
     const unavailable = await body(await routes.list.onRequestGet(context(
-      '/api/storage/list', env({ img_url: brokenKv }),
+      '/api/storage/list', brokenEnv,
     )), 503);
     assert.strictEqual(unavailable.error.code, 'STORAGE_CONFIG_UNAVAILABLE');
 
     const noKey = env({ CONFIG_ENCRYPTION_KEY: undefined });
     const rejected = await body(await routes.create.onRequestPost(context('/api/storage', noKey, {
       method: 'POST',
-      body: { name: 'Telegram', type: 'telegram', config: { botToken: 'token' } },
+      body: {
+        name: 'Telegram', type: 'telegram', config: { botToken: 'token', chatId: 'chat' },
+      },
     })), 500);
     assert.strictEqual(rejected.error.code, 'NO_ENC_KEY');
     assert.strictEqual(noKey.img_url.values.size, 0);

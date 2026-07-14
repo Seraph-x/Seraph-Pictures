@@ -46,9 +46,8 @@ function invalidRangeResponse(totalSize) {
   return new Response('Range Not Satisfiable', { status: 416, headers });
 }
 
-export async function handleR2File(context, r2Key, record) {
+export async function handleR2File({ context, r2Key, record, adapter }) {
   const { request, env } = context;
-  if (!env.R2_BUCKET) return errorResponse('R2 storage not configured', 500);
   if (!record?.metadata) return errorResponse('File not found', 404);
   const requestUrl = new URL(request.url);
   if (shouldBlock(record.metadata)) return blockRedirect(requestUrl, request);
@@ -56,7 +55,10 @@ export async function handleR2File(context, r2Key, record) {
     return Response.redirect(`${requestUrl.origin}/whitelist-on.html`, 302);
   }
   const key = r2Key.replace(/^r2:/, '');
-  const result = await readR2Object(env, key, request.headers.get('Range'));
+  if (adapter?.mode === 's3') return handleS3Mode({ context, key, record, adapter });
+  if (!adapter?.binding) return errorResponse('R2 storage not configured', 500);
+  const bindingEnv = Object.freeze({ ...env, R2_BUCKET: adapter.binding });
+  const result = await readR2Object(bindingEnv, key, request.headers.get('Range'));
   if (result.range?.invalid) return invalidRangeResponse(result.range.totalSize);
   if (!result.object) return errorResponse('File not found in R2', 404);
   const fileName = record.metadata.fileName || key;
@@ -70,4 +72,18 @@ export async function handleR2File(context, r2Key, record) {
   }
   headers.set('Content-Length', String(result.object.size));
   return new Response(result.object.body, { status: 200, headers });
+}
+
+async function handleS3Mode({ context, key, record, adapter }) {
+  const range = context.request.headers.get('Range');
+  const upstream = await adapter.client.getObject(key, range ? { range } : {});
+  if (!upstream) return errorResponse('File not found in R2', 404);
+  const fileName = record.metadata.fileName || key;
+  const headers = new Headers();
+  addResponseHeaders({ headers, fileName, mimeType: getMimeType(fileName), upstream });
+  return new Response(upstream.body, {
+    status: upstream.status,
+    statusText: upstream.statusText,
+    headers,
+  });
 }

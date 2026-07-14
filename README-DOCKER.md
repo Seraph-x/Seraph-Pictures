@@ -43,12 +43,29 @@ npm run docker:doctor
 
 Docker 支持 Telegram、R2、S3、Discord、Hugging Face、WebDAV、GitHub，上传模式为 direct 或 chunked。管理员默认配置上限为 100 MiB；Telegram 最高 50 MiB、Discord 25 MiB、Hugging Face 35 MiB。后端服务的更低上限仍然生效。
 
+管理员可在 `/storage-settings` 或 `/app/storage` 为同一类型添加多个命名 Profile，并分别编辑、测试、启用、设为该类型默认或删除。Docker R2 Profile 使用 S3-compatible endpoint、bucket、access key 与 secret；每次管理员写入都保存精确 `storageId`。禁用 Profile 仅禁止新写入，历史读取/删除/迁移仍使用文件持久化的 Profile，不回退 `.env` 旧凭据。
+
 访客上传遵循不可放宽的隔离边界：
 
 - 必须同时配置独立的 `TG_GUEST_BOT_TOKEN` 与 `TG_GUEST_CHAT_ID`，缺失即失败，不回退主 Bot。
 - 每 IP 每日固定 10 次；保留期至少 1 天；可配置上限 20 MiB；`.env.example` 示例默认 5 MiB。
 - 仅接受签名、MIME 和扩展名一致的 AVIF/GIF/JPEG/PNG/WebP，默认可见性为 `public`。
 - 元数据到期会使项目链接失效，但不代表 Telegram 远端字节已删除；远端清理按频道策略执行。
+
+## Profile 迁移与恢复
+
+迁移前一致性备份 Docker SQLite，并与 Cloudflare v1 catalog、Legacy 配置和文件引用一起生成输入快照。先 dry-run 检查每类型默认、确定性 Legacy ID 和引用计数，再使用环境专用 driver 执行。迁移锁必须在首次后端写入前取得；活动分片或 lifecycle 引用未清零时不得强制继续。
+
+```bash
+node scripts/security/migrate-storage-profiles.mjs --input <SOURCE_SNAPSHOT.json>
+node scripts/security/migrate-storage-profiles.mjs \
+  --input <SOURCE_SNAPSHOT.json> --apply --driver <ENVIRONMENT_DRIVER.mjs> \
+  --token <ONE_TIME_OWNER_TOKEN> \
+  --cloudflare-backup <CLOUDFLARE_BACKUP.json> \
+  --docker-backup <DOCKER_BACKUP.sqlite>
+```
+
+`STORAGE_MIGRATION_FAILED` 明确失败时核对备份和旧指针；`MIGRATION_ACTIVATION_AMBIGUOUS` 必须保留 Cloudflare freeze 与 Docker lock，取得 authority/ledger 证据后再 reconciliation。详细演练和回滚矩阵见 [迁移演练报告](docs/2026-07-14_multi-storage-migration-rehearsal.md)。
 
 ## 生产反向代理
 
@@ -70,6 +87,7 @@ npm run docker:smoke:ci
 | Passkey 失败 | 确保 RP 为域名、origin 为完整 HTTPS 源站且代理头正确 |
 | 分片未完成 | 检查 `CHUNK_DIR` 所在卷容量、权限和 API 日志，不伪造成功响应 |
 | 访客上传拒绝 | 检查独立访客 Bot/Chat、文件真实性、每日配额与保留期 |
+| Profile 无法删除/改类型 | 检查文件、分片任务与 lifecycle 引用；先完成或 reconciliation |
 
 容器与持久卷状态：
 

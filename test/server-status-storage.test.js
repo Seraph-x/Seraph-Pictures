@@ -107,7 +107,7 @@ describe('Server status storage semantics', function () {
     assert.strictEqual(probes, 0);
   });
 
-  it('selects at most one bounded probe per supported storage type', function () {
+  it('selects every supported storage profile for independent bounded probes', function () {
     const configs = [
       { id: 'disabled', type: 'github', enabled: false, isDefault: true },
       { id: 'enabled', type: 'github', enabled: true, isDefault: false },
@@ -117,7 +117,7 @@ describe('Server status storage semantics', function () {
 
     assert.deepStrictEqual(
       selectProbeConfigs(configs).map((config) => config.id),
-      ['telegram', 'enabled'],
+      ['disabled', 'enabled', 'telegram'],
     );
   });
 

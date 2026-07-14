@@ -131,6 +131,8 @@ describe('explicit file visibility metadata', function () {
     let created;
     const service = new UploadService({
       storageRepo: {
+        reserveReference() {},
+        commitReference(_operationId, operation) { return operation(); },
         resolveStorageSelection() { return { id: 'storage-1', type: 'r2' }; },
       },
       fileRepo: {

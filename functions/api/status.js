@@ -23,5 +23,8 @@ async function statusActor(context) {
 export async function onRequestGet(context) {
   const decision = decideStatusAccess({ actor: await statusActor(context) });
   if (!decision.runProbes) return json(decision.body);
-  return json(await collectCloudflareStatus({ env: context.env }));
+  return json(await collectCloudflareStatus({
+    env: context.env,
+    ...(context.data?.statusDependencies || {}),
+  }));
 }

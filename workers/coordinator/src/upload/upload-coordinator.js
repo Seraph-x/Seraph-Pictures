@@ -2,6 +2,7 @@ import { reduceMultipartState } from './state-machine.js';
 import { sha256Hex } from './digest.js';
 import { expectedPartLength, validateMultipartPlan } from './multipart-plan.js';
 import { createUploadRecord, withState } from './upload-record.js';
+import { multipartMetadataRecord, publicUploadResult } from './record-view.js';
 
 function uploadError(code, cause) {
   const error = new Error(code, cause ? { cause } : undefined);
@@ -15,6 +16,9 @@ function requireDependencies(service) {
     [service.r2, ['createMultipartUpload', 'resumeMultipartUpload', 'head', 'delete']],
     [service.quota, ['reserve', 'consume', 'cancel']],
     [service.metadata, ['publish']],
+    [service.references, [
+      'reserve', 'commitStart', 'commitFinish', 'releaseStart', 'releaseFinish',
+    ]],
     [service.alarms, ['schedule']],
   ];
   const invalid = requirements.some(([dependency, methods]) => (
@@ -23,24 +27,11 @@ function requireDependencies(service) {
   if (invalid) throw uploadError('MULTIPART_BINDING_MISSING');
 }
 
-function publicResult(record) {
-  return Object.freeze({
-    uploadId: record.plan.uploadId,
-    objectKey: record.objectKey,
-    fileId: record.fileId,
-    partSize: record.plan.partSize,
-    totalParts: record.plan.totalParts,
-    customMetadata: record.customMetadata,
-    phase: record.state.phase,
-    expiresAt: record.plan.expiresAt,
-    uploadedParts: record.state.parts.length,
-    fileName: record.plan.fileName,
-    fileSize: record.plan.expectedSize,
-  });
-}
-
 function samePlan(left, right) {
-  return Object.keys(left).every((key) => left[key] === right[key]);
+  const leftKeys = Object.keys(left);
+  const rightKeys = Object.keys(right);
+  return leftKeys.length === rightKeys.length
+    && leftKeys.every((key) => left[key] === right[key]);
 }
 
 function byteLength(bytes) {
@@ -68,33 +59,9 @@ function objectMatches(record, object) {
   return object?.size === record.plan.expectedSize
     && metadata.uploadId === record.plan.uploadId
     && metadata.rootDigest === record.plan.rootDigest
-    && metadata.expectedSize === String(record.plan.expectedSize);
-}
-
-function metadataRecord(record) {
-  return Object.freeze({
-    uploadId: record.plan.uploadId,
-    operationId: record.operations.publish,
-    key: record.fileId,
-    value: '',
-    metadata: Object.freeze({
-      TimeStamp: record.plan.createdAt,
-      ListType: 'None',
-      Label: 'None',
-      liked: false,
-      fileName: record.plan.fileName,
-      fileSize: record.plan.expectedSize,
-      fileType: record.plan.fileType,
-      folderPath: record.plan.folderPath || undefined,
-      storageType: 'r2',
-      r2Key: record.objectKey,
-      visibility: record.plan.visibility,
-      owner: record.plan.owner,
-      accessVersion: 1,
-      chunked: true,
-      totalChunks: record.plan.totalParts,
-    }),
-  });
+    && metadata.expectedSize === String(record.plan.expectedSize)
+    && metadata.storageConfigId === record.plan.storageConfigId
+    && metadata.storageGeneration === record.plan.storageGeneration;
 }
 
 async function reconcileComplete(record, r2) {
@@ -114,6 +81,7 @@ export class UploadCoordinatorService {
     this.r2 = dependencies.r2;
     this.quota = dependencies.quota;
     this.metadata = dependencies.metadata;
+    this.references = dependencies.references;
     this.alarms = dependencies.alarms;
   }
 
@@ -122,7 +90,7 @@ export class UploadCoordinatorService {
     const plan = validateMultipartPlan(input);
     let record = await this.repository.read();
     if (record && !samePlan(record.plan, plan)) throw uploadError('MULTIPART_PLAN_CONFLICT');
-    if (record && record.state.phase !== 'creating') return publicResult(record);
+    if (record && record.state.phase !== 'creating') return publicUploadResult(record);
     if (!record) {
       record = createUploadRecord(plan);
       await this.repository.write(record);
@@ -134,6 +102,12 @@ export class UploadCoordinatorService {
       bytes: plan.expectedSize,
       expiresAt: plan.expiresAt,
     });
+    await this.references.reserve({
+      operationId: record.operations.reference,
+      storageId: record.plan.storageConfigId,
+      expiresAt: record.plan.expiresAt,
+    });
+    await this.references.commitStart({ operationId: record.operations.reference });
     const upload = await this.r2.createMultipartUpload(record.objectKey, {
       httpMetadata: { contentType: plan.fileType },
       customMetadata: record.customMetadata,
@@ -147,7 +121,7 @@ export class UploadCoordinatorService {
     } catch (cause) {
       throw uploadError('MULTIPART_CREATE_AMBIGUOUS', cause);
     }
-    return publicResult(withState(record, state));
+    return publicUploadResult(withState(record, state));
   }
 
   async uploadPart(input) {
@@ -158,7 +132,7 @@ export class UploadCoordinatorService {
     const actualDigest = await sha256Hex(input.bytes);
     if (actualDigest !== input.digest) throw uploadError('MULTIPART_DIGEST_MISMATCH');
     const existing = findPart(record, input.partNumber);
-    if (existing) { assertExistingPart(existing, input); return publicResult(record); }
+    if (existing) { assertExistingPart(existing, input); return publicUploadResult(record); }
     const upload = this.r2.resumeMultipartUpload(record.objectKey, record.state.r2UploadId);
     const receipt = await upload.uploadPart(input.partNumber, input.bytes);
     const state = reduceMultipartState({
@@ -170,45 +144,53 @@ export class UploadCoordinatorService {
     });
     const next = withState(record, state);
     await this.repository.write(next);
-    return publicResult(next);
+    return publicUploadResult(next);
   }
 
   async complete(input) {
     requireDependencies(this);
     let record = await this.readRecord(input.uploadId);
-    if (record.state.phase === 'completed') return publicResult(record);
+    if (record.state.phase === 'completed') return publicUploadResult(record);
     record = await this.startCompletion(record);
     record = await this.finishObject(record);
     record = await this.publishMetadata(record);
     record = await this.consumeQuota(record);
-    return publicResult(record);
+    return publicUploadResult(record);
   }
 
   async cancel(input) {
     requireDependencies(this);
     let record = await this.readRecord(input.uploadId);
-    if (record.state.phase === 'aborted') return publicResult(record);
+    if (record.state.phase === 'aborted') return publicUploadResult(record);
+    if (!['creating', 'uploading', 'aborting'].includes(record.state.phase)) {
+      throw uploadError('MULTIPART_CANCEL_INVALID');
+    }
+    await this.references.releaseStart({ operationId: record.operations.reference });
     const state = reduceMultipartState({ state: record.state, event: { type: 'ABORT_STARTED' } });
     record = await this.persistState(record, state);
     if (record.state.r2UploadId) {
       await this.r2.resumeMultipartUpload(record.objectKey, record.state.r2UploadId).abort();
     }
     await this.quota.cancel(this.quotaInput(record, 'cancel'));
-    return publicResult(await this.persistEvent(record, { type: 'ABORTED' }));
+    record = await this.persistEvent(record, { type: 'ABORTED' });
+    await this.references.releaseFinish({ operationId: record.operations.reference });
+    return publicUploadResult(record);
   }
 
   async cleanupExpired({ now }) {
     requireDependencies(this);
     let record = await this.repository.read();
     if (!record || record.plan.expiresAt > now || record.state.phase === 'completed') {
-      return record ? publicResult(record) : null;
+      return record ? publicUploadResult(record) : null;
     }
     const previousPhase = record.state.phase;
+    await this.references.releaseStart({ operationId: record.operations.reference });
     record = await this.persistEvent(record, { type: 'EXPIRED' });
     await this.cleanupR2(record, previousPhase);
     await this.quota.cancel(this.quotaInput(record, 'cancel'));
     record = await this.persistEvent(record, { type: 'CLEANUP_FINISHED' });
-    return publicResult(record);
+    await this.references.releaseFinish({ operationId: record.operations.reference });
+    return publicUploadResult(record);
   }
 
   async readRecord(uploadId) {
@@ -236,7 +218,8 @@ export class UploadCoordinatorService {
 
   async publishMetadata(record) {
     if (record.state.phase !== 'publish_pending') return record;
-    await this.metadata.publish(metadataRecord(record));
+    await this.metadata.publish(multipartMetadataRecord(record));
+    await this.references.commitFinish({ operationId: record.operations.reference });
     return this.persistEvent(record, { type: 'METADATA_PUBLISHED' });
   }
 
@@ -255,11 +238,11 @@ export class UploadCoordinatorService {
   }
 
   async cleanupR2(record, previousPhase) {
-    if (['publish_pending', 'quota_pending', 'completing'].includes(previousPhase)) {
+    if (['publish_pending', 'quota_pending', 'completing', 'cleanup_pending'].includes(previousPhase)) {
       const object = await this.r2.head(record.objectKey);
       if (object && !objectMatches(record, object)) throw uploadError('MULTIPART_OBJECT_CONFLICT');
       if (object) return this.r2.delete(record.objectKey);
-      if (previousPhase !== 'completing') return undefined;
+      if (!['completing', 'cleanup_pending'].includes(previousPhase)) return undefined;
     }
     if (!record.state.r2UploadId) return undefined;
     return this.r2.resumeMultipartUpload(record.objectKey, record.state.r2UploadId).abort();

@@ -37,6 +37,11 @@ function leaseCoordinator(record) {
       if (operation === 'configReadAuthority') {
         return { initialized: false, committedVersion: null, digest: null };
       }
+      if (operation === 'storageProfileCatalogReadAuthority') {
+        return {
+          initialized: true, generation: 'test-generation', ledgerGeneration: 'test-generation',
+        };
+      }
       throw new Error(`Unexpected operation ${operation}`);
     },
   };
@@ -67,8 +72,20 @@ function storageEnvironment(coordinator) {
     FILE_SHARE_SECRET_CURRENT: CURRENT_SECRET,
     AUTH_COORDINATOR: coordinatorBinding(coordinator.handle.bind(coordinator)),
     img_url: {
-      async get(key) {
-        return key === 'schema:visibility:v1' ? { version: 1, complete: true } : null;
+      async get(key, options) {
+        if (key === 'schema:visibility:v1') return { version: 1, complete: true };
+        if (key === 'storage_profiles:v2:test-generation' && options?.type === 'json') {
+          return {
+            schemaVersion: 2,
+            generation: 'test-generation',
+            items: [{
+              id: 'test-r2', name: 'Test R2', type: 'r2', enabled: true, isDefault: true,
+              config: { adapterMode: 'binding', bindingName: 'R2_BUCKET' },
+            }],
+            legacyTypeProfileIds: { r2: 'test-r2' },
+          };
+        }
+        return null;
       },
       async getWithMetadata(key) {
         if (key !== 'r2:private.png') return null;

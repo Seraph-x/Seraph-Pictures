@@ -33,7 +33,7 @@ const legacyFiles = [
   'music.svg',
 ];
 
-const legacyDirs = [];
+const legacyDirs = ['legacy'];
 const SPA_REWRITE_STATUS = 200;
 const appDeepLinkRoutes = ['login', 'drive', 'admin', 'storage', 'status'];
 
@@ -43,7 +43,9 @@ function ensureDir(target) {
 
 function copyEntry(relativePath, targetBase = '') {
   const from = path.resolve(rootDir, relativePath);
-  if (!fs.existsSync(from)) return;
+  if (!fs.existsSync(from)) {
+    throw new Error(`Legacy asset is missing: ${relativePath}`);
+  }
   const to = path.resolve(distDir, targetBase, relativePath);
   ensureDir(to);
 
@@ -120,7 +122,6 @@ for (const file of legacyFiles) {
 }
 for (const dir of legacyDirs) {
   copyEntry(dir);
-  copyEntry(dir, 'legacy');
 }
 
 writeRedirects();

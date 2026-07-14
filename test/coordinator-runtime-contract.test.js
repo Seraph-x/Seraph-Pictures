@@ -28,6 +28,12 @@ function createService() {
     mutationFreezeStatus: async () => ({
       frozen: true, generation: 'generation-1', audience: 'namespace', active: 0,
     }),
+    storageRefReserve: async ({ operationId, storageId }) => ({
+      operationId, storageId, state: 'reserved',
+    }),
+    storageProfileCatalogReadAuthority: async () => ({
+      initialized: true, generation: 'catalog-1', ledgerGeneration: 'catalog-1',
+    }),
   });
 }
 
@@ -110,6 +116,35 @@ describe('coordinator runtime contract', function () {
       data: {
         frozen: true, generation: 'generation-1', audience: 'namespace', active: 0,
       },
+    });
+  });
+
+  it('routes storage reference operations through the private adapter', async function () {
+    const { routeAuthOperation } = await import(ADAPTER_URL);
+    const response = await routeAuthOperation({
+      request: new Request('https://internal/storage/storageRefReserve', {
+        method: 'POST', body: JSON.stringify({ operationId: 'op-1', storageId: 'r2-a' }),
+      }),
+      service: createService(),
+    });
+
+    assert.strictEqual(response.status, 200);
+    assert.deepStrictEqual(await response.json(), {
+      data: { operationId: 'op-1', storageId: 'r2-a', state: 'reserved' },
+    });
+  });
+
+  it('routes storage catalog authority operations through the private adapter', async function () {
+    const { routeAuthOperation } = await import(ADAPTER_URL);
+    const response = await routeAuthOperation({
+      request: new Request('https://internal/storage/storageProfileCatalogReadAuthority', {
+        method: 'POST', body: '{}',
+      }),
+      service: createService(),
+    });
+
+    assert.deepStrictEqual(await response.json(), {
+      data: { initialized: true, generation: 'catalog-1', ledgerGeneration: 'catalog-1' },
     });
   });
 

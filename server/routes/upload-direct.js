@@ -1,4 +1,9 @@
 const { normalizeFolderPath } = require('../lib/repos/file-repo');
+const {
+  normalizeDockerUploadSelection,
+  normalizeDockerUploadAccess,
+  readUploadOperationId,
+} = require('../lib/services/upload-request');
 
 function validateMaximum({ context, fileSize, limit, helpers }) {
   if (fileSize <= limit) return null;
@@ -29,23 +34,31 @@ function validateStorageLimit(options) {
 async function performUpload(options) {
   const { context, body, file, buffer, auth, reservation, uploadService, helpers } = options;
   try {
+    const selection = normalizeDockerUploadSelection({
+      authenticated: auth.authenticated,
+      storageMode: reservation ? 'telegram' : helpers.asString(body.storageMode || body.storage),
+      storageId: reservation?.storageId
+        || helpers.asString(body.storageId || body.storage_config_id),
+    });
+    const access = normalizeDockerUploadAccess({
+      authenticated: auth.authenticated, uploadSource: body.uploadSource,
+    });
     return await uploadService.uploadFile({
       fileName: file.name,
       mimeType: file.type,
       fileSize: buffer.byteLength,
       buffer,
-      storageMode: helpers.asString(body.storageMode || body.storage),
-      storageId: reservation?.storageId
-        || helpers.asString(body.storageId || body.storage_config_id),
+      ...selection,
+      operationId: readUploadOperationId(context.req.raw),
       folderPath: normalizeFolderPath(body.folderPath || body.folder || ''),
-      uploadSource: auth.authenticated ? 'image-host' : 'guest',
-      visibility: 'public',
+      ...access,
       expiresAt: reservation?.fileExpiresAt,
       retentionDays: reservation?.retentionDays,
     });
   } catch (error) {
-    const normalized = helpers.normalizeUploadError(context, error, 502);
-    return context.json({ ...normalized, traceId: helpers.getTraceId(context) }, 502);
+    const status = error?.status || 502;
+    const normalized = helpers.normalizeUploadError(context, error, status);
+    return context.json({ ...normalized, traceId: helpers.getTraceId(context) }, status);
   }
 }
 

@@ -16,12 +16,14 @@ import {
 const { createAccessMetadata } = fileMetadataPolicy;
 const { normalizeShareRequest } = sharePolicy;
 
-function readOptions(formData, url) {
+export function readOptions(formData, url) {
   const read = (formName, queryName = formName) => String(
     formData.get(formName) || url.searchParams.get(queryName) || '',
   );
   return Object.freeze({
     storage: read('storage').trim().toLowerCase(),
+    storageId: read('storageId', 'storage_id').trim()
+      || read('storage_id', 'storageId').trim(),
     password: read('password'),
     expiresIn: read('expires_in'),
     maxDownloads: read('max_downloads'),
@@ -55,12 +57,13 @@ function validateOptions(options) {
   return null;
 }
 
-function buildUploadRequest(request, formData, storage) {
+export function buildUploadRequest(request, formData, options) {
   const uploadForm = new FormData();
   for (const [key, value] of formData.entries()) {
-    if (key !== 'storage') uploadForm.append(key, value);
+    if (!['storage', 'storage_id', 'storageId'].includes(key)) uploadForm.append(key, value);
   }
-  if (storage) uploadForm.set('storageMode', storage);
+  if (options.storage) uploadForm.set('storageMode', options.storage);
+  if (options.storageId) uploadForm.set('storageId', options.storageId);
   const headers = new Headers(request.headers);
   ['content-type', 'content-length'].forEach((name) => headers.delete(name));
   return new Request(request.url, { method: 'POST', headers, body: uploadForm });
@@ -144,7 +147,7 @@ export async function onRequestPost(context) {
   context.data.fileVisibility = options.visibility;
   const response = await uploadInternal({
     ...context,
-    request: buildUploadRequest(context.request, formData, options.storage),
+    request: buildUploadRequest(context.request, formData, options),
   });
   const payload = await readPayload(response);
   if (!response.ok) return uploadFailure(response, payload);

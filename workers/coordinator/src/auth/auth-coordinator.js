@@ -8,87 +8,14 @@ import { ShareCoordinatorService } from '../share/share-coordinator.js';
 import { GuestQuotaRepository } from '../quota/quota-repository.js';
 import { GuestQuotaService } from '../quota/quota-coordinator.js';
 import { MutationBarrierRepository } from '../mutation/mutation-barrier-repository.js';
+import { StorageReferenceRepository } from '../storage-references/reference-repository.js';
+import { StorageReferenceService } from '../storage-references/reference-service.js';
+import { OPERATION_METHODS, routeAuthOperation } from './operation-router.js';
 import barrierModule from '../../../../shared/security/mutation-barrier-service.cjs';
 
 const { MutationBarrierService } = barrierModule;
 
-const OPERATION_METHODS = Object.freeze({
-  bootstrapLogin: 'bootstrapLogin',
-  migrateLegacyLogin: 'migrateLegacyLogin',
-  completeLegacyCredentialCleanup: 'completeLegacyCredentialCleanup',
-  verifyCredentials: 'verifyCredentials',
-  verifySession: 'verifySession',
-  issueSession: 'issueSession',
-  readProfile: 'readProfile',
-  getProfile: 'getProfile',
-  changeCredentials: 'changeCredentials',
-  logout: 'logout',
-  status: 'status',
-  listPasskeys: 'listPasskeys',
-  putPasskeyChallenge: 'putPasskeyChallenge',
-  takePasskeyChallenge: 'takePasskeyChallenge',
-  savePasskey: 'savePasskey',
-  updatePasskeyCounter: 'updatePasskeyCounter',
-  renamePasskey: 'renamePasskey',
-  deletePasskey: 'deletePasskey',
-  passkeyMigrationStatus: 'passkeyMigrationStatus',
-  migrateLegacyPasskeys: 'migrateLegacyPasskeys',
-  completeLegacyPasskeyCleanup: 'completeLegacyPasskeyCleanup',
-  configReadAuthority: 'configReadAuthority',
-  configBegin: 'configBegin',
-  configCommit: 'configCommit',
-  configAbort: 'configAbort',
-  configAbortStale: 'configAbortStale',
-  shareCreate: 'shareCreate',
-  shareRead: 'shareRead',
-  shareConsume: 'shareConsume',
-  shareRevoke: 'shareRevoke',
-  shareLeaseRead: 'shareLeaseRead',
-  shareConsumeStartLease: 'shareConsumeStartLease',
-  shareLeaseAdvance: 'shareLeaseAdvance',
-  quotaReserve: 'quotaReserve',
-  quotaComplete: 'quotaComplete',
-  quotaCancel: 'quotaCancel',
-  quotaReleaseExpired: 'quotaReleaseExpired',
-  mutationEnter: 'mutationEnter',
-  mutationExit: 'mutationExit',
-  mutationFreezeBegin: 'mutationFreezeBegin',
-  mutationFreezeEnd: 'mutationFreezeEnd',
-  mutationFreezeStatus: 'mutationFreezeStatus',
-  mutationReleaseExpired: 'mutationReleaseExpired',
-});
-
-function jsonResponse(body, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
-
-async function readPayload(request) {
-  try {
-    const payload = await request.json();
-    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error();
-    return payload;
-  } catch {
-    return null;
-  }
-}
-
-function readOperation(request) {
-  return new URL(request.url).pathname.split('/').filter(Boolean).at(-1);
-}
-
-export async function routeAuthOperation({ request, service }) {
-  if (request.method !== 'POST') return jsonResponse({ error: { code: 'METHOD_NOT_ALLOWED' } }, 405);
-  const operation = readOperation(request);
-  const method = OPERATION_METHODS[operation];
-  if (!method) return jsonResponse({ error: { code: 'COORDINATOR_OPERATION_UNKNOWN' } }, 404);
-  const payload = await readPayload(request);
-  if (!payload) return jsonResponse({ error: { code: 'COORDINATOR_PAYLOAD_INVALID' } }, 400);
-  const data = await service[method](payload);
-  return jsonResponse({ data });
-}
+export { routeAuthOperation } from './operation-router.js';
 
 function createTokenService(cryptoImpl) {
   return Object.freeze({
@@ -132,6 +59,7 @@ function createDependencies(ctx) {
 function createCoordinatorServices(ctx) {
   const dependencies = createDependencies(ctx);
   const alarms = createAlarmScheduler(ctx.storage);
+  const barrierRepository = new MutationBarrierRepository(ctx.storage);
   return Object.freeze({
     auth: new AuthService(dependencies.auth),
     config: new ConfigStateService({
@@ -149,9 +77,15 @@ function createCoordinatorServices(ctx) {
       alarms,
     }),
     barrier: new MutationBarrierService({
-      repository: new MutationBarrierRepository(ctx.storage),
+      repository: barrierRepository,
       clock: dependencies.clock,
       ids: dependencies.tokens,
+      alarms,
+    }),
+    references: new StorageReferenceService({
+      repository: new StorageReferenceRepository(ctx.storage),
+      barrier: barrierRepository,
+      clock: dependencies.clock,
       alarms,
     }),
     alarms,
@@ -181,8 +115,20 @@ function operationService(services) {
     mutationExit: (payload) => services.barrier.exit(payload),
     mutationFreezeBegin: (payload) => services.barrier.freezeBegin(payload),
     mutationFreezeEnd: (payload) => services.barrier.freezeEnd(payload),
+    mutationFreezeAbort: (payload) => services.barrier.freezeAbort(payload),
     mutationFreezeStatus: (payload) => services.barrier.status(payload),
     mutationReleaseExpired: (payload) => services.barrier.releaseExpired(payload),
+    storageProfileCatalogReadAuthority: (payload) => services.references.readAuthority(payload),
+    storageProfileCatalogActivate: (payload) => services.references.activateCatalog(payload),
+    storageProfileLedgerStage: (payload) => services.references.stageLedger(payload),
+    storageRefReserve: (payload) => services.references.reserve(payload),
+    storageRefCommitStart: (payload) => services.references.commitStart(payload),
+    storageRefCommitFinish: (payload) => services.references.commitFinish(payload),
+    storageRefReleaseStart: (payload) => services.references.releaseStart(payload),
+    storageRefReleaseFinish: (payload) => services.references.releaseFinish(payload),
+    storageRefTransferStart: (payload) => services.references.transferStart(payload),
+    storageRefTransferFinish: (payload) => services.references.transferFinish(payload),
+    storageRefReconcile: (payload) => services.references.reconcile(payload),
   });
 }
 
@@ -194,6 +140,7 @@ export class AuthCoordinator {
     this.configService = services.config;
     this.quotaService = services.quota;
     this.barrierService = services.barrier;
+    this.referenceService = services.references;
     this.alarms = services.alarms;
   }
 
@@ -206,11 +153,13 @@ export class AuthCoordinator {
       this.configService.abortStale({}),
       this.quotaService.releaseExpired({}),
       this.barrierService.releaseExpired({}),
+      this.referenceService.releaseExpired({}),
     ]);
     const candidates = [
       this.configService.nextAlarmAt(),
       this.quotaService.nextAlarmAt(),
       this.barrierService.nextAlarmAt(),
+      this.referenceService.nextAlarmAt(),
     ].filter(Number.isFinite);
     await this.alarms.replace(candidates.length ? Math.min(...candidates) : null);
   }
@@ -218,7 +167,7 @@ export class AuthCoordinator {
 
 function bindMethods(service, operationMethods) {
   const entries = Object.entries(operationMethods)
-    .filter(([operation]) => !['config', 'share', 'quota', 'mutation'].some((prefix) => (
+    .filter(([operation]) => !['config', 'share', 'quota', 'mutation', 'storage'].some((prefix) => (
       operation.startsWith(prefix)
     )))
     .map(([operation, method]) => [operation, service[method].bind(service)]);

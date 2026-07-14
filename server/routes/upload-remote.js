@@ -1,5 +1,10 @@
 const { normalizeFolderPath } = require('../lib/repos/file-repo');
 const { GUEST_LIMITS } = require('../../shared/security/guest-policy.cjs');
+const {
+  normalizeDockerUploadSelection,
+  normalizeDockerUploadAccess,
+  readUploadOperationId,
+} = require('../lib/services/upload-request');
 
 function remoteLimit(container, authenticated) {
   const configured = Math.min(
@@ -27,16 +32,23 @@ async function reserveGuest({ auth, services, request, prepared }) {
 }
 
 async function uploadPrepared(options) {
-  const { payload, auth, prepared, reservation, services } = options;
+  const { payload, auth, prepared, reservation, services, request } = options;
   let result;
   try {
+    const selection = normalizeDockerUploadSelection({
+      authenticated: auth.authenticated,
+      storageMode: reservation ? 'telegram' : payload.storageMode || payload.storage,
+      storageId: reservation?.storageId || payload.storageId || payload.storage_config_id,
+    });
+    const access = normalizeDockerUploadAccess({
+      authenticated: auth.authenticated, uploadSource: payload.uploadSource,
+    });
     result = await services.uploadService.uploadFile({
       ...prepared,
-      storageMode: payload.storageMode || payload.storage,
-      storageId: reservation?.storageId || payload.storageId || payload.storage_config_id,
+      ...selection,
+      operationId: readUploadOperationId(request),
       folderPath: normalizeFolderPath(payload.folderPath || payload.folder || ''),
-      uploadSource: auth.authenticated ? 'image-host' : 'guest',
-      visibility: 'public',
+      ...access,
       expiresAt: reservation?.fileExpiresAt,
       retentionDays: reservation?.retentionDays,
     });
@@ -56,7 +68,9 @@ async function executeRemoteUpload({ context, container, payload, auth, services
   const reservation = await reserveGuest({
     auth, services, request: context.req.raw, prepared,
   });
-  return uploadPrepared({ payload, auth, prepared, reservation, services });
+  return uploadPrepared({
+    payload, auth, prepared, reservation, services, request: context.req.raw,
+  });
 }
 
 async function handleRemoteUpload(context, container, helpers) {

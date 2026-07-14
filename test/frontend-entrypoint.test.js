@@ -23,9 +23,24 @@ function readDistFile(filePath) {
   return fs.readFileSync(filePath, 'utf8');
 }
 
+function readLegacyBundle(filePath, assetRoot) {
+  const shell = readDistFile(filePath);
+  const refs = [...shell.matchAll(/(?:src|href)="(\/legacy\/[^"?]+\.(?:js|css))/g)]
+    .map((match) => path.join(assetRoot, match[1].slice(1)));
+  return [shell, ...refs.map(readDistFile)].join('\n');
+}
+
+function sourceBundle(filePath) {
+  return readLegacyBundle(filePath, repoRoot);
+}
+
+function distBundle(filePath) {
+  return readLegacyBundle(filePath, path.join(repoRoot, 'frontend', 'dist'));
+}
+
 describe('frontend Pages entrypoint', function () {
   it('serves the legacy upload page at the site root', function () {
-    const indexHtml = readDistFile(distIndexPath);
+    const indexHtml = distBundle(distIndexPath);
 
     assert.match(indexHtml, /<title>Seraph's Pictures<\/title>/);
     assert.match(indexHtml, /class="upload-zone"/);
@@ -61,7 +76,7 @@ describe('frontend Pages entrypoint', function () {
   });
 
   it('keeps the legacy WebDAV entrypoint reachable from the root UI', function () {
-    const indexHtml = readDistFile(distIndexPath);
+    const indexHtml = distBundle(distIndexPath);
 
     assert.match(indexHtml, /href="\/webdav"/);
     assert.ok(fs.existsSync(webdavPath), 'dist/webdav.html should exist');
@@ -97,29 +112,29 @@ describe('frontend Pages entrypoint', function () {
 
   it('uses absolute app links from legacy pages so nested copies do not resolve under /legacy', function () {
     const pages = [
-      readDistFile(sourceIndexPath),
-      readDistFile(sourceAdminPath),
-      readDistFile(distIndexPath),
-      readDistFile(distAdminPath),
-      readDistFile(legacyIndexPath),
-      readDistFile(legacyAdminPath),
+      sourceBundle(sourceIndexPath),
+      sourceBundle(sourceAdminPath),
+      distBundle(distIndexPath),
+      distBundle(distAdminPath),
+      distBundle(legacyIndexPath),
+      distBundle(legacyAdminPath),
     ];
 
     for (const html of pages) {
       assert.doesNotMatch(html, /href="\.\/app\//);
     }
-    assert.doesNotMatch(readDistFile(sourceAdminPath), /href="\/app\/(?:storage|status)"/);
-    assert.doesNotMatch(readDistFile(legacyAdminPath), /href="\/app\/(?:storage|status)"/);
+    assert.doesNotMatch(sourceBundle(sourceAdminPath), /href="\/app\/(?:storage|status)"/);
+    assert.doesNotMatch(distBundle(legacyAdminPath), /href="\/app\/(?:storage|status)"/);
   });
 
   it('anchors legacy navigation and auth API calls at the site root', function () {
     const appShell = readDistFile(appShellPath);
-    const sourceIndex = readDistFile(sourceIndexPath);
-    const sourceAdmin = readDistFile(sourceAdminPath);
+    const sourceIndex = sourceBundle(sourceIndexPath);
+    const sourceAdmin = sourceBundle(sourceAdminPath);
     const sourceGallery = readDistFile(sourceGalleryPath);
     const sourceWebdav = readDistFile(sourceWebdavPath);
-    const legacyIndex = readDistFile(legacyIndexPath);
-    const legacyAdmin = readDistFile(legacyAdminPath);
+    const legacyIndex = distBundle(legacyIndexPath);
+    const legacyAdmin = distBundle(legacyAdminPath);
     const legacyWebdav = readDistFile(legacyWebdavPath);
 
     assert.match(appShell, /<a class="nav-link" href="\/">\{\{ t\('nav\.legacy'\) \}\}<\/a>/);
@@ -142,12 +157,12 @@ describe('frontend Pages entrypoint', function () {
   });
 
   it('uses extensionless legacy navigation targets to avoid Cloudflare Pages redirects', function () {
-    const sourceIndex = readDistFile(sourceIndexPath);
-    const sourceAdmin = readDistFile(sourceAdminPath);
+    const sourceIndex = sourceBundle(sourceIndexPath);
+    const sourceAdmin = sourceBundle(sourceAdminPath);
     const sourceGallery = readDistFile(sourceGalleryPath);
     const sourceWebdav = readDistFile(sourceWebdavPath);
-    const legacyIndex = readDistFile(legacyIndexPath);
-    const legacyAdmin = readDistFile(legacyAdminPath);
+    const legacyIndex = distBundle(legacyIndexPath);
+    const legacyAdmin = distBundle(legacyAdminPath);
     const legacyWebdav = readDistFile(legacyWebdavPath);
 
     for (const html of [sourceIndex, sourceAdmin, sourceGallery, sourceWebdav, legacyIndex, legacyAdmin, legacyWebdav]) {

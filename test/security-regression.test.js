@@ -119,6 +119,7 @@ describe('security regressions', function () {
         body: JSON.stringify({
           url: 'https://files.example/public.png',
           storageMode: 'unsupported',
+          storageId: 'unsupported-profile',
         }),
       }),
       env: {

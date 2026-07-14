@@ -51,19 +51,32 @@ async function sendToTelegram(options) {
   }
 }
 
-async function persistMetadata(options) {
-  const { env, fileId, extension, file, fileName, messageId, useSigned, folderPath, guest } = options;
-  if (!env.img_url || (!guest && !shouldWriteTelegramMetadata(env))) return;
+function metadataArtifact(options) {
+  const {
+    env, fileId, extension, file, fileName, messageId, useSigned,
+    folderPath, guest, profile, access,
+  } = options;
   const metadata = appendCommonMetadata({
     TimeStamp: Date.now(), ListType: 'None', Label: 'None', liked: false,
     fileName, fileSize: file.size, storageType: 'telegram', telegramFileId: fileId,
     telegramMessageId: messageId || undefined, signedLink: useSigned,
+    ...(profile ? {
+      storageConfigId: profile.id,
+      storageGeneration: profile.generation,
+      storageOperationId: profile.storageOperationId,
+    } : {}),
+    ...(access || {}),
     ...(guest ? { guest: true, guestIp: guest.guestIp, tgBot: 'guest' } : {}),
   }, folderPath);
   const putOptions = { metadata };
   const days = guest ? Math.max(0, Math.round(Number(guest.retentionDays)) || 0) : 0;
   if (days) putOptions.expirationTtl = days * SECONDS_PER_DAY;
-  await env.img_url.put(`${fileId}.${extension}`, '', putOptions);
+  return Object.freeze({ key: `${fileId}.${extension}`, metadata, putOptions });
+}
+
+async function persistMetadata(env, artifact, guest) {
+  if (!env.img_url || (!guest && !shouldWriteTelegramMetadata(env))) return;
+  await env.img_url.put(artifact.key, '', artifact.putOptions);
 }
 
 async function sendNotice(options) {
@@ -79,7 +92,10 @@ async function sendNotice(options) {
 }
 
 export async function uploadToTelegramStorage(options) {
-  const { file, fileName, extension, env, origin = '', folderPath = '', guest = null } = options;
+  const {
+    file, fileName, extension, env, origin = '', folderPath = '', guest = null,
+    profile, deferMetadata = false,
+  } = options;
   const creds = getTelegramCreds(env, { guest: Boolean(guest) });
   const form = new FormData();
   form.append('chat_id', creds.chatId);
@@ -94,7 +110,20 @@ export async function uploadToTelegramStorage(options) {
   const directId = useSigned
     ? await createSignedTelegramFileId({ fileId, fileExtension: extension, fileName, mimeType: file.type, fileSize: file.size, messageId }, env)
     : `${fileId}.${extension}`;
-  await persistMetadata({ env, fileId, extension, file, fileName, messageId, useSigned, folderPath, guest });
   if (!guest) await sendNotice({ env, directId, origin, messageId, fileId, fileName, fileSize: file.size });
-  return uploadResponse(`/file/${directId}`);
+  const response = uploadResponse(`/file/${directId}`);
+  const artifact = metadataArtifact({
+    env, fileId, extension, file, fileName, messageId, useSigned,
+    folderPath, guest, profile, access: options.access,
+  });
+  const persist = () => persistMetadata(env, artifact, guest);
+  if (deferMetadata) {
+    return Object.freeze({
+      key: artifact.key,
+      metadata: artifact.metadata,
+      persist: async () => { await persist(); return response; },
+    });
+  }
+  await persist();
+  return response;
 }

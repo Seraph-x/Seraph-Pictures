@@ -8,6 +8,13 @@ function readRepoFile(relativePath) {
   return fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
 }
 
+function readLegacyBundle(relativePath) {
+  const shell = readRepoFile(relativePath);
+  const refs = [...shell.matchAll(/(?:src|href)="(\/legacy\/[^"?]+\.(?:js|css))/g)]
+    .map((match) => match[1].slice(1));
+  return [shell, ...refs.map(readRepoFile)].join('\n');
+}
+
 describe('Claude layout balance contract', function () {
   it('loads a shared layout balancing stylesheet for legacy pages', function () {
     const indexHtml = readRepoFile('index.html');
@@ -54,7 +61,7 @@ describe('Claude layout balance contract', function () {
   });
 
   it('keeps the admin toolbar single-line and moves record totals into the folder sidebar', function () {
-    const admin = readRepoFile('admin.html');
+    const admin = readLegacyBundle('admin.html');
     const layout = readRepoFile('claude-admin-layout.css');
     const header = admin.match(/<div class="header-content">[\s\S]*?<\/el-header>/)?.[0] || '';
     const sidebar = admin.match(/<aside class="folder-sidebar">[\s\S]*?<\/aside>/)?.[0] || '';
@@ -104,7 +111,7 @@ describe('Claude layout balance contract', function () {
   });
 
   it('brands the legacy upload page for Seraph and uses icon-only theme switching', function () {
-    const indexHtml = readRepoFile('index.html');
+    const indexHtml = readLegacyBundle('index.html');
     const layout = readRepoFile('seraph-ui-polish.css');
 
     assert.match(indexHtml, /<title>Seraph's Pictures<\/title>/);
@@ -129,7 +136,7 @@ describe('Claude layout balance contract', function () {
   });
 
   it('sends guest upload brand logo clicks to login without changing other brand navigation', function () {
-    const indexHtml = readRepoFile('index.html');
+    const indexHtml = readLegacyBundle('index.html');
     const themeJs = readRepoFile('theme.js');
 
     assert.match(indexHtml, /class="brand-logo"[\s\S]*data-brand-home="1"[\s\S]*@click\.stop="handleBrandLogoClick"/);
@@ -153,7 +160,7 @@ describe('Claude layout balance contract', function () {
   });
 
   it('splits the admin header into balanced control groups and adds storage configuration access', function () {
-    const adminHtml = readRepoFile('admin.html');
+    const adminHtml = readLegacyBundle('admin.html');
     const layout = readRepoFile('seraph-admin-polish.css');
     const copyLegacy = readRepoFile('frontend/scripts/copy-legacy.mjs');
 
@@ -182,7 +189,7 @@ describe('Claude layout balance contract', function () {
   });
 
   it('shows storage status dialog without config navigation actions', function () {
-    const adminHtml = readRepoFile('admin.html');
+    const adminHtml = readLegacyBundle('admin.html');
 
     assert.match(adminHtml, /'admin\.storageStatusTitle': 'Storage Status'/);
     assert.doesNotMatch(adminHtml, /Storage Status & Config/);
@@ -197,7 +204,7 @@ describe('Claude layout balance contract', function () {
   });
 
   it('centers UI design dialog controls and removes old project footer branding', function () {
-    const adminHtml = readRepoFile('admin.html');
+    const adminHtml = readLegacyBundle('admin.html');
     const layout = readRepoFile('seraph-admin-polish.css');
 
     assert.doesNotMatch(adminHtml, />Powered By K-Vault</);

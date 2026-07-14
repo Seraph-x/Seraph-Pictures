@@ -124,6 +124,14 @@ Replace every example secret in `.env` before startup. SQLite data and configura
 
 The direct threshold is 20 MiB; only Cloudflare R2 uses multipart. Admin-saved dynamic storage settings are AES-GCM encrypted: Cloudflare writes them to KV, while Docker storage profiles always use SQLite; Redis is only an optional, separate general settings store. Dynamic settings take precedence over environment variables, and a blank secret field preserves its current value. Wrangler/the Cloudflare dashboard still controls the native R2 binding.
 
+### Multi-instance Storage Profiles
+
+One storage type may have multiple named profiles, with exactly one enabled default per type. Administrator uploads bind both `storageMode` and the exact `storageId`. Disabled profiles reject new writes but remain available for historical reads, deletion, and migration. Environment values are bootstrap or explicit-migration inputs only; runtime resolution never falls back to old global credentials when a profile is missing, disabled, or unavailable.
+
+A Cloudflare R2 profile selects either `binding` mode (a Wrangler binding such as `R2_BUCKET`) or `s3` mode (endpoint, bucket, access key, and secret). Docker R2 uses S3-compatible credentials. Guest Channel remains isolated: guest callers cannot enumerate profiles or submit an administrator `storageId`.
+
+Before upgrading v1/Legacy/SQLite state, run a dry-run and then use an environment-specific driver for backup, freeze, stage, activation, live verification, and marker commit. See the [multi-storage migration rehearsal](docs/2026-07-14_multi-storage-migration-rehearsal.md) for exact commands, rollback rules, error meanings, and verified hashes.
+
 ## Security model
 
 - **Authentication:** Pages uses `AuthCoordinator` for initialization, login-failure limits, and session state. Binding or persistence failures fail closed. Environment credentials are not a runtime fallback after initialization.
@@ -193,6 +201,9 @@ Manifest ranges are support declarations, lockfiles record current exact resolut
 | Incomplete multipart data | List rules, add the one-day abort rule, and list again; do not replace existing lifecycle rules |
 | Passkey origin/RP error | RP is the domain only; origin is the full HTTPS origin; both must match the browser address |
 | Docker refuses startup | Replace example passwords/keys, check volume permissions, and inspect `docker compose logs api` |
+| `STORAGE_PROFILE_NOT_FOUND` / `STORAGE_NOT_WRITABLE` | Check the exact `storageId`, type, and enabled state; do not fall back to global credentials |
+| `STORAGE_PROFILE_IN_USE` | Files, chunk tasks, or lifecycle operations still reference the profile; finish or reconcile them first |
+| `MIGRATION_ACTIVATION_AMBIGUOUS` | Keep the Cloudflare freeze and Docker lock; inspect authority/ledger evidence before recovery |
 
 ## Maintenance and license
 
