@@ -12,6 +12,14 @@ function reconciliationError(writeError, cleanupError) {
   return error;
 }
 
+function confirmedCleanupError(writeError) {
+  const error = new Error(writeError.message, { cause: writeError });
+  error.code = writeError.code;
+  error.status = writeError.status;
+  error.storageCleanupConfirmed = true;
+  return error;
+}
+
 async function cleanupFailedWrite(options) {
   const { adapter, storageRepo, operationId, uploadInput, uploadResult, writeError } = options;
   const storageKey = uploadResult?.storageKey || uploadInput.storageKey;
@@ -21,13 +29,13 @@ async function cleanupFailedWrite(options) {
     throw reconciliationError(writeError, cleanupError);
   }
   storageRepo.releaseReference(operationId);
-  throw writeError;
+  throw confirmedCleanupError(writeError);
 }
 
 async function executeStorageWrite(options) {
   const {
     storageRepo, fileRepo, adapter, storageConfig,
-    operationId, uploadInput, buildFileRecord,
+    operationId, uploadInput, buildFileRecord, onMetadataCommitted,
   } = options;
   const identity = { operationId, storageId: storageConfig.id };
   storageRepo.reserveReference(referenceInput({ ...identity, state: 'reserved' }));
@@ -35,9 +43,11 @@ async function executeStorageWrite(options) {
   let uploadResult;
   try {
     uploadResult = await adapter.upload(uploadInput);
-    const file = storageRepo.commitReference(operationId, () => (
-      fileRepo.create(buildFileRecord(uploadResult))
-    ));
+    const file = storageRepo.commitReference(operationId, () => {
+      const created = fileRepo.create(buildFileRecord(uploadResult));
+      if (onMetadataCommitted) onMetadataCommitted(created);
+      return created;
+    });
     return Object.freeze({ file, uploadResult });
   } catch (writeError) {
     return cleanupFailedWrite({

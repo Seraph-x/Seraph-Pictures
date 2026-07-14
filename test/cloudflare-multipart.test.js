@@ -30,9 +30,15 @@ describe('Cloudflare R2 multipart endpoints', function () {
       request: new Request('https://vault.example/api/chunked-upload/init', {
         method: 'POST', body: JSON.stringify({
           fileName: 'x.bin', fileType: 'application/octet-stream', rootDigest: 'a'.repeat(64),
-          fileSize: 3, totalChunks: 1, storageMode: 'r2', visibility: 'private',
+          fileSize: 3, totalChunks: 1, storageMode: 'r2', storageId: 'r2-a',
+          visibility: 'private',
         }),
-      }), env: env(binding),
+      }), env: env(binding), data: {
+        storageProfileResolver: { resolve: async () => ({
+          id: 'r2-a', type: 'r2', generation: 'generation-1',
+          config: { adapterMode: 'binding', bindingName: 'R2_BUCKET' },
+        }) },
+      },
     });
     assert.strictEqual(response.status, 200);
     assert.strictEqual(binding.calls.length, 1);
@@ -40,6 +46,7 @@ describe('Cloudflare R2 multipart endpoints', function () {
     assert.strictEqual(payload.expectedSize, 3);
     assert.strictEqual(payload.totalParts, 1);
     assert.strictEqual(payload.rootDigest, 'a'.repeat(64));
+    assert.strictEqual(payload.storageConfigId, 'r2-a');
   });
 
   it('forwards exact bytes, one-based part number, and digest', async function () {

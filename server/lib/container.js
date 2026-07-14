@@ -46,6 +46,7 @@ function createContainer(env = process.env) {
     db,
     config,
     uploadService,
+    storageRepo,
   });
 
   const authService = new AuthService(db, config);

@@ -85,6 +85,7 @@ class UploadService {
     const {
       fileName, mimeType, fileSize, buffer, storageId, storageMode, folderPath,
       uploadSource = 'image-host', visibility, expiresAt, retentionDays, operationId,
+      onMetadataCommitted,
     } = options;
     const storageConfig = this.resolveStorage({ storageId, storageMode });
     const adapter = this.storageFactory.createAdapter(storageConfig);
@@ -113,6 +114,7 @@ class UploadService {
       operationId: operationId || `upload:${publicId}`,
       uploadInput,
       buildFileRecord: (uploadResult) => buildFileRecord({ ...recordOptions, uploadResult }),
+      onMetadataCommitted,
     });
     return uploadResponse({ file: result.file, publicId, storageConfig, storageType });
   }

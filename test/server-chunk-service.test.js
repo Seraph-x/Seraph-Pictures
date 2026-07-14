@@ -2,7 +2,7 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { initDatabase } = require('../server/db');
+const { initDatabase, run } = require('../server/db');
 const { ChunkUploadService } = require('../server/lib/services/chunk-service');
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -10,8 +10,21 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0
 function createFixture(uploadFile = async ({ buffer }) => ({ buffer })) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'seraph-chunks-'));
   const db = initDatabase(path.join(root, 'test.db'));
+  run(db, `INSERT INTO storage_configs(
+    id, name, type, encrypted_payload, is_default, enabled,
+    metadata_json, created_at, updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+    'r2-default', 'R2', 'r2', '{}', 1, 1, '{}', 1, 1,
+  ]);
   const config = { chunkDir: path.join(root, 'chunks'), chunkSize: 5, uploadMaxSize: 100 };
-  const service = new ChunkUploadService({ db, config, uploadService: { uploadFile } });
+  const uploadService = {
+    uploadFile,
+    resolveStorage: ({ storageId, storageMode }) => ({
+      id: storageId || 'r2-default', type: storageMode || 'r2',
+    }),
+  };
+  const storageRepo = { createChunkReference: (operation) => operation() };
+  const service = new ChunkUploadService({ db, config, uploadService, storageRepo });
   return { root, db, service };
 }
 

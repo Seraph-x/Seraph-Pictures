@@ -75,7 +75,9 @@ export function commitFinish(record, now) {
 
 export function releaseStart(record, now) {
   if (record.state === 'releasing') return record;
-  if (record.state !== 'permanent') throw referenceError('STORAGE_REFERENCE_TRANSITION_INVALID');
+  if (!['reserved', 'committing', 'permanent'].includes(record.state)) {
+    throw referenceError('STORAGE_REFERENCE_TRANSITION_INVALID');
+  }
   return immutableRecord({ ...record, state: 'releasing', lastAction: 'release', updatedAt: now });
 }
 

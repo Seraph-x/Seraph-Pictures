@@ -61,6 +61,12 @@ class StorageConfigRepository {
       return result;
     });
   }
+  createChunkReference(operation) {
+    return transaction(this.db, () => {
+      this.migrationLock.assertUnlocked();
+      return operation();
+    });
+  }
   acquireMigrationLock(input) { return transaction(this.db, () => this.migrationLock.acquire(input)); }
   releaseMigrationLock(input) { return transaction(this.db, () => this.migrationLock.release(input)); }
 

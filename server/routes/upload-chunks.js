@@ -1,4 +1,5 @@
 const { normalizeFolderPath } = require('../lib/repos/file-repo');
+const { normalizeDockerUploadSelection } = require('../lib/services/upload-request');
 
 function validateMaximum({ context, fileSize, container, helpers }) {
   if (fileSize <= container.config.uploadMaxSize) return null;
@@ -26,14 +27,13 @@ function validateStoragePlan({ context, fileSize, storageMode, container, helper
 }
 
 function createTask(options) {
-  const { body, fileSize, totalChunks, storageMode, service, helpers, auth } = options;
+  const { body, fileSize, totalChunks, selection, service, auth } = options;
   return service.initTask({
     fileName: body.fileName,
     fileSize,
     fileType: body.fileType,
     totalChunks,
-    storageMode,
-    storageId: helpers.asString(body.storageId),
+    ...selection,
     folderPath: normalizeFolderPath(body.folderPath || body.folder || ''),
     uploadSource: auth.authenticated ? 'image-host' : 'guest',
     visibility: 'public',
@@ -54,12 +54,23 @@ async function handleInit(context, container, helpers) {
   }
   const maximumError = validateMaximum({ context, fileSize, container, helpers });
   if (maximumError) return maximumError;
-  const storageMode = helpers.asString(body.storageMode);
-  const storageError = validateStoragePlan({ context, fileSize, storageMode, container, helpers });
+  let selection;
+  try {
+    selection = normalizeDockerUploadSelection({
+      authenticated: auth.authenticated,
+      storageMode: helpers.asString(body.storageMode),
+      storageId: helpers.asString(body.storageId),
+    });
+  } catch (error) {
+    return helpers.jsonError(context, error.status, error.code, error.message, error.message);
+  }
+  const storageError = validateStoragePlan({
+    context, fileSize, storageMode: selection.storageMode, container, helpers,
+  });
   if (storageError) return storageError;
   try {
     const init = createTask({
-      body, fileSize, totalChunks, storageMode, service: services.chunkService, helpers, auth,
+      body, fileSize, totalChunks, selection, service: services.chunkService, auth,
     });
     return context.json({ success: true, ...init });
   } catch (error) {
@@ -124,11 +135,33 @@ async function handleComplete(context, helpers) {
   }
 }
 
+async function handleCancel(context, helpers) {
+  const services = helpers.getServices(context);
+  const unauthorized = services.authService.isAuthRequired() ? helpers.requireAuth(context) : null;
+  if (unauthorized) return unauthorized;
+  const body = await context.req.json().catch(() => ({}));
+  if (!body.uploadId) {
+    return helpers.jsonError(
+      context, 400, 'UPLOAD_ID_REQUIRED', 'uploadId is required.',
+      'Request body uploadId is missing.',
+    );
+  }
+  try {
+    return context.json({ success: true, ...await services.chunkService.cancel(body.uploadId) });
+  } catch (error) {
+    return helpers.jsonError(
+      context, error.status || 500, error.code || 'CHUNK_CANCEL_FAILED',
+      error.message, error.message,
+    );
+  }
+}
+
 function registerChunkUploadRoutes(app, container, helpers) {
   app.post('/api/chunked-upload/init', (context) => handleInit(context, container, helpers));
   app.get('/api/chunked-upload/init', (context) => handleGetInit(context, helpers));
   app.post('/api/chunked-upload/chunk', (context) => handleChunk(context, helpers));
   app.post('/api/chunked-upload/complete', (context) => handleComplete(context, helpers));
+  app.delete('/api/chunked-upload/cancel', (context) => handleCancel(context, helpers));
 }
 
 module.exports = { registerChunkUploadRoutes };

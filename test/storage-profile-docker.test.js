@@ -162,6 +162,15 @@ describe('Docker storage profile repository', function () {
       WHERE operation_id = ?`, ['op-locked']), undefined);
   });
 
+  it('blocks chunk reference creation while the migration lock is owned', function () {
+    let inserted = false;
+    fixture.repo.acquireMigrationLock({ owner: 'migration', token: 'token-1' });
+    assert.throws(() => fixture.repo.createChunkReference(() => {
+      inserted = true;
+    }), { code: 'STORAGE_MIGRATION_FAILED' });
+    assert.strictEqual(inserted, false);
+  });
+
   it('commits metadata and releases its write reservation atomically', function () {
     const profile = fixture.repo.create(telegram('atomic-write'));
     fixture.repo.reserveReference({ operationId: 'op-atomic', storageId: profile.id });

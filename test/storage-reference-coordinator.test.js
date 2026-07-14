@@ -128,6 +128,20 @@ describe('storage reference coordinator', function () {
     assert.deepStrictEqual(await service.releaseFinish({ operationId: 'file-1' }), { released: true });
   });
 
+  it('allows an incomplete backend write to enter protected cleanup', async function () {
+    const { repository, service } = await createFixture();
+    await service.reserve({ operationId: 'multipart-1', storageId: 'r2-a', expiresAt: 2_000 });
+    await service.commitStart({ operationId: 'multipart-1' });
+
+    assert.strictEqual(
+      (await service.releaseStart({ operationId: 'multipart-1' })).state,
+      'releasing',
+    );
+    assert.strictEqual(repository.count('r2-a'), 1);
+    await service.releaseFinish({ operationId: 'multipart-1' });
+    assert.strictEqual(repository.count('r2-a'), 0);
+  });
+
   it('atomically protects source and destination during transfer', async function () {
     const { repository, service } = await createFixture();
     await service.reserve({ operationId: 'file-1', storageId: 'telegram-a', expiresAt: 2_000 });

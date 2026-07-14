@@ -68,6 +68,7 @@ function baseRequest(overrides = {}) {
     uploadId: 'upload-1', owner: 'admin', visibility: 'private',
     expectedSize: (2 * PART_SIZE) + 3, partSize: PART_SIZE, totalParts: 3,
     rootDigest: 'a'.repeat(64), fileName: 'photo.png', fileType: 'image/png',
+    storageConfigId: 'r2-a', storageType: 'r2', storageGeneration: 'generation-1',
     folderPath: '', createdAt: 1_000, expiresAt: 100_000, ...overrides,
   };
 }
@@ -78,20 +79,30 @@ async function createHarness() {
   const r2 = new FakeR2();
   const quotaCalls = [];
   const metadataCalls = [];
+  const referenceCalls = [];
+  const timeline = [];
   const alarms = [];
   const quota = {
-    reserve: async (input) => { quotaCalls.push({ method: 'reserve', ...input }); },
-    consume: async (input) => { quotaCalls.push({ method: 'consume', ...input }); },
-    cancel: async (input) => { quotaCalls.push({ method: 'cancel', ...input }); },
+    reserve: async (input) => { timeline.push('quota-reserve'); quotaCalls.push({ method: 'reserve', ...input }); },
+    consume: async (input) => { timeline.push('quota-consume'); quotaCalls.push({ method: 'consume', ...input }); },
+    cancel: async (input) => { timeline.push('quota-cancel'); quotaCalls.push({ method: 'cancel', ...input }); },
   };
   const metadata = {
-    publish: async (input) => { metadataCalls.push(input); },
+    publish: async (input) => { timeline.push('metadata'); metadataCalls.push(input); },
   };
+  const references = Object.fromEntries([
+    'reserve', 'commitStart', 'commitFinish', 'releaseStart', 'releaseFinish',
+  ].map((method) => [method, async (input) => {
+    timeline.push(`reference-${method}`);
+    referenceCalls.push({ method, ...input });
+  }]));
   const service = new module.UploadCoordinatorService({
-    repository, r2, quota, metadata,
+    repository, r2, quota, metadata, references,
     alarms: { schedule: async (timestamp) => { alarms.push(timestamp); } },
   });
-  return { service, repository, r2, quotaCalls, metadataCalls, alarms };
+  return {
+    service, repository, r2, quotaCalls, metadataCalls, referenceCalls, timeline, alarms,
+  };
 }
 
 async function initialize(harness, request = baseRequest()) {
@@ -139,6 +150,7 @@ describe('R2 multipart coordinator runtime', function () {
     assert.strictEqual(initialized.objectKey, 'multipart/upload-1');
     assert.deepStrictEqual(initialized.customMetadata, {
       uploadId: 'upload-1', rootDigest: 'a'.repeat(64), expectedSize: String((2 * PART_SIZE) + 3),
+      storageConfigId: 'r2-a', storageGeneration: 'generation-1',
     });
     assert.strictEqual(harness.r2.calls.some((call) => call.method === 'get'), false);
   });
@@ -170,6 +182,13 @@ describe('R2 multipart coordinator runtime', function () {
     ]);
     assert.strictEqual(result.phase, 'completed');
     assert.strictEqual(harness.metadataCalls.length, 1);
+    assert.strictEqual(harness.metadataCalls[0].metadata.storageConfigId, 'r2-a');
+    assert.strictEqual(harness.metadataCalls[0].metadata.storageGeneration, 'generation-1');
+    assert.deepStrictEqual(harness.referenceCalls.map((entry) => entry.method), [
+      'reserve', 'commitStart', 'commitFinish',
+    ]);
+    assert.ok(harness.timeline.indexOf('metadata')
+      < harness.timeline.indexOf('reference-commitFinish'));
     assert.strictEqual(harness.quotaCalls.at(-1).method, 'consume');
     assert.match(harness.metadataCalls[0].operationId, /^upload-1:\d+:publish$/);
     assert.match(harness.quotaCalls.at(-1).operationId, /^upload-1:\d+:consume$/);
