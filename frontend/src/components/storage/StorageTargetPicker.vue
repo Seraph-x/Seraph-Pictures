@@ -1,7 +1,12 @@
 <template>
   <label class="storage-profile-picker">
     <span>{{ t('storage.profile') }}</span>
-    <select :value="storageId" :disabled="disabled || !choices.length" @change="choose">
+    <select
+      data-testid="upload-storage-profile"
+      :value="storageId"
+      :disabled="disabled || !choices.length"
+      @change="choose"
+    >
       <option v-for="profile in choices" :key="profile.id" :value="profile.id">
         {{ profile.name }} · {{ profile.isDefault ? t('sv.default') : t('sv.enabled') }}
       </option>

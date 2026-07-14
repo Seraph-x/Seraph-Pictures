@@ -81,6 +81,14 @@ async function exerciseDrive(request, baseURL, suffix) {
   }));
 }
 
+async function createTelegramProfile(request, name) {
+  const body = await expectJson(await request.post(`${PAGES_URL}/api/storage`, {
+    headers: APP_HEADERS,
+    data: { name, type: 'telegram', config: { botToken: `${name}-token`, chatId: `${name}-chat` } },
+  }));
+  return body.item;
+}
+
 test('real Pages R2 multipart persists retries, conflicts, completion, and cancellation', async ({ request }) => {
   const storageConfigId = await createPagesR2(request);
   const upload = await initialize(request, 'success.png', storageConfigId);
@@ -109,6 +117,47 @@ test('real Pages R2 multipart persists retries, conflicts, completion, and cance
     data: { uploadId: cancelled.uploadId },
   }));
   expect(cancel.phase).toBe('aborted');
+});
+
+test('Vue upload queue snapshots and sends the exact storage profile', async ({ page, request }) => {
+  const primary = await createTelegramProfile(request, 'Upload Primary');
+  const archive = await createTelegramProfile(request, 'Upload Archive');
+  let directBody = '';
+  let urlBody = null;
+  await page.route('**/api/status', (route) => route.fulfill({ json: {} }));
+  await page.route(/\/upload$/, async (route) => {
+    directBody = route.request().postData() || '';
+    await route.fulfill({ json: { src: '/file/direct-test' } });
+  });
+  await page.route('**/api/upload-from-url', async (route) => {
+    urlBody = route.request().postDataJSON();
+    await route.fulfill({ json: { src: '/file/url-test' } });
+  });
+  await page.goto(`${PAGES_URL}/app/`);
+  const selector = page.getByTestId('upload-storage-profile');
+  await expect(selector.locator(`option[value="${primary.id}"]`)).toHaveCount(1);
+  await expect(selector.locator(`option[value="${archive.id}"]`)).toHaveCount(1);
+  await selector.selectOption(archive.id);
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'exact.txt', mimeType: 'text/plain', buffer: Buffer.from('exact-profile'),
+  });
+  await selector.selectOption(primary.id);
+  await expect(page.getByText('Telegram · Upload Archive · 根目录 /')).toBeVisible();
+  await expect.poll(() => directBody).toContain(archive.id);
+
+  await page.locator('.url-row input').fill('https://example.test/image.png');
+  await page.getByRole('button', { name: '上传 URL' }).click();
+  await expect.poll(() => urlBody?.storageId).toBe(primary.id);
+  expect(urlBody.storageMode).toBe('telegram');
+
+  await selector.selectOption(archive.id);
+  await expectJson(await request.put(`${PAGES_URL}/api/storage/${archive.id}`, {
+    headers: APP_HEADERS, data: { enabled: false },
+  }));
+  await page.reload();
+  await expect(selector.locator(`option[value="${archive.id}"]`)).toHaveCount(0);
+  await expect(selector.locator(`option[value="${primary.id}"]`)).toHaveCount(1);
+  await expect(page.locator('.storage-profile-notice')).toBeVisible();
 });
 
 test('Pages and Docker expose matching Storage and Drive contracts', async ({ request }) => {
