@@ -5,6 +5,8 @@ export async function listStorageConfigs() {
   return data.items || [];
 }
 
+export const listStorageProfiles = listStorageConfigs;
+
 export async function createStorageConfig(payload) {
   const data = await apiFetch('/api/storage', {
     method: 'POST',

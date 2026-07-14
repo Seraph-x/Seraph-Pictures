@@ -59,11 +59,31 @@ export const STORAGE_FIELDS = {
     { key: 'apiBase', label: 'API Base', placeholder: 'https://api.telegram.org' },
   ],
   r2: [
-    { key: 'endpoint', label: 'Endpoint', required: true, placeholder: 'https://xxxx.r2.cloudflarestorage.com' },
-    { key: 'region', label: 'Region', placeholder: 'auto' },
-    { key: 'bucket', label: 'Bucket', required: true, placeholder: 'bucket-name' },
-    { key: 'accessKeyId', label: 'Access Key ID', required: true, secret: true, placeholder: 'AKIA...' },
-    { key: 'secretAccessKey', label: 'Secret Access Key', required: true, secret: true, placeholder: '******' },
+    {
+      key: 'adapterMode', label: 'Adapter Mode', input: 'select', required: true,
+      options: [
+        { value: 'binding', label: 'Native Binding' },
+        { value: 's3', label: 'S3 Credentials' },
+      ],
+    },
+    {
+      key: 'bindingName', label: 'Binding Name', required: true,
+      placeholder: 'R2_BUCKET', when: { adapterMode: 'binding' },
+    },
+    {
+      key: 'endpoint', label: 'Endpoint', required: true,
+      placeholder: 'https://xxxx.r2.cloudflarestorage.com', when: { adapterMode: 's3' },
+    },
+    { key: 'region', label: 'Region', placeholder: 'auto', when: { adapterMode: 's3' } },
+    { key: 'bucket', label: 'Bucket', required: true, placeholder: 'bucket-name', when: { adapterMode: 's3' } },
+    {
+      key: 'accessKeyId', label: 'Access Key ID', required: true, secret: true,
+      placeholder: 'AKIA...', when: { adapterMode: 's3' },
+    },
+    {
+      key: 'secretAccessKey', label: 'Secret Access Key', required: true, secret: true,
+      placeholder: '******', when: { adapterMode: 's3' },
+    },
   ],
   s3: [
     { key: 'endpoint', label: 'Endpoint', required: true, placeholder: 'https://s3.example.com' },

@@ -165,7 +165,10 @@ const form = reactive({
   config: {},
 });
 
-const currentFields = computed(() => getStorageFields(form.type));
+const currentFields = computed(() => getStorageFields(form.type).filter((field) => {
+  if (!field.when) return true;
+  return Object.entries(field.when).every(([key, value]) => form.config[key] === value);
+}));
 const directTypes = computed(() => STORAGE_TYPES.filter((item) => item.layer !== 'mounted'));
 const mountedTypes = computed(() => STORAGE_TYPES.filter((item) => item.layer === 'mounted'));
 
