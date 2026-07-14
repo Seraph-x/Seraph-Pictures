@@ -3,7 +3,6 @@
 **Date:** 2026-07-14  
 **Status:** Approved in interactive design review  
 **Scope:** Cloudflare Pages/Workers and Docker runtime parity
-
 ## 1. Goal
 Allow administrators to configure multiple backend instances of the same storage
 type, manage them without changing the established visual design, select an exact
@@ -149,10 +148,19 @@ finalizes it or releases it only after confirmed backend cleanup. Thus a failure
 temporarily over-protect a profile but cannot leave a file unprotected. Docker uses
 one SQLite transaction and checks both `files` and `chunk_uploads` references.
 Profile delete/type-change fails while any lease or permanent reference exists.
+
+Cloudflare delete first marks the permanent reference `releasing` (still counted),
+deletes the backend object and KV metadata, then transactionally removes the
+reference. Migration creates a destination lease and marks the source reference
+`transferring`, writes the destination, updates KV metadata with destination ID and
+operation ID, deletes the source object, then one Coordinator transaction converts
+the destination lease and removes the source reference. Each step is idempotent;
+reconciliation releases a reference only after confirming object/metadata state.
+Both profiles remain protected during transfer. Type-only legacy files resolve and
+decrement their source count through `legacyTypeProfileIds` under the same protocol.
 Before a write, the runtime loads the decrypted profile, validates type and write
 state, creates an adapter from that profile, and performs the write. Successful
 new file metadata persists both `storageType` and `storageConfigId`.
-
 Reads, deletes, moves, shares, and migrations resolve the adapter using the file's
 persisted profile ID even when that profile is disabled. A missing referenced
 profile is a visible integrity error, not a reason to use a default profile.
@@ -160,7 +168,6 @@ profile is a visible integrity error, not a reason to use a default profile.
 Cloudflare adapters stop reading provider credentials directly from global env
 after profile resolution. Docker already has the required adapter-factory shape
 and is aligned to the same contract.
-
 ### 8.1 R2
 - R2 `config.adapterMode` is required and is `binding` or `s3`.
 - `binding` requires `bindingName`; migration uses `R2_BUCKET`. The runtime accepts
@@ -201,7 +208,6 @@ Enqueuing a file snapshots:
 ```text
 storageMode, storageId, storageName, targetFolderPath
 ```
-
 Later selector changes affect only newly enqueued files. Queue rows, results, and
 errors display `type · instance name`.
 ## 11. Drive, Admin, Status, and Migration UI
@@ -233,7 +239,6 @@ Migration is explicit, backed up, idempotent, and fail-closed:
    never falls back. The prior generation remains available for pointer rollback.
 7. Docker can backfill type-only rows with the same mapping inside one transaction.
 8. Write the migration marker after activation, verify live reads, and unfreeze.
-
 Guest Channel fields are excluded. Re-running a completed migration verifies state
 without creating duplicate profiles. Failure preserves old data and returns
 `STORAGE_MIGRATION_FAILED`; no partially migrated catalog becomes active.
@@ -251,7 +256,6 @@ STORAGE_SECRET_REQUIRED
 STORAGE_PROFILE_INTEGRITY_ERROR
 STORAGE_MIGRATION_FAILED
 ```
-
 All errors are explicit and testable. UI messages identify the affected profile
 without exposing secrets. Infrastructure or Coordinator outages return 503 and do
 not fall back to environment configuration.
@@ -265,7 +269,6 @@ not fall back to environment configuration.
 - Disabled-profile read and enabled-profile write semantics.
 - Secret preservation, masking, and required-secret validation.
 - Cloudflare KV and Docker SQLite contract parity.
-
 ### 14.2 Runtime flows
 - Exact profile selection for regular, URL, multipart, Drive, and API v1 upload.
 - Type mismatch, missing, disabled, and unavailable profile failures.
@@ -273,14 +276,12 @@ not fall back to environment configuration.
 - Reads/deletes/migrations continue through disabled profiles.
 - Cross-Telegram instance upload and read.
 - Guest requests cannot override or discover the Guest Channel.
-
 ### 14.3 Migration
 - Deterministic IDs, idempotency, marker ordering, and backup artifacts.
 - v1/SQLite ID preservation, deterministic legacy IDs, idempotency, and activation.
 - Reference lease ordering, idempotent retry, and reconciliation fault injection.
 - Historical file backfill and reference-ledger reconciliation.
 - Fault injection at every persistence stage proves no half-active state.
-
 ### 14.4 Frontend and end-to-end
 - Same-type select contents and per-type defaults.
 - Versioned browser memory and visible invalid-selection notice.
@@ -288,7 +289,6 @@ not fall back to environment configuration.
 - Settings CRUD, enable/default lock, delete/in-use errors, and connection tests.
 - Instance filters, status cards, and migration destination selection.
 - Desktop/mobile visual regression for both legacy and Vue surfaces.
-
 ## 15. Release Gates
 1. Full unit/contract suite passes within the repository timeout policy.
 2. Cloudflare and Docker smoke tests pass.
