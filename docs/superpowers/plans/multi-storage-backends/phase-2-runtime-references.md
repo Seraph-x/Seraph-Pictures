@@ -9,14 +9,18 @@
 - Modify/split: `workers/coordinator/src/auth/auth-coordinator.js`
 - Create: `workers/coordinator/src/auth/operation-router.js`
 - Modify: `workers/coordinator/src/index.js`
+- Create: `scripts/security/storage-profile-migration/executor.mjs`
+- Modify: `scripts/security/migrate-storage-profiles.mjs`
 - Create: `test/storage-reference-coordinator.test.js`
 - Modify: `test/coordinator-runtime-contract.test.js`
+- Modify: `test/storage-profile-migration.test.js`
 
 - [ ] **Step 1: Write failing state-machine tests**
 
-Cover idempotent `reserve → committing → permanent`, cancel/expiry, non-expiring
-committing state, `releasing`, `transferring`, atomic destination/source conversion,
-generation activation, reconciliation decisions, and unknown-operation errors.
+Cover idempotent `reserve → committing → permanent`, safe pre-write expiry,
+non-expiring committing state, `releasing`, `transferring`, mutation freeze, atomic
+destination/source conversion, generation activation, reconciliation decisions, and
+unknown-operation errors.
 
 - [ ] **Step 2: Verify RED**
 
@@ -32,17 +36,29 @@ storageRefReleaseStart, storageRefReleaseFinish,
 storageRefTransferStart, storageRefTransferFinish, storageRefReconcile
 ```
 
-Move routing out of the oversized auth coordinator before adding operations. Alarm
-handling releases only expired `reserved` leases, never `committing` records.
+Move routing out of the oversized auth coordinator before adding operations. A write
+must call `storageRefCommitStart` before its first backend mutation. Alarm handling
+may release an expired `reserved` lease only when its durable operation record proves
+no backend write began; every ambiguous record goes to reconciliation and remains
+protected. `committing`, `releasing`, and `transferring` never auto-expire.
 
-- [ ] **Step 4: Verify GREEN and fault cases**
+- [ ] **Step 4: Implement the migration executor against Coordinator authority**
 
-Inject failures at every transition; assert repeated operation IDs converge.
+`--apply` requires backup paths, acquires a global profile-mutation freeze used by
+every profile mutation/write entry, stages and validates the generation, atomically
+activates matching ledger/catalog generations, live-verifies, writes the marker, and
+finally releases the freeze. A failed stage remains visible and does not activate.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Verify GREEN and fault cases**
+
+Inject failures at every transition; assert repeated operation IDs converge. Prove
+the catalog mutation repository and migration executor honor the authority; Tasks
+6–9 add the same check to each runtime write/lifecycle entrypoint.
+
+- [ ] **Step 6: Commit**
 
 ```bash
-git add workers/coordinator test/storage-reference-coordinator.test.js test/coordinator-runtime-contract.test.js
+git add workers/coordinator scripts/security test/storage-reference-coordinator.test.js test/coordinator-runtime-contract.test.js test/storage-profile-migration.test.js
 git commit -m "feat: coordinate storage profile references"
 ```
 
@@ -62,7 +78,7 @@ git commit -m "feat: coordinate storage profile references"
 
 Assert exact ID resolution, type match, preferred-type resolution, disabled-write
 rejection, disabled historical reads, missing-profile integrity errors, binding R2,
-S3-mode R2, and no env fallback.
+S3-mode R2, migration-freeze rejection, and no env fallback.
 
 - [ ] **Step 2: Verify RED**
 
@@ -90,6 +106,7 @@ git commit -m "feat: resolve Cloudflare storage by profile"
 **Files:**
 - Modify: `functions/upload.js`
 - Modify: `functions/api/upload-from-url.js`
+- Modify: `functions/api/v1/upload.js`
 - Modify: `functions/services/api-upload-metadata.js`
 - Create: `functions/services/storage-runtime/write-operation.js`
 - Modify: `server/routes/upload-direct.js`
@@ -100,9 +117,10 @@ git commit -m "feat: resolve Cloudflare storage by profile"
 
 - [ ] **Step 1: Write failing direct/URL tests**
 
-Require both values from first-party payloads, type-match validation, queue operation
+Require both values from first-party and authenticated API v1 payloads, type-match validation, queue operation
 ID idempotency, reference reservation before backend writes, metadata before
-permanent conversion, and explicit failures at every boundary.
+permanent conversion, migration-freeze rejection, and explicit failures at every
+boundary. Assert `commitStart` precedes the first adapter write.
 
 - [ ] **Step 2: Verify RED**
 
@@ -141,13 +159,16 @@ git commit -m "feat: bind direct uploads to storage profiles"
 - [ ] **Step 1: Write failing multipart tests**
 
 Assert init snapshots ID/type, active lease blocks profile mutation, cancel releases
-reserved state, completion uses the original ID, committing survives expiry, retries
+only after confirmed chunk/object cleanup, completion uses the original ID, committing survives expiry, retries
 finalize persisted metadata, and mismatch/disabled targets fail at init.
 
 - [ ] **Step 2: Verify RED**, running the three multipart test files.
 
 - [ ] **Step 3: Implement the snapshot and lease transitions** without reading the
-current default after initialization. Keep route functions below 50 lines.
+current default after initialization. Before the first chunk/backend mutation,
+transition to non-expiring `committing`. Cancel enters `releasing`, removes every
+chunk/object/metadata artifact, and finishes release only after cleanup is confirmed.
+Keep route functions below 50 lines.
 
 - [ ] **Step 4: Verify GREEN**, including injected failure after KV metadata write.
 

@@ -8,6 +8,11 @@
 - Create: `frontend/src/utils/storage-profile-selection.js`
 - Create: `frontend/src/composables/storage/useStorageProfiles.js`
 - Create: `frontend/src/components/storage/StorageTargetPicker.vue`
+- Refactor: `frontend/src/i18n/messages.js`
+- Create: `frontend/src/i18n/messages/common.js`
+- Create: `frontend/src/i18n/messages/storage.js`
+- Create: `frontend/src/i18n/messages/upload.js`
+- Create: `frontend/src/i18n/messages/drive.js`
 - Create: `test/frontend-storage-profile-selection.test.js`
 
 - [ ] **Step 1: Write failing selection tests**
@@ -21,6 +26,8 @@ Run: `npx mocha test/frontend-storage-profile-selection.test.js`; expect missing
 
 - [ ] **Step 3: Implement the pure selector first**, then the composable and picker.
 The picker preserves existing chip classes and adds only the approved select/notice.
+Split the 648-line message catalog into focused modules before adding strings; keep
+the public i18n export unchanged and every resulting file below 300 lines.
 
 - [ ] **Step 4: Verify GREEN and build**
 
@@ -29,7 +36,7 @@ Run targeted tests and `npm run build`.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add frontend/src/api frontend/src/config frontend/src/utils frontend/src/composables/storage frontend/src/components/storage test/frontend-storage-profile-selection.test.js
+git add frontend/src/api frontend/src/config frontend/src/utils frontend/src/composables/storage frontend/src/components/storage frontend/src/i18n test/frontend-storage-profile-selection.test.js
 git commit -m "feat: add reusable storage profile picker"
 ```
 
@@ -41,6 +48,7 @@ git commit -m "feat: add reusable storage profile picker"
 - Create: `frontend/src/components/storage/StorageProfileEditor.vue`
 - Create: `frontend/src/composables/storage/useStorageProfileEditor.js`
 - Modify: `frontend/src/i18n/messages.js`
+- Modify: `playwright.storage.config.js`
 - Create: `e2e/storage-profile-settings.spec.js`
 
 - [ ] **Step 1: Write failing Playwright/API assertions**
@@ -50,7 +58,9 @@ secrets, and unchanged card/navigation classes.
 
 - [ ] **Step 2: Verify RED**
 
-Run the new spec with the storage runtime config; expect missing controls.
+Run the new spec with the storage runtime config; expect missing controls. Expand
+`testMatch` to include both `storage-runtime.spec.js` and
+`storage-profile-settings.spec.js` so the final storage E2E command executes it.
 
 - [ ] **Step 3: Split the 360-line view before behavior changes**
 
@@ -64,7 +74,7 @@ Run the new spec, build, and storage API tests.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add frontend/src/views/StorageView.vue frontend/src/components/storage frontend/src/composables/storage frontend/src/i18n/messages.js e2e/storage-profile-settings.spec.js
+git add frontend/src/views/StorageView.vue frontend/src/components/storage frontend/src/composables/storage frontend/src/i18n playwright.storage.config.js e2e/storage-profile-settings.spec.js
 git commit -m "feat: manage multiple profiles in Vue settings"
 ```
 
@@ -181,14 +191,45 @@ git commit -m "feat: manage profiles in legacy settings"
 - Create: `legacy/pages/upload/upload-methods.js`
 - Create: `legacy/pages/upload/multipart-methods.js`
 - Create: `legacy/pages/upload/history-methods.js`
+- Create: `legacy/pages/upload/url-upload-methods.js`
+- Create: `legacy/pages/upload/auth-methods.js`
+- Create: `legacy/pages/upload/i18n.js`
+- Create: `legacy/pages/upload/components/page-header.js`
+- Create: `legacy/pages/upload/components/upload-panel.js`
+- Create: `legacy/pages/upload/components/url-upload-dialog.js`
+- Create: `legacy/pages/upload/components/upload-queue.js`
+- Create: `legacy/pages/upload/components/upload-results.js`
+- Create: `legacy/pages/upload/components/history-panel.js`
 - Create: `legacy/pages/upload/components/storage-target-picker.js`
-- Create: `legacy/pages/upload/upload.css`
+- Create: `legacy/pages/upload/styles/tokens.css`
+- Create: `legacy/pages/upload/styles/layout.css`
+- Create: `legacy/pages/upload/styles/uploader.css`
+- Create: `legacy/pages/upload/styles/dialogs.css`
+- Create: `legacy/pages/upload/styles/responsive.css`
 - Create: `legacy/pages/admin/app.js`
+- Create: `legacy/pages/admin/state.js`
+- Create: `legacy/pages/admin/api.js`
+- Create: `legacy/pages/admin/auth-methods.js`
 - Create: `legacy/pages/admin/profile-mixin.js`
 - Create: `legacy/pages/admin/drive-methods.js`
+- Create: `legacy/pages/admin/folder-methods.js`
+- Create: `legacy/pages/admin/dashboard-methods.js`
 - Create: `legacy/pages/admin/migration-methods.js`
+- Create: `legacy/pages/admin/settings-methods.js`
+- Create: `legacy/pages/admin/components/page-shell.js`
+- Create: `legacy/pages/admin/components/dashboard-panel.js`
+- Create: `legacy/pages/admin/components/file-browser.js`
+- Create: `legacy/pages/admin/components/file-toolbar.js`
+- Create: `legacy/pages/admin/components/file-dialogs.js`
+- Create: `legacy/pages/admin/components/migration-dialog.js`
+- Create: `legacy/pages/admin/components/status-panel.js`
 - Create: `legacy/pages/admin/components/profile-filter.js`
-- Create: `legacy/pages/admin/admin.css`
+- Create: `legacy/pages/admin/styles/tokens.css`
+- Create: `legacy/pages/admin/styles/layout.css`
+- Create: `legacy/pages/admin/styles/navigation.css`
+- Create: `legacy/pages/admin/styles/drive.css`
+- Create: `legacy/pages/admin/styles/dialogs.css`
+- Create: `legacy/pages/admin/styles/responsive.css`
 - Modify: `test/legacy-storage-profile-ui.test.js`
 - Modify: `e2e/storage-runtime.spec.js`
 - Modify: `e2e/baseline.spec.js`
@@ -203,10 +244,12 @@ filters, enabled migration targets, and profile labels.
 
 - [ ] **Step 3: Extract the existing Vue 2 applications before adding behavior**
 
-Move upload state/transports/history and admin Drive/migration responsibilities into
-the listed modules. Move page-specific CSS and component templates out of the two
-5,000-line documents until every touched production file is below 300 lines. Keep
-root HTML as entry shells and preserve existing element IDs, classes, and ordering.
+Move upload state/transports/history/auth, admin Drive/folders/dashboard/migration,
+all component templates, and styles into the exact modules above. The root documents
+become dependency/style includes plus one mount element, each below 300 lines. Each
+listed JS/CSS file is also below 300 lines; split a responsibility again rather than
+placing overflow back in the shells. Preserve existing element IDs, classes, and DOM
+ordering through the extracted Vue 2 component templates.
 
 - [ ] **Step 4: Add profile behavior through the shared legacy storage modules**
 
