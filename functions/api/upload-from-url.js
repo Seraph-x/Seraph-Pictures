@@ -15,6 +15,7 @@ import {
   uploadToR2, uploadToS3, uploadToDiscordStorage, uploadToHFStorage,
   uploadToWebDAVStorage, uploadToGitHubStorage,
 } from '../services/direct-upload-backends.js';
+import { normalizeFirstPartyUploadAccess } from '../services/upload-access.js';
 
 const { validateUploadCapability, validateUploadMode } = capabilityModule;
 const GUEST_RETENTION_DAYS = 3;
@@ -39,6 +40,7 @@ async function readInput(context) {
   const input = Object.freeze({
     url, isAdmin, guestConfig,
     ...selection,
+    uploadSource: String(body?.uploadSource || 'image-host'),
     folderPath: normalizeFolderPath(body?.folderPath || body?.folder || ''),
   });
   validateUploadMode({
@@ -110,6 +112,7 @@ async function executeUpload(input, context) {
       upload: {
         file, fileName, extension: getFileExtension(fileName),
         folderPath: input.folderPath, origin: new URL(context.request.url).origin,
+        access: normalizeFirstPartyUploadAccess({ uploadSource: input.uploadSource }),
       },
     });
   }

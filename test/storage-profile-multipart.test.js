@@ -14,7 +14,8 @@ describe('Cloudflare multipart storage profile snapshot', function () {
       '../workers/coordinator/src/upload/multipart-plan.js'
     );
     const input = {
-      uploadId: 'upload-1', owner: 'admin', visibility: 'private', expectedSize: 3,
+      uploadId: 'upload-1', owner: 'admin', visibility: 'private',
+      uploadSource: 'drive', expectedSize: 3,
       partSize: 5 * 1024 * 1024, totalParts: 1, rootDigest: 'a'.repeat(64),
       fileName: 'a.png', fileType: 'image/png', folderPath: '',
       createdAt: 1, expiresAt: 10,
@@ -56,7 +57,8 @@ describe('Cloudflare multipart storage profile snapshot', function () {
       alarms: { schedule: async () => {} },
     });
     const result = await service.initialize({
-      uploadId: 'upload-1', owner: 'admin', visibility: 'private', expectedSize: 3,
+      uploadId: 'upload-1', owner: 'admin', visibility: 'private',
+      uploadSource: 'drive', expectedSize: 3,
       partSize: 5 * 1024 * 1024, totalParts: 1, rootDigest: 'a'.repeat(64),
       fileName: 'a.png', fileType: 'image/png', folderPath: '', createdAt: 1,
       expiresAt: 10, storageConfigId: PROFILE.id, storageType: PROFILE.type,

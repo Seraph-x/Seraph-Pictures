@@ -1,6 +1,7 @@
 const { normalizeFolderPath } = require('../lib/repos/file-repo');
 const {
   normalizeDockerUploadSelection,
+  normalizeDockerUploadAccess,
   readUploadOperationId,
 } = require('../lib/services/upload-request');
 
@@ -39,6 +40,9 @@ async function performUpload(options) {
       storageId: reservation?.storageId
         || helpers.asString(body.storageId || body.storage_config_id),
     });
+    const access = normalizeDockerUploadAccess({
+      authenticated: auth.authenticated, uploadSource: body.uploadSource,
+    });
     return await uploadService.uploadFile({
       fileName: file.name,
       mimeType: file.type,
@@ -47,8 +51,7 @@ async function performUpload(options) {
       ...selection,
       operationId: readUploadOperationId(context.req.raw),
       folderPath: normalizeFolderPath(body.folderPath || body.folder || ''),
-      uploadSource: auth.authenticated ? 'image-host' : 'guest',
-      visibility: 'public',
+      ...access,
       expiresAt: reservation?.fileExpiresAt,
       retentionDays: reservation?.retentionDays,
     });

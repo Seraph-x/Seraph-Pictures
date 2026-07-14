@@ -10,6 +10,7 @@ import { normalizeFileExtension, normalizeFolderPath, uploadError } from './serv
 import { executeProfileUpload } from './services/profile-upload.js';
 import { normalizeUploadSelection } from './services/upload-selection.js';
 import { uploadToTelegramStorage } from './services/direct-upload-telegram.js';
+import { normalizeFirstPartyUploadAccess } from './services/upload-access.js';
 import {
   uploadToR2, uploadToS3, uploadToDiscordStorage, uploadToHFStorage,
   uploadToWebDAVStorage, uploadToGitHubStorage,
@@ -43,6 +44,7 @@ async function parseUpload(context) {
     file, isAdmin, guestConfig,
     fileName: String(file.name || 'upload.bin'),
     folderPath: normalizeFolderPath(form.get('folderPath')),
+    uploadSource: String(form.get('uploadSource') || 'image-host'),
     ...selection,
   });
 }
@@ -93,13 +95,23 @@ async function dispatchUpload(input, env, request) {
   });
 }
 
-function profileUploadOptions(input, request) {
+function profileUploadAccess(context, input) {
+  const pathname = new URL(context.request.url).pathname;
+  return normalizeFirstPartyUploadAccess({
+    api: pathname === '/api/v1/upload',
+    requestedVisibility: context.data?.fileVisibility,
+    uploadSource: input.uploadSource,
+  });
+}
+
+function profileUploadOptions(input, context) {
   return Object.freeze({
     file: input.file,
     fileName: input.fileName,
     extension: normalizeFileExtension(input.fileName),
     folderPath: input.folderPath,
-    origin: new URL(request.url).origin,
+    origin: new URL(context.request.url).origin,
+    access: profileUploadAccess(context, input),
   });
 }
 
@@ -107,7 +119,7 @@ async function executeAdminUpload(input, context) {
   return executeProfileUpload({
     context,
     selection: { storageMode: input.storageMode, storageId: input.storageId },
-    upload: profileUploadOptions(input, context.request),
+    upload: profileUploadOptions(input, context),
   });
 }
 

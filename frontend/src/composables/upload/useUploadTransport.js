@@ -14,6 +14,7 @@ function requiredTarget(target) {
     storageMode,
     storageId,
     folderPath: String(target?.targetFolderPath || ''),
+    uploadSource: target?.uploadSource === 'drive' ? 'drive' : 'image-host',
   });
 }
 
@@ -24,6 +25,7 @@ export function buildDirectUploadBody(item) {
   body.append('storageMode', target.storageMode);
   body.append('storageId', target.storageId);
   body.append('folderPath', target.folderPath);
+  body.append('uploadSource', target.uploadSource);
   return body;
 }
 
@@ -34,6 +36,7 @@ export function buildUrlUploadPayload(options) {
     storageMode: target.storageMode,
     storageId: target.storageId,
     folderPath: target.folderPath,
+    uploadSource: target.uploadSource,
   });
 }
 
@@ -49,6 +52,7 @@ export function buildMultipartInitPayload(options) {
     storageMode: target.storageMode,
     storageId: target.storageId,
     folderPath: target.folderPath,
+    uploadSource: target.uploadSource,
   });
 }
 
@@ -99,6 +103,7 @@ function directUpload(options, item) {
   const { apiUrl, t, toAbsoluteUrl } = options;
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    options.onRequestStart?.(item, xhr);
     xhr.open('POST', apiUrl('/upload'));
     xhr.withCredentials = true;
     xhr.setRequestHeader('Accept', options.accept);
@@ -107,6 +112,7 @@ function directUpload(options, item) {
       if (event.lengthComputable) options.onProgress(item, Math.max(1, Math.floor((event.loaded / event.total) * 100)));
     };
     xhr.onload = () => {
+      options.onRequestFinish?.(item);
       const rawText = String(xhr.responseText || '');
       const body = parseJson(rawText);
       if (xhr.status < 200 || xhr.status >= 300) {
@@ -121,7 +127,14 @@ function directUpload(options, item) {
       }
       resolve(toAbsoluteUrl(src));
     };
-    xhr.onerror = () => reject(new Error(t('uv.errNetworkShort')));
+    xhr.onerror = () => {
+      options.onRequestFinish?.(item);
+      reject(new Error(t('uv.errNetworkShort')));
+    };
+    xhr.onabort = () => {
+      options.onRequestFinish?.(item);
+      reject(new Error('UPLOAD_CANCELLED'));
+    };
     xhr.send(buildDirectUploadBody(item));
   });
 }
@@ -136,6 +149,7 @@ async function chunkUpload(options, item) {
   options.onMultipartStart(item, init.uploadId);
   const chunkSize = Number(init.chunkSize || options.chunkSize);
   for (let index = 0; index < totalChunks; index += 1) {
+    if (item.cancelled) throw new Error('UPLOAD_CANCELLED');
     const chunk = item.file.slice(index * chunkSize, Math.min(item.file.size, (index + 1) * chunkSize));
     const body = new FormData();
     body.append('uploadId', init.uploadId);
@@ -147,6 +161,7 @@ async function chunkUpload(options, item) {
     });
     options.onProgress(item, Math.min(95, Math.floor(((index + 1) / totalChunks) * 95)));
   }
+  if (item.cancelled) throw new Error('UPLOAD_CANCELLED');
   const done = await options.apiFetch('/api/chunked-upload/complete', {
     method: 'POST', headers: options.jsonHeaders,
     body: JSON.stringify({ uploadId: init.uploadId }),

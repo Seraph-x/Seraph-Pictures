@@ -65,7 +65,7 @@ function digest(bytes) {
 
 function baseRequest(overrides = {}) {
   return {
-    uploadId: 'upload-1', owner: 'admin', visibility: 'private',
+    uploadId: 'upload-1', owner: 'admin', visibility: 'private', uploadSource: 'drive',
     expectedSize: (2 * PART_SIZE) + 3, partSize: PART_SIZE, totalParts: 3,
     rootDigest: 'a'.repeat(64), fileName: 'photo.png', fileType: 'image/png',
     storageConfigId: 'r2-a', storageType: 'r2', storageGeneration: 'generation-1',
@@ -184,6 +184,7 @@ describe('R2 multipart coordinator runtime', function () {
     assert.strictEqual(harness.metadataCalls.length, 1);
     assert.strictEqual(harness.metadataCalls[0].metadata.storageConfigId, 'r2-a');
     assert.strictEqual(harness.metadataCalls[0].metadata.storageGeneration, 'generation-1');
+    assert.strictEqual(harness.metadataCalls[0].metadata.uploadSource, 'drive');
     assert.deepStrictEqual(harness.referenceCalls.map((entry) => entry.method), [
       'reserve', 'commitStart', 'commitFinish',
     ]);

@@ -31,15 +31,35 @@ async function initialize(request, fileName, storageId) {
   return Object.freeze({ bytes, uploadId: body.uploadId });
 }
 
-async function createPagesR2(request) {
+async function createPagesR2(request, name = 'E2E R2') {
   const body = await expectJson(await request.post(`${PAGES_URL}/api/storage`, {
     headers: APP_HEADERS,
     data: {
-      name: 'E2E R2', type: 'r2',
+      name, type: 'r2',
       config: { adapterMode: 'binding', bindingName: 'R2_BUCKET' },
     },
   }));
   return body.item.id;
+}
+
+async function uploadPagesFile(request, fileName, storageId) {
+  const upload = await initialize(request, fileName, storageId);
+  await expectJson(await request.post(`${PAGES_URL}/api/chunked-upload/chunk`, {
+    multipart: partForm(upload),
+  }));
+  return expectJson(await request.post(`${PAGES_URL}/api/chunked-upload/complete`, {
+    data: { uploadId: upload.uploadId },
+  }));
+}
+
+async function uploadPagesDriveFile(request, fileName, storageId) {
+  return expectJson(await request.post(`${PAGES_URL}/upload`, {
+    headers: APP_HEADERS,
+    multipart: {
+      file: { name: fileName, mimeType: 'image/png', buffer: Buffer.from(fileName) },
+      storageMode: 'r2', storageId, folderPath: '',
+    },
+  }));
 }
 
 function partForm(upload, bytes = upload.bytes) {
@@ -158,6 +178,70 @@ test('Vue upload queue snapshots and sends the exact storage profile', async ({ 
   await expect(selector.locator(`option[value="${archive.id}"]`)).toHaveCount(0);
   await expect(selector.locator(`option[value="${primary.id}"]`)).toHaveCount(1);
   await expect(page.locator('.storage-profile-notice')).toBeVisible();
+});
+
+test('Drive filters, labels, uploads, migrates, and reports exact profiles', async ({ page, request }) => {
+  const sourceId = await createPagesR2(request, 'Drive Source');
+  const destinationId = await createPagesR2(request, 'Drive Archive');
+  await uploadPagesDriveFile(request, 'source-drive.png', sourceId);
+  await uploadPagesDriveFile(request, 'archive-drive.png', destinationId);
+  await expectJson(await request.post(`${PAGES_URL}/api/storage/default/${destinationId}`, {
+    headers: APP_HEADERS,
+  }));
+  await expectJson(await request.put(`${PAGES_URL}/api/storage/${sourceId}`, {
+    headers: APP_HEADERS, data: { enabled: false },
+  }));
+  const exactSource = await expectJson(await request.get(
+    `${PAGES_URL}/api/drive/explorer?storageId=${sourceId}&includeStats=1`,
+  ));
+  expect(exactSource.files.map((file) => file.metadata.fileName)).toContain('source-drive.png');
+
+  await page.goto(`${PAGES_URL}/app/drive/`);
+  const filter = page.getByTestId('drive-storage-profile');
+  await expect(filter.locator(`option[value="${sourceId}"]`)).toContainText('Drive Source');
+  await filter.selectOption(sourceId);
+  await expect(page.locator('tbody').getByText('R2 · Drive Source', { exact: true })).toBeVisible();
+  await expect(page.getByText('archive-drive.png')).toHaveCount(0);
+
+  const destination = page.getByTestId('drive-migration-destination');
+  await page.locator('tbody input[type="checkbox"]').first().check();
+  await expect(destination.locator(`option[value="${sourceId}"]`)).toHaveCount(0);
+  await expect(destination.locator(`option[value="${destinationId}"]`)).toHaveCount(1);
+  await destination.selectOption(destinationId);
+  await page.getByTestId('drive-migrate').click();
+  await expect(page.getByText('source-drive.png')).toHaveCount(0);
+  const migratedDestination = await expectJson(await request.get(
+    `${PAGES_URL}/api/drive/explorer?storageId=${destinationId}&includeStats=1`,
+  ));
+  const migrated = migratedDestination.files.find(
+    (file) => file.metadata.fileName === 'source-drive.png',
+  );
+  expect(migrated.metadata.storageId).toBe(destinationId);
+
+  await page.locator('.adapter-card').filter({ hasText: /^R2/ }).click();
+  const uploadProfile = page.getByTestId('upload-storage-profile');
+  await expect(uploadProfile.locator(`option[value="${destinationId}"]`)).toHaveCount(1);
+  await uploadProfile.selectOption(destinationId);
+  await page.locator('.drive-dropzone input[type="file"]').setInputFiles({
+    name: 'drive-exact.txt', mimeType: 'text/plain', buffer: Buffer.from('drive-exact-profile'),
+  });
+  await expect(page.locator('.queue-target').getByText('R2 · Drive Archive', { exact: false })).toBeVisible();
+  await expect(page.getByText('成功')).toBeVisible();
+  const exactDestination = await expectJson(await request.get(
+    `${PAGES_URL}/api/drive/explorer?storageId=${destinationId}&includeStats=1`,
+  ));
+  const uploaded = exactDestination.files.find((file) => file.metadata.fileName === 'drive-exact.txt');
+  expect(uploaded.metadata).toMatchObject({
+    storageId: destinationId, visibility: 'private',
+    uploadSource: 'drive', accessVersion: 1,
+  });
+
+  await createTelegramProfile(request, 'Status Telegram One');
+  await createTelegramProfile(request, 'Status Telegram Two');
+  await page.goto(`${PAGES_URL}/app/status/`);
+  const statusGrid = page.locator('.storage-profile-status-grid');
+  await expect(statusGrid.getByText('Status Telegram One')).toBeVisible({ timeout: 15_000 });
+  await expect(statusGrid.getByText('Status Telegram Two')).toBeVisible();
 });
 
 test('Pages and Docker expose matching Storage and Drive contracts', async ({ request }) => {

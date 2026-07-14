@@ -194,6 +194,11 @@ function normalizeDriveFile(record = {}) {
   const storageId = String(metadata.storageId ?? metadata.storageConfigId ?? metadata.storage_config_id ?? '');
   const storageName = String(metadata.storageName ?? metadata.storage_name ?? '');
   const profileIdentity = storageId || storageName ? { storageId, storageName } : {};
+  const uploadSource = String(metadata.uploadSource ?? metadata.upload_source ?? '');
+  const accessIdentity = uploadSource ? {
+    uploadSource,
+    accessVersion: normalizedNumber(metadata.accessVersion ?? metadata.access_version, 0),
+  } : {};
   return Object.freeze({
     name: id,
     metadata: Object.freeze({
@@ -204,6 +209,7 @@ function normalizeDriveFile(record = {}) {
       ...profileIdentity,
       folderPath: normalizeDrivePath(metadata.folderPath ?? metadata.folder_path),
       visibility: normalizeVisibility(metadata.visibility),
+      ...accessIdentity,
       TimeStamp: normalizedNumber(metadata.createdAt ?? metadata.created_at ?? metadata.TimeStamp, null),
       ListType: String(metadata.ListType ?? metadata.listType ?? metadata.list_type ?? 'None'),
       Label: String(metadata.Label ?? metadata.label ?? 'None'),

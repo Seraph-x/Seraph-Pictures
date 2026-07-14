@@ -1,5 +1,7 @@
 const { normalizeFolderPath } = require('../lib/repos/file-repo');
-const { normalizeDockerUploadSelection } = require('../lib/services/upload-request');
+const {
+  normalizeDockerUploadAccess, normalizeDockerUploadSelection,
+} = require('../lib/services/upload-request');
 
 function validateMaximum({ context, fileSize, container, helpers }) {
   if (fileSize <= container.config.uploadMaxSize) return null;
@@ -28,6 +30,9 @@ function validateStoragePlan({ context, fileSize, storageMode, container, helper
 
 function createTask(options) {
   const { body, fileSize, totalChunks, selection, service, auth } = options;
+  const access = normalizeDockerUploadAccess({
+    authenticated: auth.authenticated, uploadSource: body.uploadSource,
+  });
   return service.initTask({
     fileName: body.fileName,
     fileSize,
@@ -35,8 +40,7 @@ function createTask(options) {
     totalChunks,
     ...selection,
     folderPath: normalizeFolderPath(body.folderPath || body.folder || ''),
-    uploadSource: auth.authenticated ? 'image-host' : 'guest',
-    visibility: 'public',
+    ...access,
   });
 }
 

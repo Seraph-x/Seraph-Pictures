@@ -5,6 +5,7 @@ import { initializeMultipart } from '../../services/multipart-client.js';
 import { normalizeUploadSelection } from '../../services/upload-selection.js';
 import { createCloudflareStorageResolver } from '../../services/storage-runtime/profile-resolver.js';
 import capabilityModule from '../../../shared/storage/capabilities.cjs';
+import { normalizeFirstPartyUploadAccess } from '../../services/upload-access.js';
 
 const CHUNK_SIZE = 5 * 1024 * 1024;
 const UPLOAD_TTL_MS = 60 * 60 * 1000;
@@ -36,7 +37,8 @@ function normalizeInput(body) {
     isAdmin: true, isApi: false,
     storageMode: body.storageMode, storageId: body.storageId,
   });
-  return Object.freeze({ body, plan, selection });
+  const access = normalizeFirstPartyUploadAccess({ uploadSource: body.uploadSource });
+  return Object.freeze({ body, plan, selection, access });
 }
 
 async function resolveProfile(context, selection, fileSize) {
@@ -57,12 +59,13 @@ async function resolveProfile(context, selection, fileSize) {
 export async function onRequestPost(context) {
   try {
     if (!await requireAdmin(context)) return json({ error: 'Unauthorized' }, 401);
-    const { body, plan, selection } = normalizeInput(await context.request.json());
+    const { body, plan, selection, access } = normalizeInput(await context.request.json());
     const profile = await resolveProfile(context, selection, plan.fileSize);
     const now = Date.now();
     const uploadId = createUploadId();
     const result = await initializeMultipart(context.env, {
-      uploadId, owner: 'admin', visibility: body.visibility || 'private',
+      uploadId, owner: 'admin', visibility: access.visibility,
+      uploadSource: access.uploadSource,
       expectedSize: plan.fileSize, partSize: plan.chunkSize, totalParts: plan.totalChunks,
       rootDigest: body.rootDigest, fileName: body.fileName, fileType: body.fileType,
       folderPath: body.folderPath || body.folder || '', createdAt: now, expiresAt: now + UPLOAD_TTL_MS,

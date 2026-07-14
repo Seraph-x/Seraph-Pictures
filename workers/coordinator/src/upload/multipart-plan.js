@@ -3,6 +3,7 @@ export const MIN_PART_SIZE = 5 * MIB;
 export const MAX_PART_SIZE = (5 * 1024 * MIB) - MIN_PART_SIZE;
 export const MAX_PARTS = 10_000;
 const VISIBILITIES = new Set(['public', 'private']);
+const UPLOAD_SOURCES = new Set(['image-host', 'drive']);
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 
 function planError(code) {
@@ -36,6 +37,7 @@ export function validateMultipartPlan(input) {
   if (totalParts > 1 && partSize < MIN_PART_SIZE) throw planError('MULTIPART_PART_TOO_SMALL');
   if (Math.ceil(expectedSize / partSize) !== totalParts) throw planError('MULTIPART_PLAN_INVALID');
   if (!VISIBILITIES.has(input.visibility)) throw planError('MULTIPART_PLAN_INVALID');
+  if (!UPLOAD_SOURCES.has(input.uploadSource)) throw planError('MULTIPART_PLAN_INVALID');
   return Object.freeze({
     expectedSize,
     partSize,
@@ -43,6 +45,7 @@ export function validateMultipartPlan(input) {
     uploadId: requireString(input.uploadId),
     owner: requireString(input.owner),
     visibility: input.visibility,
+    uploadSource: input.uploadSource,
     rootDigest: requireDigest(input.rootDigest),
     fileName: requireString(input.fileName),
     fileType: requireString(input.fileType),

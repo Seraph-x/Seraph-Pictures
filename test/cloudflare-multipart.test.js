@@ -32,6 +32,7 @@ describe('Cloudflare R2 multipart endpoints', function () {
           fileName: 'x.bin', fileType: 'application/octet-stream', rootDigest: 'a'.repeat(64),
           fileSize: 3, totalChunks: 1, storageMode: 'r2', storageId: 'r2-a',
           visibility: 'private',
+          uploadSource: 'drive',
         }),
       }), env: env(binding), data: {
         storageProfileResolver: { resolve: async () => ({
@@ -47,6 +48,8 @@ describe('Cloudflare R2 multipart endpoints', function () {
     assert.strictEqual(payload.totalParts, 1);
     assert.strictEqual(payload.rootDigest, 'a'.repeat(64));
     assert.strictEqual(payload.storageConfigId, 'r2-a');
+    assert.strictEqual(payload.uploadSource, 'drive');
+    assert.strictEqual(payload.visibility, 'private');
   });
 
   it('forwards exact bytes, one-based part number, and digest', async function () {

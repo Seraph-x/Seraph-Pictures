@@ -5,11 +5,16 @@ function requiredText(value, code) {
 }
 
 function snapshotTarget(target) {
+  const uploadSource = String(target?.uploadSource || '').trim();
+  if (uploadSource && !['image-host', 'drive'].includes(uploadSource)) {
+    throw Object.assign(new Error('FILE_UPLOAD_SOURCE_INVALID'), { code: 'FILE_UPLOAD_SOURCE_INVALID' });
+  }
   return Object.freeze({
     storageMode: requiredText(target?.storageMode, 'STORAGE_SELECTION_REQUIRED'),
     storageId: requiredText(target?.storageId, 'STORAGE_SELECTION_REQUIRED'),
     storageName: requiredText(target?.storageName, 'STORAGE_SELECTION_REQUIRED'),
     targetFolderPath: String(target?.targetFolderPath || ''),
+    ...(uploadSource ? { uploadSource } : {}),
   });
 }
 
@@ -22,6 +27,8 @@ export function createUploadQueueItem(options) {
     progress: 0,
     status: 'pending',
     error: '',
+    cancelled: false,
+    xhr: null,
     imageProcessingOptions: Object.freeze({ ...(options.imageProcessingOptions || {}) }),
     imageProcessingPrepared: false,
     optimizationNote: '',
@@ -81,6 +88,7 @@ async function uploadItem(context, item) {
   const profile = context.profiles.value.find((entry) => entry.id === item.target.storageId);
   if (!profile?.enabled || profile.type !== item.target.storageMode) throw new Error('STORAGE_NOT_WRITABLE');
   await context.prepareQueuedImage(item);
+  if (item.cancelled) throw new Error('UPLOAD_CANCELLED');
   validateSize(context, item);
   item.status = 'uploading';
   const link = shouldChunk(context, item)
@@ -101,8 +109,9 @@ async function processQueue(context) {
       try {
         await uploadItem(context, item);
       } catch (cause) {
-        item.status = 'error';
-        item.error = context.humanizeError(await cancelMultipart(context, item, cause));
+        const message = await cancelMultipart(context, item, cause);
+        item.status = item.cancelled ? 'cancelled' : 'error';
+        item.error = item.cancelled ? '' : context.humanizeError(message);
       }
     }
   } finally {
@@ -110,10 +119,37 @@ async function processQueue(context) {
   }
 }
 
+async function cancel(context, id) {
+  const item = context.queue.value.find((entry) => entry.id === id);
+  if (!item) throw new Error('UPLOAD_QUEUE_ITEM_NOT_FOUND');
+  item.cancelled = true;
+  if (item.xhr) item.xhr.abort();
+  if (item.multipartUploadId) {
+    await context.apiFetch('/api/chunked-upload/cancel', {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uploadId: item.multipartUploadId }),
+    });
+    item.multipartUploadId = null;
+  }
+  if (item.status === 'pending') item.status = 'cancelled';
+}
+
+function retry(context, id) {
+  const item = context.queue.value.find((entry) => entry.id === id);
+  if (!item) throw new Error('UPLOAD_QUEUE_ITEM_NOT_FOUND');
+  if (!['error', 'cancelled'].includes(item.status)) throw new Error('UPLOAD_RETRY_STATE_INVALID');
+  Object.assign(item, {
+    status: 'pending', progress: 0, error: '', cancelled: false, xhr: null,
+  });
+  void processQueue(context);
+}
+
 export function useUploadQueue(options) {
   const context = Object.freeze({ ...options });
   return Object.freeze({
     enqueue: (files, target, imageOptions) => enqueue(context, files, target, imageOptions),
     processQueue: () => processQueue(context),
+    cancel: (id) => cancel(context, id),
+    retry: (id) => retry(context, id),
   });
 }

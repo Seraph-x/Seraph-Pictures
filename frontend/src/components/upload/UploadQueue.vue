@@ -18,6 +18,18 @@
           <span>{{ statusLabel(item.status) }}</span>
           <span v-if="item.error" class="error">{{ item.error }}</span>
         </div>
+        <div v-if="controls" class="result-actions">
+          <button
+            v-if="item.status === 'error'"
+            class="btn btn-ghost"
+            @click="$emit('retry', item.id)"
+          >{{ t('dv.retry') }}</button>
+          <button
+            v-if="item.status === 'uploading'"
+            class="btn btn-ghost"
+            @click="$emit('cancel', item.id)"
+          >{{ t('dv.cancel') }}</button>
+        </div>
       </li>
     </ul>
   </div>
@@ -50,8 +62,9 @@ defineProps({
   formatFolderPath: { type: Function, required: true },
   formatSize: { type: Function, required: true },
   statusLabel: { type: Function, required: true },
+  controls: { type: Boolean, default: false },
 });
-defineEmits(['copy']);
+defineEmits(['copy', 'retry', 'cancel']);
 const { t } = useI18n();
 
 function targetLabel(target) {

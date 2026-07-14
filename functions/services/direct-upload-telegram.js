@@ -54,7 +54,7 @@ async function sendToTelegram(options) {
 function metadataArtifact(options) {
   const {
     env, fileId, extension, file, fileName, messageId, useSigned,
-    folderPath, guest, profile,
+    folderPath, guest, profile, access,
   } = options;
   const metadata = appendCommonMetadata({
     TimeStamp: Date.now(), ListType: 'None', Label: 'None', liked: false,
@@ -65,6 +65,7 @@ function metadataArtifact(options) {
       storageGeneration: profile.generation,
       storageOperationId: profile.storageOperationId,
     } : {}),
+    ...(access || {}),
     ...(guest ? { guest: true, guestIp: guest.guestIp, tgBot: 'guest' } : {}),
   }, folderPath);
   const putOptions = { metadata };
@@ -113,7 +114,7 @@ export async function uploadToTelegramStorage(options) {
   const response = uploadResponse(`/file/${directId}`);
   const artifact = metadataArtifact({
     env, fileId, extension, file, fileName, messageId, useSigned,
-    folderPath, guest, profile,
+    folderPath, guest, profile, access: options.access,
   });
   const persist = () => persistMetadata(env, artifact, guest);
   if (deferMetadata) {

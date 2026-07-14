@@ -7,7 +7,7 @@ import {
   appendCommonMetadata, joinStoragePath, randomId, uploadError, uploadResponse,
 } from './direct-upload-common.js';
 
-function baseMetadata({ file, fileName, storageType, extra, folderPath, profile }) {
+function baseMetadata({ file, fileName, storageType, extra, folderPath, profile, access }) {
   return appendCommonMetadata({
     TimeStamp: Date.now(), ListType: 'None', Label: 'None', liked: false,
     fileName, fileSize: file.size, storageType,
@@ -16,6 +16,7 @@ function baseMetadata({ file, fileName, storageType, extra, folderPath, profile 
       storageGeneration: profile.generation,
       storageOperationId: profile.storageOperationId,
     } : {}),
+    ...(access || {}),
     ...extra,
   }, folderPath);
 }
@@ -66,6 +67,7 @@ export function uploadToR2(options) {
     const key = `r2:${objectKey}`;
     const metadata = baseMetadata({
       file, fileName, storageType: 'r2', extra: { r2Key: objectKey }, folderPath, profile,
+      access: options.access,
     });
     return finalizeUpload({
       env, key, metadata, deferMetadata, response: uploadResponse(`/file/${key}`),
@@ -84,6 +86,7 @@ export function uploadToS3(options) {
     const key = `s3:${objectKey}`;
     const metadata = baseMetadata({
       file, fileName, storageType: 's3', extra: { s3Key: objectKey }, folderPath, profile,
+      access: options.access,
     });
     return finalizeUpload({
       env, key, metadata, deferMetadata, response: uploadResponse(`/file/${key}`),
@@ -103,7 +106,7 @@ export function uploadToDiscordStorage(options) {
       discordSourceUrl: result.sourceUrl,
     };
     const metadata = baseMetadata({
-      file, fileName, storageType: 'discord', extra, folderPath, profile,
+      file, fileName, storageType: 'discord', extra, folderPath, profile, access: options.access,
     });
     return finalizeUpload({
       env, key, metadata, deferMetadata, response: uploadResponse(`/file/${key}`),
@@ -121,6 +124,7 @@ export function uploadToHFStorage(options) {
     const key = `hf:${publicId}`;
     const metadata = baseMetadata({
       file, fileName, storageType: 'huggingface', extra: { hfPath }, folderPath, profile,
+      access: options.access,
     });
     return finalizeUpload({
       env, key, metadata, deferMetadata, response: uploadResponse(`/file/${key}`),
@@ -137,7 +141,7 @@ export function uploadToWebDAVStorage(options) {
     const key = `webdav:${publicId}`;
     const extra = { webdavPath: normalizeWebDAVPath(result.path || path), webdavEtag: result.etag || undefined };
     const metadata = baseMetadata({
-      file, fileName, storageType: 'webdav', extra, folderPath, profile,
+      file, fileName, storageType: 'webdav', extra, folderPath, profile, access: options.access,
     });
     return finalizeUpload({
       env, key, metadata, deferMetadata, response: uploadResponse(`/file/${key}`),
@@ -159,7 +163,7 @@ export function uploadToGitHubStorage(options) {
       ...(result.metadata || {}),
     };
     const metadata = baseMetadata({
-      file, fileName, storageType: 'github', extra, folderPath, profile,
+      file, fileName, storageType: 'github', extra, folderPath, profile, access: options.access,
     });
     return finalizeUpload({
       env, key, metadata, deferMetadata, response: uploadResponse(`/file/${key}`),

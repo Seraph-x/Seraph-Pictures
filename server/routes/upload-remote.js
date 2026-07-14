@@ -2,6 +2,7 @@ const { normalizeFolderPath } = require('../lib/repos/file-repo');
 const { GUEST_LIMITS } = require('../../shared/security/guest-policy.cjs');
 const {
   normalizeDockerUploadSelection,
+  normalizeDockerUploadAccess,
   readUploadOperationId,
 } = require('../lib/services/upload-request');
 
@@ -39,13 +40,15 @@ async function uploadPrepared(options) {
       storageMode: reservation ? 'telegram' : payload.storageMode || payload.storage,
       storageId: reservation?.storageId || payload.storageId || payload.storage_config_id,
     });
+    const access = normalizeDockerUploadAccess({
+      authenticated: auth.authenticated, uploadSource: payload.uploadSource,
+    });
     result = await services.uploadService.uploadFile({
       ...prepared,
       ...selection,
       operationId: readUploadOperationId(request),
       folderPath: normalizeFolderPath(payload.folderPath || payload.folder || ''),
-      uploadSource: auth.authenticated ? 'image-host' : 'guest',
-      visibility: 'public',
+      ...access,
       expiresAt: reservation?.fileExpiresAt,
       retentionDays: reservation?.retentionDays,
     });

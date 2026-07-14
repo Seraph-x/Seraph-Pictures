@@ -65,6 +65,7 @@ describe('Cloudflare profile-bound write operation', function () {
     const artifact = await uploadToR2({
       file: new Blob(['image'], { type: 'image/png' }),
       fileName: 'a.png', extension: 'png', profile, deferMetadata: true,
+      access: { visibility: 'public', uploadSource: 'image-host', accessVersion: 1 },
       env: {
         R2_BUCKET: { put: async (key) => { objects.push(key); } },
         img_url: { put: async (key, _value, options) => { records.push([key, options.metadata]); } },
@@ -78,6 +79,11 @@ describe('Cloudflare profile-bound write operation', function () {
     assert.strictEqual(records[0][1].storageConfigId, 'r2-a');
     assert.strictEqual(records[0][1].storageGeneration, 'g1');
     assert.strictEqual(records[0][1].storageOperationId, 'upload-1');
+    assert.deepStrictEqual({
+      visibility: records[0][1].visibility,
+      uploadSource: records[0][1].uploadSource,
+      accessVersion: records[0][1].accessVersion,
+    }, { visibility: 'public', uploadSource: 'image-host', accessVersion: 1 });
   });
 });
 

@@ -38,6 +38,7 @@ export function multipartMetadataRecord(record) {
       storageOperationId: record.operations.reference,
       r2Key: record.objectKey,
       visibility: record.plan.visibility,
+      uploadSource: record.plan.uploadSource,
       owner: record.plan.owner,
       accessVersion: 1,
       chunked: true,

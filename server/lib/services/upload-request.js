@@ -11,6 +11,20 @@ function normalizeDockerUploadSelection(input) {
   return Object.freeze({ storageMode, storageId });
 }
 
+function normalizeDockerUploadAccess(input) {
+  if (!input.authenticated) {
+    return Object.freeze({ uploadSource: 'guest', visibility: 'public' });
+  }
+  const uploadSource = String(input.uploadSource || 'image-host').trim();
+  if (!['image-host', 'drive'].includes(uploadSource)) {
+    throw requestError('FILE_UPLOAD_SOURCE_INVALID');
+  }
+  return Object.freeze({
+    uploadSource,
+    visibility: uploadSource === 'drive' ? 'private' : 'public',
+  });
+}
+
 function readUploadOperationId(request) {
   const supplied = request.headers.get('Idempotency-Key')
     || request.headers.get('X-Upload-Operation-Id');
@@ -22,4 +36,6 @@ function readUploadOperationId(request) {
   return `upload:${normalized}`;
 }
 
-module.exports = { normalizeDockerUploadSelection, readUploadOperationId };
+module.exports = {
+  normalizeDockerUploadSelection, normalizeDockerUploadAccess, readUploadOperationId,
+};
