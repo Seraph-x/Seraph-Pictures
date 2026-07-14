@@ -52,12 +52,19 @@ async function sendToTelegram(options) {
 }
 
 async function persistMetadata(options) {
-  const { env, fileId, extension, file, fileName, messageId, useSigned, folderPath, guest } = options;
+  const {
+    env, fileId, extension, file, fileName, messageId, useSigned,
+    folderPath, guest, profile,
+  } = options;
   if (!env.img_url || (!guest && !shouldWriteTelegramMetadata(env))) return;
   const metadata = appendCommonMetadata({
     TimeStamp: Date.now(), ListType: 'None', Label: 'None', liked: false,
     fileName, fileSize: file.size, storageType: 'telegram', telegramFileId: fileId,
     telegramMessageId: messageId || undefined, signedLink: useSigned,
+    ...(profile ? {
+      storageConfigId: profile.id,
+      storageGeneration: profile.generation,
+    } : {}),
     ...(guest ? { guest: true, guestIp: guest.guestIp, tgBot: 'guest' } : {}),
   }, folderPath);
   const putOptions = { metadata };
@@ -79,7 +86,10 @@ async function sendNotice(options) {
 }
 
 export async function uploadToTelegramStorage(options) {
-  const { file, fileName, extension, env, origin = '', folderPath = '', guest = null } = options;
+  const {
+    file, fileName, extension, env, origin = '', folderPath = '', guest = null,
+    profile, deferMetadata = false,
+  } = options;
   const creds = getTelegramCreds(env, { guest: Boolean(guest) });
   const form = new FormData();
   form.append('chat_id', creds.chatId);
@@ -94,7 +104,18 @@ export async function uploadToTelegramStorage(options) {
   const directId = useSigned
     ? await createSignedTelegramFileId({ fileId, fileExtension: extension, fileName, mimeType: file.type, fileSize: file.size, messageId }, env)
     : `${fileId}.${extension}`;
-  await persistMetadata({ env, fileId, extension, file, fileName, messageId, useSigned, folderPath, guest });
   if (!guest) await sendNotice({ env, directId, origin, messageId, fileId, fileName, fileSize: file.size });
-  return uploadResponse(`/file/${directId}`);
+  const response = uploadResponse(`/file/${directId}`);
+  const persist = () => persistMetadata({
+    env, fileId, extension, file, fileName, messageId, useSigned,
+    folderPath, guest, profile,
+  });
+  if (deferMetadata) {
+    return Object.freeze({
+      key: `${fileId}.${extension}`,
+      persist: async () => { await persist(); return response; },
+    });
+  }
+  await persist();
+  return response;
 }

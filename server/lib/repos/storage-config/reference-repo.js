@@ -44,6 +44,16 @@ class StorageReferenceRepository {
       updated_at = excluded.updated_at`, [operationId, storageId, state, now, now]);
   }
 
+  assertState(operationId, expectedState) {
+    const current = get(this.db, `SELECT state FROM storage_write_references
+      WHERE operation_id = ?`, [operationId]);
+    if (current?.state === expectedState) return;
+    const error = new Error('STORAGE_PROFILE_INTEGRITY_ERROR');
+    error.code = 'STORAGE_PROFILE_INTEGRITY_ERROR';
+    error.status = 500;
+    throw error;
+  }
+
   release(operationId) {
     return run(this.db, 'DELETE FROM storage_write_references WHERE operation_id = ?', [operationId]);
   }

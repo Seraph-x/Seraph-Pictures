@@ -7,15 +7,36 @@ import {
   appendCommonMetadata, joinStoragePath, randomId, uploadError, uploadResponse,
 } from './direct-upload-common.js';
 
-function baseMetadata({ file, fileName, storageType, extra, folderPath }) {
+function baseMetadata({ file, fileName, storageType, extra, folderPath, profile }) {
   return appendCommonMetadata({
     TimeStamp: Date.now(), ListType: 'None', Label: 'None', liked: false,
-    fileName, fileSize: file.size, storageType, ...extra,
+    fileName, fileSize: file.size, storageType,
+    ...(profile ? {
+      storageConfigId: profile.id,
+      storageGeneration: profile.generation,
+    } : {}),
+    ...extra,
   }, folderPath);
 }
 
 async function persist(env, key, metadata) {
   if (env.img_url) await env.img_url.put(key, '', { metadata });
+}
+
+async function finalizeUpload(options) {
+  const { env, key, metadata, response, deferMetadata } = options;
+  if (deferMetadata) {
+    return Object.freeze({
+      key,
+      metadata,
+      persist: async () => {
+        await persist(env, key, metadata);
+        return response;
+      },
+    });
+  }
+  await persist(env, key, metadata);
+  return response;
 }
 
 async function execute(label, operation) {
@@ -25,35 +46,52 @@ async function execute(label, operation) {
   }
 }
 
-export function uploadToR2({ file, fileName, extension, env, folderPath = '' }) {
+export function uploadToR2(options) {
+  const { file, fileName, extension, env, folderPath = '', profile, deferMetadata } = options;
   return execute('R2', async () => {
     const objectKey = `${randomId('r2')}.${extension}`;
-    await env.R2_BUCKET.put(objectKey, await file.arrayBuffer(), {
-      httpMetadata: { contentType: file.type },
-      customMetadata: { fileName, uploadTime: Date.now().toString() },
+    const bytes = await file.arrayBuffer();
+    if (env.R2_ADAPTER_MODE === 's3') {
+      await createS3Client(env).putObject(objectKey, bytes, {
+        contentType: file.type || 'application/octet-stream',
+        metadata: { 'x-amz-meta-filename': fileName },
+      });
+    } else {
+      await env.R2_BUCKET.put(objectKey, bytes, {
+        httpMetadata: { contentType: file.type },
+        customMetadata: { fileName, uploadTime: Date.now().toString() },
+      });
+    }
+    const key = `r2:${objectKey}`;
+    const metadata = baseMetadata({
+      file, fileName, storageType: 'r2', extra: { r2Key: objectKey }, folderPath, profile,
     });
-    await persist(env, `r2:${objectKey}`, baseMetadata({
-      file, fileName, storageType: 'r2', extra: { r2Key: objectKey }, folderPath,
-    }));
-    return uploadResponse(`/file/r2:${objectKey}`);
+    return finalizeUpload({
+      env, key, metadata, deferMetadata, response: uploadResponse(`/file/${key}`),
+    });
   });
 }
 
-export function uploadToS3({ file, fileName, extension, env, folderPath = '' }) {
+export function uploadToS3(options) {
+  const { file, fileName, extension, env, folderPath = '', profile, deferMetadata } = options;
   return execute('S3', async () => {
     const objectKey = `${randomId('s3')}.${extension}`;
     await createS3Client(env).putObject(objectKey, await file.arrayBuffer(), {
       contentType: file.type || 'application/octet-stream',
       metadata: { 'x-amz-meta-filename': fileName, 'x-amz-meta-uploadtime': Date.now().toString() },
     });
-    await persist(env, `s3:${objectKey}`, baseMetadata({
-      file, fileName, storageType: 's3', extra: { s3Key: objectKey }, folderPath,
-    }));
-    return uploadResponse(`/file/s3:${objectKey}`);
+    const key = `s3:${objectKey}`;
+    const metadata = baseMetadata({
+      file, fileName, storageType: 's3', extra: { s3Key: objectKey }, folderPath, profile,
+    });
+    return finalizeUpload({
+      env, key, metadata, deferMetadata, response: uploadResponse(`/file/${key}`),
+    });
   });
 }
 
-export function uploadToDiscordStorage({ file, fileName, extension, env, folderPath = '' }) {
+export function uploadToDiscordStorage(options) {
+  const { file, fileName, extension, env, folderPath = '', profile, deferMetadata } = options;
   return execute('Discord', async () => {
     const result = await uploadToDiscord(await file.arrayBuffer(), fileName, file.type, env);
     if (!result.success) throw new Error(result.error);
@@ -63,36 +101,51 @@ export function uploadToDiscordStorage({ file, fileName, extension, env, folderP
       discordAttachmentId: result.attachmentId, discordUploadMode: result.mode,
       discordSourceUrl: result.sourceUrl,
     };
-    await persist(env, key, baseMetadata({ file, fileName, storageType: 'discord', extra, folderPath }));
-    return uploadResponse(`/file/${key}`);
+    const metadata = baseMetadata({
+      file, fileName, storageType: 'discord', extra, folderPath, profile,
+    });
+    return finalizeUpload({
+      env, key, metadata, deferMetadata, response: uploadResponse(`/file/${key}`),
+    });
   });
 }
 
-export function uploadToHFStorage({ file, fileName, extension, env, folderPath = '' }) {
+export function uploadToHFStorage(options) {
+  const { file, fileName, extension, env, folderPath = '', profile, deferMetadata } = options;
   return execute('HuggingFace', async () => {
     const publicId = `${randomId('hf')}.${extension}`;
     const hfPath = joinStoragePath(folderPath, publicId);
     const result = await uploadToHuggingFace(await file.arrayBuffer(), hfPath, fileName, env);
     if (!result.success) throw new Error(result.error);
     const key = `hf:${publicId}`;
-    await persist(env, key, baseMetadata({ file, fileName, storageType: 'huggingface', extra: { hfPath }, folderPath }));
-    return uploadResponse(`/file/${key}`);
+    const metadata = baseMetadata({
+      file, fileName, storageType: 'huggingface', extra: { hfPath }, folderPath, profile,
+    });
+    return finalizeUpload({
+      env, key, metadata, deferMetadata, response: uploadResponse(`/file/${key}`),
+    });
   });
 }
 
-export function uploadToWebDAVStorage({ file, fileName, extension, env, folderPath = '' }) {
+export function uploadToWebDAVStorage(options) {
+  const { file, fileName, extension, env, folderPath = '', profile, deferMetadata } = options;
   return execute('WebDAV', async () => {
     const publicId = `${randomId('wd')}.${extension}`;
     const path = joinStoragePath(folderPath, publicId);
     const result = await uploadToWebDAV(await file.arrayBuffer(), path, file.type || 'application/octet-stream', env);
     const key = `webdav:${publicId}`;
     const extra = { webdavPath: normalizeWebDAVPath(result.path || path), webdavEtag: result.etag || undefined };
-    await persist(env, key, baseMetadata({ file, fileName, storageType: 'webdav', extra, folderPath }));
-    return uploadResponse(`/file/${key}`);
+    const metadata = baseMetadata({
+      file, fileName, storageType: 'webdav', extra, folderPath, profile,
+    });
+    return finalizeUpload({
+      env, key, metadata, deferMetadata, response: uploadResponse(`/file/${key}`),
+    });
   });
 }
 
-export function uploadToGitHubStorage({ file, fileName, extension, env, folderPath = '' }) {
+export function uploadToGitHubStorage(options) {
+  const { file, fileName, extension, env, folderPath = '', profile, deferMetadata } = options;
   return execute('GitHub', async () => {
     const publicId = `${randomId('github')}.${extension}`;
     const storageKey = normalizeGitHubStoragePath(joinStoragePath(folderPath, publicId));
@@ -104,7 +157,11 @@ export function uploadToGitHubStorage({ file, fileName, extension, env, folderPa
       githubStorageKey: normalizeGitHubStoragePath(result.storagePath || storageKey),
       ...(result.metadata || {}),
     };
-    await persist(env, key, baseMetadata({ file, fileName, storageType: 'github', extra, folderPath }));
-    return uploadResponse(`/file/${key}`);
+    const metadata = baseMetadata({
+      file, fileName, storageType: 'github', extra, folderPath, profile,
+    });
+    return finalizeUpload({
+      env, key, metadata, deferMetadata, response: uploadResponse(`/file/${key}`),
+    });
   });
 }

@@ -1,4 +1,8 @@
 const { normalizeFolderPath } = require('../lib/repos/file-repo');
+const {
+  normalizeDockerUploadSelection,
+  readUploadOperationId,
+} = require('../lib/services/upload-request');
 
 function validateMaximum({ context, fileSize, limit, helpers }) {
   if (fileSize <= limit) return null;
@@ -29,14 +33,19 @@ function validateStorageLimit(options) {
 async function performUpload(options) {
   const { context, body, file, buffer, auth, reservation, uploadService, helpers } = options;
   try {
+    const selection = normalizeDockerUploadSelection({
+      authenticated: auth.authenticated,
+      storageMode: reservation ? 'telegram' : helpers.asString(body.storageMode || body.storage),
+      storageId: reservation?.storageId
+        || helpers.asString(body.storageId || body.storage_config_id),
+    });
     return await uploadService.uploadFile({
       fileName: file.name,
       mimeType: file.type,
       fileSize: buffer.byteLength,
       buffer,
-      storageMode: helpers.asString(body.storageMode || body.storage),
-      storageId: reservation?.storageId
-        || helpers.asString(body.storageId || body.storage_config_id),
+      ...selection,
+      operationId: readUploadOperationId(context.req.raw),
       folderPath: normalizeFolderPath(body.folderPath || body.folder || ''),
       uploadSource: auth.authenticated ? 'image-host' : 'guest',
       visibility: 'public',

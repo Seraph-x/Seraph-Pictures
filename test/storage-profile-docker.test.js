@@ -149,4 +149,51 @@ describe('Docker storage profile repository', function () {
     fixture.repo.releaseMigrationLock({ owner: 'migration', token: 'token-1' });
     assert.strictEqual(fixture.repo.create(telegram('allowed')).isDefault, true);
   });
+
+  it('blocks new write reservations while the migration lock is owned', function () {
+    const profile = fixture.repo.create(telegram('locked-write'));
+    fixture.repo.acquireMigrationLock({ owner: 'migration', token: 'token-1' });
+
+    assert.throws(
+      () => fixture.repo.reserveReference({ operationId: 'op-locked', storageId: profile.id }),
+      { code: 'STORAGE_MIGRATION_FAILED' },
+    );
+    assert.strictEqual(get(fixture.db, `SELECT operation_id FROM storage_write_references
+      WHERE operation_id = ?`, ['op-locked']), undefined);
+  });
+
+  it('commits metadata and releases its write reservation atomically', function () {
+    const profile = fixture.repo.create(telegram('atomic-write'));
+    fixture.repo.reserveReference({ operationId: 'op-atomic', storageId: profile.id });
+    fixture.repo.reserveReference({
+      operationId: 'op-atomic', storageId: profile.id, state: 'committing',
+    });
+
+    assert.throws(() => fixture.repo.commitReference('op-atomic', () => {
+      run(fixture.db, `INSERT INTO files(
+        id, storage_config_id, storage_type, storage_key, file_name,
+        file_size, mime_type, visibility, upload_source, access_version, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+        'file-atomic', profile.id, profile.type, 'key', 'a.png', 1, 'image/png',
+        'public', 'image-host', 1, 1, 1,
+      ]);
+      throw new Error('metadata failed');
+    }), /metadata failed/);
+
+    assert.strictEqual(get(fixture.db, 'SELECT id FROM files WHERE id = ?', ['file-atomic']), undefined);
+    assert.strictEqual(get(fixture.db, `SELECT state FROM storage_write_references
+      WHERE operation_id = ?`, ['op-atomic']).state, 'committing');
+  });
+
+  it('rejects metadata commit before the reference enters committing state', function () {
+    const profile = fixture.repo.create(telegram('premature-write'));
+    fixture.repo.reserveReference({ operationId: 'op-premature', storageId: profile.id });
+
+    assert.throws(
+      () => fixture.repo.commitReference('op-premature', () => 'metadata'),
+      { code: 'STORAGE_PROFILE_INTEGRITY_ERROR' },
+    );
+    assert.strictEqual(get(fixture.db, `SELECT state FROM storage_write_references
+      WHERE operation_id = ?`, ['op-premature']).state, 'reserved');
+  });
 });

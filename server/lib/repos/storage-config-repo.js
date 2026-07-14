@@ -46,8 +46,21 @@ class StorageConfigRepository {
   }
   delete(id) { return this.mutations.delete(id); }
   setDefault(id) { return this.mutations.setDefault(id); }
-  reserveReference(input) { return transaction(this.db, () => this.references.reserve(input)); }
+  reserveReference(input) {
+    return transaction(this.db, () => {
+      this.migrationLock.assertUnlocked();
+      return this.references.reserve(input);
+    });
+  }
   releaseReference(operationId) { return transaction(this.db, () => this.references.release(operationId)); }
+  commitReference(operationId, operation) {
+    return transaction(this.db, () => {
+      this.references.assertState(operationId, 'committing');
+      const result = operation();
+      this.references.release(operationId);
+      return result;
+    });
+  }
   acquireMigrationLock(input) { return transaction(this.db, () => this.migrationLock.acquire(input)); }
   releaseMigrationLock(input) { return transaction(this.db, () => this.migrationLock.release(input)); }
 

@@ -2,6 +2,7 @@ const { buildPublicFileId, normalizeStorageType } = require('../storage/common')
 const { normalizeFolderPath } = require('../repos/file-repo');
 const { createAccessMetadata } = require('../../../shared/security/file-metadata.cjs');
 const { defaultRequestRemote, defaultResolveHostname } = require('../utils/remote-fetch');
+const { executeStorageWrite } = require('./storage-write-operation');
 const {
   assertPublicHostname,
   assertPublicRedirect,
@@ -24,6 +25,37 @@ function remoteFileName(parsedUrl, contentType) {
   const extension = String(contentType).split('/')[1]?.split(';')[0] || 'bin';
   if (!candidate) return `url_${Date.now()}.${extension}`;
   return candidate.includes('.') ? candidate : `${candidate}.${extension}`;
+}
+
+function buildFileRecord(options) {
+  const {
+    publicId, storageConfig, storageType, uploadResult, adapterStorageKey,
+    fileName, fileSize, mimeType, folderPath, access, expiresAt, retentionDays,
+  } = options;
+  return Object.freeze({
+    id: publicId,
+    storageConfigId: storageConfig.id,
+    storageType,
+    storageKey: uploadResult.storageKey || adapterStorageKey,
+    fileName,
+    fileSize,
+    mimeType,
+    folderPath,
+    ...access,
+    expiresAt,
+    extra: {
+      ...(uploadResult.metadata || {}),
+      ...(retentionDays ? { retentionDays } : {}),
+    },
+  });
+}
+
+function uploadResponse({ file, publicId, storageConfig, storageType }) {
+  return Object.freeze({
+    file,
+    src: `/file/${encodeURIComponent(publicId)}`,
+    storage: { id: storageConfig.id, name: storageConfig.name, type: storageType },
+  });
 }
 
 class UploadService {
@@ -52,7 +84,7 @@ class UploadService {
   async uploadFile(options) {
     const {
       fileName, mimeType, fileSize, buffer, storageId, storageMode, folderPath,
-      uploadSource = 'image-host', visibility, expiresAt, retentionDays,
+      uploadSource = 'image-host', visibility, expiresAt, retentionDays, operationId,
     } = options;
     const storageConfig = this.resolveStorage({ storageId, storageMode });
     const adapter = this.storageFactory.createAdapter(storageConfig);
@@ -61,51 +93,38 @@ class UploadService {
     const { publicId, adapterStorageKey } = uploadTarget({
       storageType, fileName, mimeType, folderPath: normalizedFolderPath,
     });
-    const uploadResult = await adapter.upload({
+    const uploadInput = Object.freeze({
       storageKey: adapterStorageKey,
       fileName,
       mimeType,
       fileSize,
       buffer,
     });
-
     const access = createAccessMetadata({ uploadSource, requestedVisibility: visibility });
-    const fileRecord = this.fileRepo.create({
-      id: publicId,
-      storageConfigId: storageConfig.id,
-      storageType,
-      storageKey: uploadResult.storageKey || adapterStorageKey,
-      fileName,
-      fileSize,
-      mimeType,
-      folderPath: normalizedFolderPath,
-      ...access,
-      expiresAt,
-      extra: {
-        ...(uploadResult.metadata || {}),
-        ...(retentionDays ? { retentionDays } : {}),
-      },
-    });
-
-    return {
-      file: fileRecord,
-      src: `/file/${encodeURIComponent(publicId)}`,
-      storage: {
-        id: storageConfig.id,
-        name: storageConfig.name,
-        type: storageType,
-      },
+    const recordOptions = {
+      publicId, storageConfig, storageType, adapterStorageKey, fileName, fileSize,
+      mimeType, folderPath: normalizedFolderPath, access, expiresAt, retentionDays,
     };
+    const result = await executeStorageWrite({
+      storageRepo: this.storageRepo,
+      fileRepo: this.fileRepo,
+      adapter,
+      storageConfig,
+      operationId: operationId || `upload:${publicId}`,
+      uploadInput,
+      buildFileRecord: (uploadResult) => buildFileRecord({ ...recordOptions, uploadResult }),
+    });
+    return uploadResponse({ file: result.file, publicId, storageConfig, storageType });
   }
 
   async uploadFromUrl(options) {
     const {
       url, storageId, storageMode, folderPath, uploadSource = 'image-host', visibility,
-      maxBytes = DEFAULT_URL_UPLOAD_LIMIT,
+      maxBytes = DEFAULT_URL_UPLOAD_LIMIT, operationId,
     } = options;
     const prepared = await this.prepareRemoteFile({ url, maxBytes });
     return this.uploadFile({
-      ...prepared, storageId, storageMode, folderPath, uploadSource, visibility,
+      ...prepared, storageId, storageMode, folderPath, uploadSource, visibility, operationId,
     });
   }
 
