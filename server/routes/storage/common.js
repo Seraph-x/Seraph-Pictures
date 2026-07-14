@@ -5,14 +5,16 @@ function storageResponse(context, kind, payload) {
 }
 
 function storageError(context, helpers, error, options = {}) {
-  const status = error?.status || options.status || 500;
-  const code = error?.code || options.code || 'STORAGE_OPERATION_FAILED';
+  const details = contract.storageErrorDetails({
+    code: error?.code || options.code,
+    status: error?.status || options.status,
+  });
   return helpers.jsonError(
     context,
-    status,
-    code,
+    details.status,
+    details.code,
     options.message || 'Storage operation failed.',
-    error?.message || code,
+    error?.message || details.code,
   );
 }
 
