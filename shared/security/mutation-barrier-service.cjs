@@ -68,6 +68,16 @@ class MutationBarrierService {
     });
   }
 
+  async freezeAbort(payload) {
+    return this.repository.transaction(() => {
+      const current = this.repository.readState();
+      if (payload.generation !== current.generation) throw new Error('BARRIER_GENERATION_MISMATCH');
+      if (this.repository.count() !== 0) throw new Error('ACTIVE_MUTATIONS_REMAIN');
+      this.repository.setState({ frozen: false, generation: null, audience: null });
+      return Object.freeze({ ...this.repository.readState(), active: 0 });
+    });
+  }
+
   async status() {
     return this.repository.transaction(() => {
       this.repository.releaseExpired(this.clock.now());

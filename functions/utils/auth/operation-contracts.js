@@ -31,8 +31,29 @@ function isStorageCatalogAuthority(value) {
   return isObject(value)
     && typeof value.initialized === 'boolean'
     && (value.initialized
-      ? typeof value.generation === 'string' && value.generation.length > 0
-      : value.generation === null);
+      ? (typeof value.generation === 'string' && value.generation.length > 0
+        && value.ledgerGeneration === value.generation)
+      : value.generation === null && value.ledgerGeneration === null);
+}
+
+function isStorageCatalogActivation(value) {
+  if (!isObject(value) || typeof value.ok !== 'boolean') return false;
+  if (!value.ok) {
+    return typeof value.code === 'string'
+      && (value.generation === null || typeof value.generation === 'string');
+  }
+  return typeof value.generation === 'string'
+    && value.generation.length > 0
+    && value.ledgerGeneration === value.generation;
+}
+
+function isStorageReference(value) {
+  return isObject(value)
+    && typeof value.operationId === 'string'
+    && typeof value.storageId === 'string'
+    && ['reserved', 'committing', 'permanent', 'releasing', 'transferring'].includes(value.state)
+    && Array.isArray(value.protectedStorageIds)
+    && value.protectedStorageIds.every((id) => typeof id === 'string');
 }
 
 function isShareRecord(value) {
@@ -101,10 +122,21 @@ const VALIDATORS = Object.freeze({
   configAbort: (value) => isObject(value) && typeof value.aborted === 'boolean',
   configAbortStale: (value) => isObject(value) && typeof value.aborted === 'boolean',
   storageProfileCatalogReadAuthority: isStorageCatalogAuthority,
-  storageProfileCatalogActivate: (value) => isObject(value)
+  storageProfileCatalogActivate: isStorageCatalogActivation,
+  storageProfileLedgerStage: (value) => isObject(value)
     && value.ok === true
     && typeof value.generation === 'string'
-    && value.generation.length > 0,
+    && Number.isInteger(value.staged)
+    && value.staged >= 0,
+  storageRefReserve: isStorageReference,
+  storageRefCommitStart: isStorageReference,
+  storageRefCommitFinish: isStorageReference,
+  storageRefReleaseStart: isStorageReference,
+  storageRefReleaseFinish: (value) => isObject(value) && value.released === true,
+  storageRefTransferStart: isStorageReference,
+  storageRefTransferFinish: isStorageReference,
+  storageRefReconcile: (value) => isStorageReference(value)
+    || (isObject(value) && typeof value.reconciled === 'boolean' && typeof value.state === 'string'),
   shareCreate: (value) => isResult(value) && (!value.ok || isShareRecord(value.record)),
   shareRead: (value) => isObject(value)
     && (value.record === null || isShareRecord(value.record)),
@@ -133,6 +165,7 @@ const VALIDATORS = Object.freeze({
     && Number.isInteger(value.active) && value.active >= 0,
   mutationFreezeBegin: isBarrierStatus,
   mutationFreezeEnd: isBarrierStatus,
+  mutationFreezeAbort: isBarrierStatus,
   mutationFreezeStatus: isBarrierStatus,
   mutationReleaseExpired: (value) => isObject(value)
     && Number.isInteger(value.released) && value.released >= 0,

@@ -18,6 +18,17 @@ function validateRuntime(runtime) {
       throw migrationFailure(`Invalid default count for ${type}.`);
     }
   }
+  const references = runtime.references || [];
+  const operationIds = new Set(references.map((item) => item.operationId));
+  if (operationIds.size !== references.length) throw migrationFailure('Duplicate reference ID.');
+  if (references.some((item) => !operationIds.has(item.operationId) || !ids.has(item.storageId))) {
+    throw migrationFailure('Invalid storage reference.');
+  }
+  const counts = Object.fromEntries([...ids].map((id) => [id, 0]));
+  references.forEach((item) => { counts[item.storageId] += 1; });
+  if (JSON.stringify(counts) !== JSON.stringify(runtime.referenceCounts)) {
+    throw migrationFailure('Storage reference counts do not match ledger.');
+  }
 }
 
 export function validateMigrationPlan(plan) {

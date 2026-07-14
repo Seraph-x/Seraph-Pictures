@@ -3,6 +3,13 @@ const { StoragePolicyError } = require('../../../../shared/storage/profile-polic
 
 const LOCK_ID = 1;
 
+function assertIdentity({ owner, token } = {}) {
+  if (typeof owner !== 'string' || !owner.trim() || typeof token !== 'string' || !token.trim()) {
+    throw new StoragePolicyError('STORAGE_MIGRATION_FAILED');
+  }
+  return Object.freeze({ owner: owner.trim(), token: token.trim() });
+}
+
 class StorageMigrationLockRepository {
   constructor({ db, clock = Date }) {
     this.db = db;
@@ -17,7 +24,8 @@ class StorageMigrationLockRepository {
     if (this.current()) throw new StoragePolicyError('STORAGE_MIGRATION_FAILED');
   }
 
-  acquire({ owner, token }) {
+  acquire(input) {
+    const { owner, token } = assertIdentity(input);
     const current = this.current();
     if (current?.owner === owner && current?.token === token) return Object.freeze({ owner, token });
     if (current) throw new StoragePolicyError('STORAGE_MIGRATION_FAILED');
@@ -26,7 +34,8 @@ class StorageMigrationLockRepository {
     return Object.freeze({ owner, token });
   }
 
-  release({ owner, token }) {
+  release(input) {
+    const { owner, token } = assertIdentity(input);
     const current = this.current();
     if (!current || current.owner !== owner || current.token !== token) {
       throw new StoragePolicyError('STORAGE_MIGRATION_FAILED');

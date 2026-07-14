@@ -135,6 +135,9 @@ describe('Docker storage profile repository', function () {
   });
 
   it('fails profile mutations while the migration lock is owned', function () {
+    assert.throws(() => fixture.repo.acquireMigrationLock({ owner: '', token: '' }), {
+      code: 'STORAGE_MIGRATION_FAILED',
+    });
     fixture.repo.acquireMigrationLock({ owner: 'migration', token: 'token-1' });
     assert.throws(() => fixture.repo.create(telegram('blocked')), {
       code: 'STORAGE_MIGRATION_FAILED',

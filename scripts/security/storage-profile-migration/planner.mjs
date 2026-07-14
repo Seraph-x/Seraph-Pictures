@@ -86,6 +86,20 @@ function referenceCounts(profiles, files, legacyTypeProfileIds) {
   return counts;
 }
 
+function migrationReferences(profiles, files, legacyTypeProfileIds) {
+  const profileIds = new Set(profiles.map((profile) => profile.id));
+  return (files || []).map((file) => {
+    if (typeof file.id !== 'string' || !file.id.trim()) {
+      throw failure('File reference ID is required.');
+    }
+    const storageId = file.storageConfigId || legacyTypeProfileIds[file.storageType];
+    if (!storageId || !profileIds.has(storageId)) {
+      throw failure(`Unresolved file reference ${file.id}.`);
+    }
+    return { operationId: `migration:${file.id.trim()}`, storageId };
+  }).sort((left, right) => left.operationId.localeCompare(right.operationId));
+}
+
 function runtimePlan(profiles, files) {
   const normalized = normalizeDefaults(profiles || []);
   const legacyTypeProfileIds = defaultMap(normalized);
@@ -93,6 +107,7 @@ function runtimePlan(profiles, files) {
     profiles: normalized,
     legacyTypeProfileIds,
     referenceCounts: referenceCounts(normalized, files, legacyTypeProfileIds),
+    references: migrationReferences(normalized, files, legacyTypeProfileIds),
   };
 }
 

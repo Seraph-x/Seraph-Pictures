@@ -11,7 +11,7 @@ class MemoryKV {
 }
 
 function authority() {
-  const state = { generation: null };
+  const state = { generation: null, references: new Set() };
   return {
     state,
     binding: {
@@ -24,11 +24,29 @@ function authority() {
             return Response.json({ data: {
               initialized: state.generation !== null,
               generation: state.generation,
+              ledgerGeneration: state.generation,
             } });
           }
           if (operation === 'storageProfileCatalogActivate') {
+            if (payload.generation === state.generation) {
+              return Response.json({ data: {
+                ok: true, generation: state.generation, ledgerGeneration: state.generation,
+              } });
+            }
+            if (payload.expectedGeneration !== state.generation) {
+              return Response.json({ data: {
+                ok: false, code: 'STORAGE_GENERATION_CONFLICT', generation: state.generation,
+              } });
+            }
+            if ((payload.guardedStorageIds || []).some((id) => state.references.has(id))) {
+              return Response.json({ data: {
+                ok: false, code: 'STORAGE_PROFILE_IN_USE', generation: state.generation,
+              } });
+            }
             state.generation = payload.generation;
-            return Response.json({ data: { ok: true, generation: state.generation } });
+            return Response.json({ data: {
+              ok: true, generation: state.generation, ledgerGeneration: state.generation,
+            } });
           }
           return Response.json({ error: { code: 'UNKNOWN' } }, { status: 404 });
         },
@@ -90,6 +108,25 @@ describe('Cloudflare generation storage catalog', function () {
     await repo.setDefault(second.id);
     assert.strictEqual((await repo.get(first.id, { includeSecrets: true })).isDefault, false);
     assert.strictEqual((await repo.get(second.id, { includeSecrets: true })).isDefault, true);
+  });
+
+  it('serializes catalog activation and blocks referenced update/delete mutations', async function () {
+    const { createStorageProfileRepository } = await import('../functions/services/storage-profiles/repository.js');
+    const fixture = env();
+    const repo = createStorageProfileRepository(fixture.environment);
+    const first = await repo.create({
+      name: 'one', type: 'telegram', config: { botToken: 'one', chatId: 'one' },
+    });
+    const second = await repo.create({
+      name: 'two', type: 'telegram', config: { botToken: 'two', chatId: 'two' },
+    });
+    await repo.setDefault(second.id);
+    fixture.coordinator.state.references.add(first.id);
+
+    await assert.rejects(() => repo.update(first.id, { type: 'github', config: {
+      repo: 'u/r', token: 'token',
+    } }), { code: 'STORAGE_PROFILE_IN_USE' });
+    await assert.rejects(() => repo.delete(first.id), { code: 'STORAGE_PROFILE_IN_USE' });
   });
 
   it('exposes v1 only through the explicit migration reader', async function () {

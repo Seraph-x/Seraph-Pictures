@@ -73,8 +73,8 @@ export function createStorageCatalogStore(env) {
         throw unavailable(error);
       }
     },
-    activate(generation) {
-      return callAuthority(env, 'storageProfileCatalogActivate', { generation });
+    activate(options) {
+      return callAuthority(env, 'storageProfileCatalogActivate', options);
     },
   });
 }

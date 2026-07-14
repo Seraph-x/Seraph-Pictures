@@ -40,7 +40,7 @@ export function createStorageProfileRepository(env, dependencies = {}) {
     return Object.freeze({ catalog, items: Object.freeze(await decodeItems(env, catalog)) });
   }
 
-  async function persist(catalog, items) {
+  async function persist({ catalog, items, guardedStorageIds = [] }) {
     const generation = generations.create();
     const next = generationCatalog({
       generation,
@@ -48,9 +48,13 @@ export function createStorageProfileRepository(env, dependencies = {}) {
       legacyTypeProfileIds: catalog.legacyTypeProfileIds,
     });
     await store.stage(next);
-    const activated = await store.activate(generation);
+    const activated = await store.activate({
+      generation,
+      expectedGeneration: catalog.generation,
+      guardedStorageIds,
+    });
     if (!activated?.ok || activated.generation !== generation) {
-      throw new StoragePolicyError('STORAGE_MIGRATION_FAILED');
+      throw new StoragePolicyError(activated?.code || 'STORAGE_MIGRATION_FAILED');
     }
   }
 
@@ -67,7 +71,7 @@ export function createStorageProfileRepository(env, dependencies = {}) {
     async create(input) {
       const { catalog, items } = await read();
       const created = createProfile({ items, input, id: ids.create(), now: clock.now() });
-      await persist(catalog, [...items, created]);
+      await persist({ catalog, items: [...items, created] });
       return created;
     },
     async update(id, patch) {
@@ -75,21 +79,29 @@ export function createStorageProfileRepository(env, dependencies = {}) {
       const current = items.find((item) => item.id === id);
       if (!current) return null;
       const updated = updateProfile({ items, current, patch, now: clock.now() });
-      await persist(catalog, items.map((item) => item.id === id ? updated : item));
+      await persist({
+        catalog,
+        items: items.map((item) => item.id === id ? updated : item),
+        guardedStorageIds: updated.type === current.type ? [] : [id],
+      });
       return updated;
     },
     async delete(id) {
       const { catalog, items } = await read();
       const current = items.find((item) => item.id === id);
       if (!current) return false;
-      await persist(catalog, deleteProfile({ items, current }));
+      await persist({
+        catalog,
+        items: deleteProfile({ items, current }),
+        guardedStorageIds: [id],
+      });
       return true;
     },
     async setDefault(id) {
       const { catalog, items } = await read();
       if (!items.some((item) => item.id === id)) return null;
       const next = setProfileDefault({ items, id });
-      await persist(catalog, next);
+      await persist({ catalog, items: next });
       return next.find((item) => item.id === id);
     },
   });

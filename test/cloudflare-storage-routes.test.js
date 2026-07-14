@@ -25,11 +25,20 @@ function authCoordinator() {
       if (operation === 'storageProfileCatalogReadAuthority') {
         return Response.json({ data: {
           initialized: state.generation !== null, generation: state.generation,
+          ledgerGeneration: state.generation,
         } });
       }
       if (operation === 'storageProfileCatalogActivate') {
+        if (payload.generation !== state.generation
+          && payload.expectedGeneration !== state.generation) {
+          return Response.json({ data: {
+            ok: false, code: 'STORAGE_GENERATION_CONFLICT', generation: state.generation,
+          } });
+        }
         state.generation = payload.generation;
-        return Response.json({ data: { ok: true, generation: state.generation } });
+        return Response.json({ data: {
+          ok: true, generation: state.generation, ledgerGeneration: state.generation,
+        } });
       }
       return Response.json({
         data: { initialized: true, schemaVersion: 1, legacyCleanupRequired: false },
