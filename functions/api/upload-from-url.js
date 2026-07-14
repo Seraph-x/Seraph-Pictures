@@ -73,7 +73,8 @@ function backendOptions(input, file, env) {
   });
 }
 
-async function dispatch(input, file, env, request) {
+async function dispatch(dispatchInput) {
+  const { input, file, env, request } = dispatchInput;
   if (!configured(input.storageMode, env)) {
     throw Object.assign(new Error(`${input.storageMode} is not configured.`), { status: 500 });
   }
@@ -117,7 +118,7 @@ async function executeUpload(input, context) {
     });
   }
   const env = await resolveStorageEnv(context.env);
-  const response = await dispatch(input, file, env, context.request);
+  const response = await dispatch({ input, file, env, request: context.request });
   if (!input.isAdmin && response.ok) {
     await incrementGuestCount(context.request, context.env, input.guestConfig);
   }

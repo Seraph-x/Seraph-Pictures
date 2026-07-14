@@ -1,4 +1,5 @@
-function lifecycleError(message, code = message, status = 500, cause) {
+function lifecycleError(message, options = {}) {
+  const { code = message, status = 500, cause } = options;
   const error = new Error(message, cause ? { cause } : undefined);
   error.code = code;
   error.status = status;
@@ -6,18 +7,19 @@ function lifecycleError(message, code = message, status = 500, cause) {
 }
 
 function reconciliationError(cause) {
-  return lifecycleError(
-    'Storage lifecycle result requires reconciliation.',
-    'STORAGE_RECONCILIATION_REQUIRED',
-    503,
+  return lifecycleError('Storage lifecycle result requires reconciliation.', {
+    code: 'STORAGE_RECONCILIATION_REQUIRED',
+    status: 503,
     cause,
-  );
+  });
 }
 
 function exactProfile(storageRepo, storageId) {
   const profile = storageRepo.getById(storageId, true);
   if (profile) return profile;
-  throw lifecycleError('STORAGE_PROFILE_NOT_FOUND', 'STORAGE_PROFILE_NOT_FOUND', 404);
+  throw lifecycleError('STORAGE_PROFILE_NOT_FOUND', {
+    code: 'STORAGE_PROFILE_NOT_FOUND', status: 404,
+  });
 }
 
 function operationId(kind, fileId, destinationStorageId) {
@@ -36,7 +38,9 @@ function filePayload(file, extra = {}) {
 async function readSource(adapter, file, operation) {
   const response = await adapter.download(filePayload(file, { operationId: operation }));
   if (!response?.ok) {
-    throw lifecycleError('Source object is unavailable.', 'STORAGE_SOURCE_UNAVAILABLE', 502);
+    throw lifecycleError('Source object is unavailable.', {
+      code: 'STORAGE_SOURCE_UNAVAILABLE', status: 502,
+    });
   }
   return response.arrayBuffer();
 }
@@ -112,7 +116,9 @@ class StorageLifecycleService {
     const lifecycle = this.storageRepo.prepareFileTransfer({
       fileId, operationId: operation, destinationStorageId,
     });
-    if (!lifecycle) throw lifecycleError('FILE_NOT_FOUND', 'FILE_NOT_FOUND', 404);
+    if (!lifecycle) throw lifecycleError('FILE_NOT_FOUND', {
+      code: 'FILE_NOT_FOUND', status: 404,
+    });
     assertRetryEvidence(lifecycle);
     const file = this.fileRepo.getById(fileId);
     const source = exactProfile(this.storageRepo, lifecycle.sourceStorageId);

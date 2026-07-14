@@ -115,9 +115,12 @@ export async function deleteFolderRoute(context) {
   const path = normalizeDrivePath(url.searchParams.get('path'));
   if (!path) throw Object.assign(new Error('DRIVE_PATH_REQUIRED'), { code: 'DRIVE_PATH_REQUIRED', status: 400 });
   const driveRepository = repository(context);
-  return success('mutation', await deleteFolder(
-    context, driveRepository, path, truthy(url.searchParams.get('recursive')),
-  ));
+  return success('mutation', await deleteFolder({
+    context,
+    repository: driveRepository,
+    path,
+    recursive: truthy(url.searchParams.get('recursive')),
+  }));
 }
 
 export async function moveFilesRoute(context) {

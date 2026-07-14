@@ -48,7 +48,7 @@ function registerReadCreate(app, helpers) {
       const repo = helpers.getServices(context).storageRepo;
       return storageResponse(context, 'item', repo.create(createInput(await context.req.json())));
     } catch (error) {
-      return storageError(context, helpers, error);
+      return storageError(context, { helpers, error });
     }
   });
 }
@@ -61,16 +61,18 @@ function registerUpdate(app, helpers) {
       const repo = helpers.getServices(context).storageRepo;
       const id = context.req.param('id');
       const current = repo.getById(id, true);
-      if (!current) return storageError(context, helpers, null, {
-        status: 404, code: 'STORAGE_PROFILE_NOT_FOUND', message: 'Storage profile not found.',
+      if (!current) return storageError(context, {
+        helpers,
+        options: { status: 404, code: 'STORAGE_PROFILE_NOT_FOUND', message: 'Storage profile not found.' },
       });
       const item = repo.update(id, updateInput(await context.req.json(), current));
-      if (!item) return storageError(context, helpers, null, {
-        status: 404, code: 'STORAGE_PROFILE_NOT_FOUND', message: 'Storage profile not found.',
+      if (!item) return storageError(context, {
+        helpers,
+        options: { status: 404, code: 'STORAGE_PROFILE_NOT_FOUND', message: 'Storage profile not found.' },
       });
       return storageResponse(context, 'item', item);
     } catch (error) {
-      return storageError(context, helpers, error);
+      return storageError(context, { helpers, error });
     }
   });
 }
@@ -83,9 +85,11 @@ function registerDeleteDefault(app, helpers) {
       const deleted = helpers.getServices(context).storageRepo.delete(context.req.param('id'));
       return deleted
         ? storageResponse(context, 'success')
-        : storageError(context, helpers, null, { status: 404, code: 'STORAGE_PROFILE_NOT_FOUND' });
+        : storageError(context, {
+          helpers, options: { status: 404, code: 'STORAGE_PROFILE_NOT_FOUND' },
+        });
     } catch (error) {
-      return storageError(context, helpers, error);
+      return storageError(context, { helpers, error });
     }
   });
   app.post('/api/storage/default/:id', (context) => {
@@ -95,9 +99,11 @@ function registerDeleteDefault(app, helpers) {
       const item = helpers.getServices(context).storageRepo.setDefault(context.req.param('id'));
       return item
         ? storageResponse(context, 'item', item)
-        : storageError(context, helpers, null, { status: 404, code: 'STORAGE_PROFILE_NOT_FOUND' });
+        : storageError(context, {
+          helpers, options: { status: 404, code: 'STORAGE_PROFILE_NOT_FOUND' },
+        });
     } catch (error) {
-      return storageError(context, helpers, error);
+      return storageError(context, { helpers, error });
     }
   });
 }

@@ -17,7 +17,7 @@ async function testAdapter(context, helpers, adapter) {
     }
     return storageResponse(context, 'result', result);
   } catch (error) {
-    if (error?.status === 400) return storageError(context, helpers, error);
+    if (error?.status === 400) return storageError(context, { helpers, error });
     return storageResponse(context, 'result', failedResult(error));
   }
 }
@@ -28,8 +28,9 @@ function registerStoredTest(app, helpers) {
     if (unauthorized) return unauthorized;
     const { storageRepo, storageFactory } = helpers.getServices(context);
     const item = storageRepo.getById(context.req.param('id'), true);
-    if (!item) return storageError(context, helpers, null, {
-      status: 404, code: 'STORAGE_PROFILE_NOT_FOUND', message: 'Storage profile not found.',
+    if (!item) return storageError(context, {
+      helpers,
+      options: { status: 404, code: 'STORAGE_PROFILE_NOT_FOUND', message: 'Storage profile not found.' },
     });
     return testAdapter(context, helpers, storageFactory.createAdapter(item));
   });
@@ -45,7 +46,7 @@ function registerDraftTest(app, helpers) {
       return testAdapter(context, helpers, factory.createTemporaryAdapter(body.type, body.config || {}));
     } catch (error) {
       return error?.status === 400
-        ? storageError(context, helpers, error)
+        ? storageError(context, { helpers, error })
         : storageResponse(context, 'result', failedResult(error));
     }
   });

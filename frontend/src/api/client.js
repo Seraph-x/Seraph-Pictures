@@ -30,59 +30,59 @@ function resolveErrorMessage(payload, fallback) {
   return fallback;
 }
 
-export async function apiFetch(path, options = {}) {
+function parsePayload(text) {
+  if (!text) return { isJson: false, payload: text };
+  try {
+    const parsed = JSON.parse(text);
+    return parsed == null
+      ? { isJson: false, payload: text }
+      : { isJson: true, payload: parsed };
+  } catch {
+    return { isJson: false, payload: text };
+  }
+}
+
+function responseError(response, text, result) {
+  const fallback = `Request failed: ${response.status}`;
+  const snippet = text ? ` | response: ${truncate(text)}` : ' | response: <empty>';
+  const message = result.isJson
+    ? resolveErrorMessage(result.payload, fallback)
+    : `Backend returned non-JSON response (${response.status})${snippet}`;
+  return Object.assign(new Error(message), {
+    status: response.status,
+    payload: result.payload,
+  });
+}
+
+function unwrapPayload(response, result) {
+  if (!response.ok) throw responseError(response, result.text, result);
+  const { payload } = result;
+  if (!isPlainObject(payload) || typeof payload.success !== 'boolean') return payload;
+  if (!payload.success) {
+    throw Object.assign(new Error(resolveErrorMessage(payload, 'Request failed.')), {
+      status: response.status,
+      payload,
+    });
+  }
+  return Object.prototype.hasOwnProperty.call(payload, 'data') ? payload.data : payload;
+}
+
+function requestHeaders(options) {
   const headers = new Headers(options.headers || {});
   if (!headers.has('Accept')) headers.set('Accept', V2_ACCEPT);
   if (!headers.has('X-Seraph-Client')) headers.set('X-Seraph-Client', 'app-v2');
+  return headers;
+}
 
+export async function apiFetch(path, options = {}) {
   const response = await fetch(buildUrl(path), {
     credentials: 'include',
     ...options,
-    headers,
+    headers: requestHeaders(options),
   });
-
   const text = await response.text();
-  let parsed = null;
-  if (text) {
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      parsed = null;
-    }
-  }
-
-  const isJson = parsed != null;
-  const payload = isJson ? parsed : text;
-
-  if (!response.ok) {
-    const fallback = `Request failed: ${response.status}`;
-    const snippet = text ? ` | response: ${truncate(text)}` : ' | response: <empty>';
-    const message = isJson
-      ? resolveErrorMessage(payload, fallback)
-      : `Backend returned non-JSON response (${response.status})${snippet}`;
-
-    const error = new Error(message);
-    error.status = response.status;
-    error.payload = payload;
-    throw error;
-  }
-
-  if (isPlainObject(payload) && typeof payload.success === 'boolean') {
-    if (!payload.success) {
-      const message = resolveErrorMessage(payload, 'Request failed.');
-      const error = new Error(message);
-      error.status = response.status;
-      error.payload = payload;
-      throw error;
-    }
-
-    if (Object.prototype.hasOwnProperty.call(payload, 'data')) {
-      return payload.data;
-    }
-    return payload;
-  }
-
-  return payload;
+  const result = { ...parsePayload(text), text };
+  return unwrapPayload(response, result);
 }
 
 export function getApiBase() {

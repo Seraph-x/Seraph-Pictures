@@ -18,35 +18,38 @@ const { ShareService } = require('./services/share-service');
 const { StorageLifecycleService } = require('./services/storage-lifecycle-service');
 const { createSettingsStore } = require('./settings/factory');
 
-function createContainer(env = process.env) {
-  const config = loadConfig(env);
-  const shareConfig = loadShareConfig({ env, nodeEnv: config.nodeEnv });
-  const db = initDatabase(config.dbPath);
-
+function createRepositories(db, config) {
   const storageRepo = new StorageConfigRepository(db, config);
   const guestStorageRepo = new GuestStorageRepository({
     storageRepo,
     bootstrap: config.bootstrapDefaultStorage.telegramGuest,
   });
-  const fileRepo = new VisibilityFileRepository(db);
-  const shareRepo = new ShareRepository(db);
-  const storageFactory = new StorageFactory();
-  const settingsStore = createSettingsStore({ db, config });
+  return Object.freeze({
+    storageRepo,
+    guestStorageRepo,
+    fileRepo: new VisibilityFileRepository(db),
+    shareRepo: new ShareRepository(db),
+  });
+}
 
-  storageRepo.ensureBootstrapStorage();
-  guestStorageRepo.ensureBootstrap();
+function initializePersistence(db, repositories) {
+  repositories.storageRepo.ensureBootstrapStorage();
+  repositories.guestStorageRepo.ensureBootstrap();
   cleanupExpiredState(db);
+}
 
+function createStorageServices({ db, config, repositories }) {
+  const { storageRepo, fileRepo } = repositories;
+  const storageFactory = new StorageFactory();
   const storageLifecycle = new StorageLifecycleService({ storageRepo, fileRepo, storageFactory });
   const uploadService = new UploadService({ storageRepo, fileRepo, storageFactory, storageLifecycle });
-
   const chunkService = new ChunkUploadService({
-    db,
-    config,
-    uploadService,
-    storageRepo,
+    db, config, uploadService, storageRepo,
   });
+  return Object.freeze({ storageFactory, uploadService, chunkService });
+}
 
+function createIdentityServices({ db, config, shareConfig, repositories }) {
   const authService = new AuthService(db, config);
   const guestQuota = new GuestQuotaService({
     repository: new GuestQuotaRepository(db),
@@ -55,33 +58,36 @@ function createContainer(env = process.env) {
   });
   const guestService = new GuestService({
     quota: guestQuota,
-    storageRepo: guestStorageRepo,
+    storageRepo: repositories.guestStorageRepo,
     config,
     clock: { now: () => Date.now() },
   });
   const loginRateLimitService = new LoginRateLimitService({ db });
   const shareService = new ShareService({
-    repository: shareRepo,
+    repository: repositories.shareRepo,
     currentSecret: shareConfig.currentSecret,
     previousSecret: shareConfig.previousSecret,
     previousValidUntil: shareConfig.previousValidUntil,
   });
+  return Object.freeze({ authService, guestService, loginRateLimitService, shareService });
+}
 
+function createContainer(env = process.env) {
+  const config = loadConfig(env);
+  const shareConfig = loadShareConfig({ env, nodeEnv: config.nodeEnv });
+  const db = initDatabase(config.dbPath);
+  const repositories = createRepositories(db, config);
+  const settingsStore = createSettingsStore({ db, config });
+  initializePersistence(db, repositories);
+  const storage = createStorageServices({ db, config, repositories });
+  const identity = createIdentityServices({ db, config, shareConfig, repositories });
   return {
     config,
     db,
-    authService,
-    guestService,
-    guestStorageRepo,
-    loginRateLimitService,
-    storageRepo,
-    fileRepo,
-    shareRepo,
-    shareService,
-    storageFactory,
+    ...identity,
+    ...repositories,
+    ...storage,
     settingsStore,
-    uploadService,
-    chunkService,
   };
 }
 

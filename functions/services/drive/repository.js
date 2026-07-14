@@ -98,7 +98,8 @@ async function moveFiles(binding, ids, targetPathValue) {
   return Object.freeze({ requested: uniqueIds.length, moved, notFound, targetFolderPath });
 }
 
-async function renameFile(binding, idValue, fileNameValue, snapshot) {
+async function renameFile(options) {
+  const { binding, idValue, fileNameValue, snapshot } = options;
   const id = String(idValue || '').trim();
   const fileName = String(fileNameValue || '').trim();
   if (!id || !fileName) throw Object.assign(new Error('FILE_RENAME_PARAMS_REQUIRED'), {
@@ -148,7 +149,9 @@ export function createDriveRepository(env, dependencies = {}) {
     createFolder: (path) => createFolder(binding, path),
     moveFolder: (source, target) => moveFolder(binding, source, target),
     moveFiles: (ids, target) => moveFiles(binding, ids, target),
-    renameFile: async (id, name) => renameFile(binding, id, name, await snapshot()),
+    renameFile: async (id, name) => renameFile({
+      binding, idValue: id, fileNameValue: name, snapshot: await snapshot(),
+    }),
     scan: (visitor, prefix) => scan(binding, visitor, prefix),
     deleteKey: (key) => binding.delete(key),
   });

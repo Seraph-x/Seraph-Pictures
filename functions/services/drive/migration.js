@@ -20,7 +20,8 @@ function lifecycle(context) {
   });
 }
 
-async function migrateOne(context, dependencies, fileId, destinationStorageId) {
+async function migrateOne(options) {
+  const { context, dependencies, fileId, destinationStorageId } = options;
   const found = await getRecordWithKey(context.env, fileId);
   if (!found.record?.metadata) return Object.freeze({ fileId, status: 'not-found' });
   const record = Object.freeze({ fileId: found.kvKey, metadata: found.record.metadata });
@@ -56,7 +57,9 @@ export async function migrateFileBatch(context, input) {
   const dependencies = context.data?.storageTransfer || lifecycle(context);
   const results = [];
   for (const id of ids) {
-    results.push(await migrateOne(context, dependencies, id, destinationStorageId));
+    results.push(await migrateOne({
+      context, dependencies, fileId: id, destinationStorageId,
+    }));
   }
   return Object.freeze({ requested: ids.length, results: Object.freeze(results) });
 }

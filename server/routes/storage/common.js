@@ -4,7 +4,8 @@ function storageResponse(context, kind, payload) {
   return context.json(contract.storageEnvelope(kind, payload));
 }
 
-function storageError(context, helpers, error, options = {}) {
+function storageError(context, input) {
+  const { helpers, error, options = {} } = input;
   const details = contract.storageErrorDetails({
     code: error?.code || options.code,
     status: error?.status || options.status,

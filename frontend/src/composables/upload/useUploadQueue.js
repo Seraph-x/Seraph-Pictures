@@ -35,7 +35,8 @@ export function createUploadQueueItem(options) {
   };
 }
 
-function enqueue(context, files, target, imageProcessingOptions) {
+function enqueue(context, options) {
+  const { files, target, imageProcessingOptions } = options;
   const created = files.map((file) => createUploadQueueItem({
     id: context.createId(), file, target, imageProcessingOptions,
   }));
@@ -99,20 +100,24 @@ async function uploadItem(context, item) {
   context.results.value.unshift({ id: item.id, fileName: item.file.name, link, target: item.target });
 }
 
+async function processItem(context, item) {
+  if (item.status !== 'pending') return;
+  try {
+    await uploadItem(context, item);
+  } catch (cause) {
+    const message = await cancelMultipart(context, item, cause);
+    item.status = item.cancelled ? 'cancelled' : 'error';
+    item.error = item.cancelled ? '' : context.humanizeError(message);
+  }
+}
+
 async function processQueue(context) {
   if (context.uploading.value) return;
   context.uploading.value = true;
   context.error.value = '';
   try {
     for (const item of context.queue.value) {
-      if (item.status !== 'pending') continue;
-      try {
-        await uploadItem(context, item);
-      } catch (cause) {
-        const message = await cancelMultipart(context, item, cause);
-        item.status = item.cancelled ? 'cancelled' : 'error';
-        item.error = item.cancelled ? '' : context.humanizeError(message);
-      }
+      await processItem(context, item);
     }
   } finally {
     context.uploading.value = false;
@@ -147,7 +152,9 @@ function retry(context, id) {
 export function useUploadQueue(options) {
   const context = Object.freeze({ ...options });
   return Object.freeze({
-    enqueue: (files, target, imageOptions) => enqueue(context, files, target, imageOptions),
+    enqueue: (files, target, imageProcessingOptions) => enqueue(context, {
+      files, target, imageProcessingOptions,
+    }),
     processQueue: () => processQueue(context),
     cancel: (id) => cancel(context, id),
     retry: (id) => retry(context, id),
