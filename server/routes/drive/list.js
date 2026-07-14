@@ -24,12 +24,17 @@ function explorerOptions(context) {
     limit: page.limit,
     cursor: page.cursor,
     includeStats: helpersTruthy(context.req.query('includeStats')),
-    filters: Object.freeze({
-      storageType: context.req.query('storage') || 'all',
-      search: context.req.query('search') || '',
-      listType: context.req.query('listType') || 'all',
-      visibility: visibilityFilter(context.req.query('visibility')),
-    }),
+    filters: queryFilters(context),
+  });
+}
+
+function queryFilters(context) {
+  return Object.freeze({
+    storageId: context.req.query('storageId') || 'all',
+    storageType: context.req.query('storage') || 'all',
+    search: context.req.query('search') || '',
+    listType: context.req.query('listType') || 'all',
+    visibility: visibilityFilter(context.req.query('visibility')),
   });
 }
 
@@ -44,7 +49,7 @@ function registerTree(app, helpers) {
     try {
       const page = pageRequest(context);
       const result = queryRepository(context, helpers).listTreePage({
-        storageType: context.req.query('storage') || 'all', ...page,
+        filters: queryFilters(context), ...page,
       });
       return context.json({
         ...contract.driveEnvelope('nodes', result.nodes),

@@ -7,6 +7,14 @@ const SUPPORTED_TYPES = Object.freeze([
   'telegram', 'r2', 's3', 'discord', 'huggingface', 'webdav', 'github',
 ]);
 
+function profileIdentity(config) {
+  return Object.freeze({
+    storageId: config.id,
+    storageName: config.name,
+    storageType: config.type,
+  });
+}
+
 function emptyStatus(type) {
   return Object.freeze({
     connected: false,
@@ -19,6 +27,7 @@ function emptyStatus(type) {
 
 function disabledStatus(config) {
   return Object.freeze({
+    ...profileIdentity(config),
     connected: false,
     enabled: false,
     configured: true,
@@ -34,6 +43,7 @@ function probeResult(config, result, formatDetail) {
     ? undefined
     : toStorageErrorPayload(detail || 'Connection failed', result?.status);
   return Object.freeze({
+    ...profileIdentity(config),
     connected: Boolean(result?.connected),
     enabled: true,
     configured: true,
@@ -49,6 +59,7 @@ function probeResult(config, result, formatDetail) {
 function failedStatus(config, error) {
   const errorModel = toStorageErrorPayload(error);
   return Object.freeze({
+    ...profileIdentity(config),
     connected: false,
     enabled: true,
     configured: true,
@@ -91,7 +102,7 @@ async function probeConfig(options) {
 }
 
 async function probeBatches(options) {
-  const output = {};
+  const output = [];
   for (let index = 0; index < options.configs.length; index += PROBE_BATCH_SIZE) {
     const batch = options.configs.slice(index, index + PROBE_BATCH_SIZE);
     const results = await Promise.all(batch.map((config) => probeConfig({
@@ -99,9 +110,9 @@ async function probeBatches(options) {
       storageFactory: options.storageFactory,
       formatDetail: options.formatDetail,
     })));
-    batch.forEach((config, resultIndex) => { output[config.type] = results[resultIndex]; });
+    output.push(...results);
   }
-  return output;
+  return Object.freeze(output);
 }
 
 function capabilities() {
@@ -119,13 +130,14 @@ function capabilities() {
 }
 
 function selectProbeConfigs(configs) {
-  const selected = new Map();
-  for (const config of configs) {
-    if (!SUPPORTED_TYPES.includes(config.type)) continue;
-    const current = selected.get(config.type);
-    if (!current || (!current.enabled && config.enabled)) selected.set(config.type, config);
-  }
-  return SUPPORTED_TYPES.map((type) => selected.get(type)).filter(Boolean);
+  return Object.freeze(configs.filter((config) => SUPPORTED_TYPES.includes(config.type)));
+}
+
+function defaultProfileStatus(type, configs, statuses) {
+  const candidates = configs.filter((config) => config.type === type);
+  const selected = candidates.find((config) => config.isDefault) || candidates[0];
+  if (!selected) return emptyStatus(type);
+  return statuses.find((status) => status.storageId === selected.id) || emptyStatus(type);
 }
 
 function telegramDiagnostics(config, status, bootstrap) {
@@ -157,18 +169,20 @@ function telegramDiagnostics(config, status, bootstrap) {
 
 async function collectDockerStatus(options) {
   const configs = selectProbeConfigs(options.services.storageRepo.list(true));
-  const probes = await probeBatches({
+  const storageProfiles = await probeBatches({
     configs,
     storageFactory: options.services.storageFactory,
     formatDetail: options.formatDetail,
   });
   const status = {};
   for (const type of SUPPORTED_TYPES) {
-    status[type] = probes[type] || emptyStatus(type);
+    status[type] = defaultProfileStatus(type, configs, storageProfiles);
   }
-  const telegram = configs.find((config) => config.type === 'telegram') || null;
+  const telegramConfigs = configs.filter((config) => config.type === 'telegram');
+  const telegram = telegramConfigs.find((config) => config.isDefault) || telegramConfigs[0] || null;
   return Object.freeze({
     ...status,
+    storageProfiles,
     kv: Object.freeze({ connected: true, message: 'SQLite metadata storage enabled' }),
     auth: Object.freeze({ enabled: true, message: 'Password auth enabled' }),
     guestUpload: options.services.guestService.getConfig(),

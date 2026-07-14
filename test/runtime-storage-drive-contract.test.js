@@ -100,6 +100,15 @@ describe('Docker Storage and Drive shared runtime contract', function () {
         visibility, uploadSource: visibility === 'private' ? 'drive' : 'image-host', accessVersion: 1,
       });
     }
+    const archive = container.storageRepo.create({
+      name: 'Archive', type: 'telegram', config: { botToken: 'archive', chatId: 'archive' },
+    });
+    container.fileRepo.create({
+      id: 'archive-file', storageConfigId: archive.id, storageType: archive.type,
+      storageKey: 'archive-file', fileName: 'archive.jpg', fileSize: 10,
+      mimeType: 'image/jpeg', folderPath: 'photos', visibility: 'public',
+      uploadSource: 'image-host', accessVersion: 1,
+    });
     container.fileRepo.createFolder('documents');
     const app = createApp();
     const explorer = await json(await app.fetch(request(
@@ -109,6 +118,12 @@ describe('Docker Storage and Drive shared runtime contract', function () {
     assert.strictEqual(explorer.files[0].metadata.visibility, 'private');
     assert.strictEqual(explorer.currentPath, 'photos');
     assert.ok(Array.isArray(explorer.breadcrumbs));
+
+    const exactProfile = await json(await app.fetch(request(
+      `/api/drive/explorer?path=photos&visibility=public&storageId=${archive.id}`,
+    )));
+    assert.deepStrictEqual(exactProfile.files.map((file) => file.name), ['archive-file']);
+    assert.strictEqual(exactProfile.files[0].metadata.storageName, 'Archive');
 
     const tree = await json(await app.fetch(request('/api/drive/tree?limit=1')));
     assert.strictEqual(tree.nodes.length, 1);

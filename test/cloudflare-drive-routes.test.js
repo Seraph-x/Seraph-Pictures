@@ -73,6 +73,13 @@ function context(url, env, options = {}) {
     }),
     env,
     data: {
+      storageProfileSnapshot: options.storageProfileSnapshot || Object.freeze({
+        generation: 'generation-test',
+        items: Object.freeze([Object.freeze({
+          id: 'telegram-a', name: 'Telegram A', type: 'telegram', enabled: true,
+        })]),
+        legacyTypeProfileIds: Object.freeze({ telegram: 'telegram-a' }),
+      }),
       storageLifecycle: {
         resolver: { resolve: async () => ({ id: 'telegram-a', type: 'telegram' }) },
         adapterFactory: () => ({}),
@@ -176,6 +183,26 @@ describe('Cloudflare Drive API routes', function () {
     assert.strictEqual(result.stats.files, 1);
     const unprefixedCalls = env.img_url.listCalls.filter((call) => !call.prefix);
     assert.strictEqual(unprefixedCalls.length, 1);
+  });
+
+  it('filters by exact storageId and returns profile identity', async function () {
+    const env = environment();
+    await seedFile(env.img_url, 'img:a', { storageConfigId: 'telegram-a' });
+    await seedFile(env.img_url, 'img:b', { storageConfigId: 'telegram-b' });
+    const storageProfileSnapshot = Object.freeze({
+      generation: 'generation-test',
+      items: Object.freeze([
+        Object.freeze({ id: 'telegram-a', name: 'Primary', type: 'telegram', enabled: true }),
+        Object.freeze({ id: 'telegram-b', name: 'Archive', type: 'telegram', enabled: false }),
+      ]),
+      legacyTypeProfileIds: Object.freeze({ telegram: 'telegram-a' }),
+    });
+    const result = await json(await routes.explorer.onRequestGet(context(
+      '/api/drive/explorer?storageId=telegram-b', env, { storageProfileSnapshot },
+    )));
+    assert.deepStrictEqual(result.files.map((file) => file.name), ['img:b']);
+    assert.strictEqual(result.files[0].metadata.storageId, 'telegram-b');
+    assert.strictEqual(result.files[0].metadata.storageName, 'Archive');
   });
 
   it('moves folders and files, then renames files with strict paths', async function () {

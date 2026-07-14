@@ -191,6 +191,9 @@ function inferFileType(metadata) {
 function normalizeDriveFile(record = {}) {
   const metadata = record.metadata && typeof record.metadata === 'object' ? record.metadata : record;
   const id = requiredString(record.id ?? record.name, 'FILE_ID_REQUIRED');
+  const storageId = String(metadata.storageId ?? metadata.storageConfigId ?? metadata.storage_config_id ?? '');
+  const storageName = String(metadata.storageName ?? metadata.storage_name ?? '');
+  const profileIdentity = storageId || storageName ? { storageId, storageName } : {};
   return Object.freeze({
     name: id,
     metadata: Object.freeze({
@@ -198,6 +201,7 @@ function normalizeDriveFile(record = {}) {
       fileSize: normalizedNumber(metadata.fileSize ?? metadata.file_size, 0),
       mimeType: String(metadata.mimeType ?? metadata.mime_type ?? ''),
       storageType: String(metadata.storageType ?? metadata.storage_type ?? ''),
+      ...profileIdentity,
       folderPath: normalizeDrivePath(metadata.folderPath ?? metadata.folder_path),
       visibility: normalizeVisibility(metadata.visibility),
       TimeStamp: normalizedNumber(metadata.createdAt ?? metadata.created_at ?? metadata.TimeStamp, null),

@@ -1,5 +1,6 @@
 import paginationModule from '../../../shared/storage/pagination.cjs';
 import { getRecordWithKey } from '../file-delivery/common.js';
+import { createStorageProfileRepository } from '../storage-profiles/repository.js';
 import {
   FOLDER_PREFIX, driveFileFromKey, driveFolderFromKey, fileMatches,
   folderRecord, isDriveFolderKey, isFileKey, normalizeDrivePath,
@@ -56,7 +57,7 @@ async function listFolderPage(binding, pageRequest) {
   });
 }
 
-async function listExplorerPage(binding, options) {
+async function listExplorerPage(binding, options, snapshot) {
   const folderPrefix = `${FOLDER_PREFIX}${encodeURIComponent(
     options.filters.path ? `${options.filters.path}/` : '',
   )}`;
@@ -65,8 +66,9 @@ async function listExplorerPage(binding, options) {
     binding.list({ limit: options.limit, prefix: folderPrefix }),
   ]);
   const files = (page.keys || []).filter(isFileKey)
-    .filter((key) => fileMatches(driveFileFromKey(key), options.filters, key.metadata))
-    .map(driveFileFromKey);
+    .map((key) => Object.freeze({ key, file: driveFileFromKey(key, snapshot) }))
+    .filter(({ key, file }) => fileMatches(file, options.filters, key.metadata))
+    .map(({ file }) => file);
   const folders = (folderPage.keys || []).filter(isDriveFolderKey)
     .map(driveFolderFromKey)
     .filter((folder) => folder.parentPath === options.filters.path);
@@ -96,7 +98,7 @@ async function moveFiles(binding, ids, targetPathValue) {
   return Object.freeze({ requested: uniqueIds.length, moved, notFound, targetFolderPath });
 }
 
-async function renameFile(binding, idValue, fileNameValue) {
+async function renameFile(binding, idValue, fileNameValue, snapshot) {
   const id = String(idValue || '').trim();
   const fileName = String(fileNameValue || '').trim();
   if (!id || !fileName) throw Object.assign(new Error('FILE_RENAME_PARAMS_REQUIRED'), {
@@ -106,7 +108,7 @@ async function renameFile(binding, idValue, fileNameValue) {
   if (!found.record?.metadata) return null;
   const metadata = Object.freeze({ ...found.record.metadata, fileName });
   await binding.put(found.kvKey, found.record.value || '', { metadata });
-  return driveFileFromKey({ name: found.kvKey, metadata });
+  return driveFileFromKey({ name: found.kvKey, metadata }, snapshot);
 }
 
 async function moveFolder(binding, sourceValue, targetValue) {
@@ -136,15 +138,17 @@ async function moveFolder(binding, sourceValue, targetValue) {
   return Object.freeze({ sourcePath, targetPath, updatedFiles, updatedFolders });
 }
 
-export function createDriveRepository(env) {
+export function createDriveRepository(env, dependencies = {}) {
   const binding = bindingFrom(env);
+  const profileRepository = dependencies.profileRepository || createStorageProfileRepository(env);
+  const snapshot = () => dependencies.profileSnapshot || profileRepository.runtimeSnapshot();
   return Object.freeze({
     listFolderPage: (pageRequest) => listFolderPage(binding, pageRequest),
-    listExplorerPage: (options) => listExplorerPage(binding, options),
+    listExplorerPage: async (options) => listExplorerPage(binding, options, await snapshot()),
     createFolder: (path) => createFolder(binding, path),
     moveFolder: (source, target) => moveFolder(binding, source, target),
     moveFiles: (ids, target) => moveFiles(binding, ids, target),
-    renameFile: (id, name) => renameFile(binding, id, name),
+    renameFile: async (id, name) => renameFile(binding, id, name, await snapshot()),
     scan: (visitor, prefix) => scan(binding, visitor, prefix),
     deleteKey: (key) => binding.delete(key),
   });

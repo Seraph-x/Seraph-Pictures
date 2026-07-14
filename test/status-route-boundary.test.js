@@ -56,6 +56,15 @@ describe('status route boundaries', function () {
           async list() { probes += 1; return { keys: [] }; },
         },
       },
+      data: {
+        statusDependencies: {
+          repository: {
+            async runtimeSnapshot() {
+              return { items: [], legacyTypeProfileIds: {}, generation: 'test' };
+            },
+          },
+        },
+      },
     });
     const body = await response.json();
 
