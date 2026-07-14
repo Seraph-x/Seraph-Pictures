@@ -35,8 +35,11 @@ jobs:
       - name: Build and start api service
         run: docker compose up -d --build api
 
-      - name: Run Docker smoke checks
-        run: npm run docker:smoke:ci
+      - name: Run multi-profile storage smoke
+        run: >-
+          MULTI_PROFILE_SMOKE_TYPE=telegram
+          MULTI_PROFILE_SMOKE_CONFIG_JSON='{"botToken":"ci_profile_token","chatId":"123456789"}'
+          npm run docker:smoke:ci
 
       - name: Capture status snapshot on failure
         if: failure()
