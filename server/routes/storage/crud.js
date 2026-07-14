@@ -17,11 +17,13 @@ function validateInput(body, current = {}) {
 
 function createInput(body) {
   const valid = validateInput(body);
-  return Object.freeze({
+  const input = {
     name: valid.name, type: valid.type, config: body.config || {},
-    enabled: body.enabled !== false, isDefault: Boolean(body.isDefault),
+    enabled: body.enabled !== false,
     metadata: body.metadata || {},
-  });
+  };
+  if (Object.hasOwn(body, 'isDefault')) input.isDefault = Boolean(body.isDefault);
+  return Object.freeze(input);
 }
 
 function updateInput(body, current) {

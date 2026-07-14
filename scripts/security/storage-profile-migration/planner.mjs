@@ -49,14 +49,19 @@ function normalizeDefaults(profiles) {
   return output.sort((left, right) => String(left.id).localeCompare(String(right.id)));
 }
 
-function cloudflareLegacyProfiles(source, existing) {
+function sameConfig(left, right) {
+  return JSON.stringify(stableValue(left || {})) === JSON.stringify(stableValue(right || {}));
+}
+
+function legacyProfiles(source, existing, runtime) {
   const output = [];
   for (const [type, rawConfig] of Object.entries(source || {}).sort()) {
-    if (type.endsWith('Guest') || existing.some((item) => item.type === type)) continue;
+    if (type.endsWith('Guest')) continue;
     if (!rawConfig || typeof rawConfig !== 'object' || Object.keys(rawConfig).length === 0) continue;
-    const config = type === 'r2'
+    const config = type === 'r2' && runtime === 'cloudflare'
       ? { ...rawConfig, adapterMode: 'binding', bindingName: 'R2_BUCKET' }
       : { ...rawConfig };
+    if (existing.some((item) => item.type === type && sameConfig(item.config, config))) continue;
     output.push({
       id: legacyId(type, config), name: `${type} (Legacy)`, type,
       enabled: true, isDefault: false, config, metadata: { source: 'legacy-config' },
@@ -95,13 +100,20 @@ export function planStorageProfileMigration(source) {
   const v1 = source.cloudflare?.v1Catalog?.items || [];
   const cloudflareProfiles = [
     ...v1.map(cloneProfile),
-    ...cloudflareLegacyProfiles(source.cloudflare?.legacyConfig, v1),
+    ...legacyProfiles(source.cloudflare?.legacyConfig, v1, 'cloudflare'),
+  ];
+  const dockerExisting = source.docker?.profiles || [];
+  const dockerProfiles = [
+    ...dockerExisting.map(cloneProfile),
+    ...legacyProfiles(source.docker?.legacyConfig, dockerExisting, 'docker'),
   ];
   const plan = {
     schemaVersion: 2,
-    preferredType: String(source.preferredType || 'telegram').toLowerCase(),
+    preferredType: String(
+      source.preferredType || source.preMigrationGlobalDefaultType || 'telegram',
+    ).toLowerCase(),
     cloudflare: runtimePlan(cloudflareProfiles, source.cloudflare?.files || []),
-    docker: runtimePlan(source.docker?.profiles || [], source.docker?.files || []),
+    docker: runtimePlan(dockerProfiles, source.docker?.files || []),
     steps: [...STEPS],
   };
   return validateMigrationPlan(plan);

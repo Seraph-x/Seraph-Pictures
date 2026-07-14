@@ -152,9 +152,39 @@ function validateR2Config(config) {
   return Object.freeze({ ...config, adapterMode, region: config.region || DEFAULT_R2_REGION });
 }
 
+function validateDiscordConfig(config) {
+  if (String(config.webhookUrl || '').trim()) return config;
+  requiredConfigField(config, 'botToken', true);
+  requiredConfigField(config, 'channelId');
+  return config;
+}
+
+function validateWebDavConfig(config) {
+  requiredConfigField(config, 'baseUrl');
+  if (String(config.bearerToken || config.token || '').trim()) return config;
+  requiredConfigField(config, 'username');
+  requiredConfigField(config, 'password', true);
+  return config;
+}
+
+function validateStandardConfig(type, config) {
+  const required = {
+    telegram: [['botToken', true], ['chatId', false]],
+    s3: [['endpoint', false], ['bucket', false], ['accessKeyId', true], ['secretAccessKey', true]],
+    huggingface: [['token', true], ['repo', false]],
+    github: [['repo', false], ['token', true]],
+  }[type];
+  if (type === 'discord') return validateDiscordConfig(config);
+  if (type === 'webdav') return validateWebDavConfig(config);
+  for (const [field, secret] of required || []) requiredConfigField(config, field, secret);
+  return config;
+}
+
 function validateProfileConfig({ type, config = {} }) {
   const normalized = Object.freeze({ ...config });
-  return type === 'r2' ? validateR2Config(normalized) : normalized;
+  return type === 'r2'
+    ? validateR2Config(normalized)
+    : Object.freeze(validateStandardConfig(type, normalized));
 }
 
 function storageSecretFields(type) {

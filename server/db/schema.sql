@@ -131,7 +131,8 @@ CREATE TABLE IF NOT EXISTS chunk_uploads (
   visibility TEXT NOT NULL DEFAULT 'public',
   folder_path TEXT NOT NULL DEFAULT '',
   created_at INTEGER NOT NULL,
-  expires_at INTEGER NOT NULL
+  expires_at INTEGER NOT NULL,
+  FOREIGN KEY(storage_config_id) REFERENCES storage_configs(id) ON DELETE RESTRICT
 );
 
 CREATE INDEX IF NOT EXISTS idx_chunk_uploads_expires_at ON chunk_uploads(expires_at);

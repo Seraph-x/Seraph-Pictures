@@ -76,8 +76,16 @@ describe('Cloudflare generation storage catalog', function () {
     const { createStorageProfileRepository } = await import('../functions/services/storage-profiles/repository.js');
     const fixture = env();
     const repo = createStorageProfileRepository(fixture.environment);
-    const first = await repo.create({ name: 'one', type: 'telegram', config: {} });
-    const second = await repo.create({ name: 'two', type: 'telegram', config: {} });
+    await assert.rejects(() => repo.create({
+      name: 'invalid', type: 'telegram', isDefault: false,
+      config: { botToken: 'invalid', chatId: 'invalid' },
+    }), { code: 'STORAGE_DEFAULT_REQUIRED' });
+    const first = await repo.create({
+      name: 'one', type: 'telegram', config: { botToken: 'one', chatId: 'one' },
+    });
+    const second = await repo.create({
+      name: 'two', type: 'telegram', config: { botToken: 'two', chatId: 'two' },
+    });
     await assert.rejects(() => repo.delete(first.id), { code: 'STORAGE_DEFAULT_LOCKED' });
     await repo.setDefault(second.id);
     assert.strictEqual((await repo.get(first.id, { includeSecrets: true })).isDefault, false);

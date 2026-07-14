@@ -77,6 +77,26 @@ describe('storage profile migration planner', function () {
     assert.throws(() => planStorageProfileMigration(source), { code: 'STORAGE_MIGRATION_FAILED' });
   });
 
+  it('preserves distinct same-type legacy profiles in both runtimes', async function () {
+    const { planStorageProfileMigration } = await import('../scripts/security/storage-profile-migration/planner.mjs');
+    const source = baseSource();
+    source.cloudflare.legacyConfig.telegram = { botToken: 'different', chatId: '3' };
+    source.docker.legacyConfig = {
+      webdav: { baseUrl: 'https://other', bearerToken: 'other-token' },
+    };
+    const plan = planStorageProfileMigration(source);
+    assert.strictEqual(plan.cloudflare.profiles.filter((item) => item.type === 'telegram').length, 3);
+    assert.strictEqual(plan.docker.profiles.filter((item) => item.type === 'webdav').length, 2);
+  });
+
+  it('uses the pre-migration global default when no explicit preferred type exists', async function () {
+    const { planStorageProfileMigration } = await import('../scripts/security/storage-profile-migration/planner.mjs');
+    const source = baseSource();
+    delete source.preferredType;
+    source.preMigrationGlobalDefaultType = 'github';
+    assert.strictEqual(planStorageProfileMigration(source).preferredType, 'github');
+  });
+
   it('prints deterministic dry-run JSON and rejects apply explicitly', function () {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'seraph-profile-migration-'));
     const input = path.join(root, 'source.json');

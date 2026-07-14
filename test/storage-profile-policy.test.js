@@ -6,7 +6,7 @@ const PROFILE = Object.freeze({
   type: 'telegram',
   enabled: true,
   isDefault: true,
-  config: Object.freeze({ botToken: 'token' }),
+  config: Object.freeze({ botToken: 'token', chatId: 'chat' }),
 });
 
 function policy() {
@@ -162,9 +162,27 @@ describe('shared storage profile policy', function () {
     );
   });
 
+  it('validates required fields for every provider', function () {
+    const { validateProfileConfig } = policy();
+    const valid = {
+      telegram: { botToken: 'token', chatId: 'chat' },
+      s3: { endpoint: 'https://s3', bucket: 'b', accessKeyId: 'a', secretAccessKey: 's' },
+      discord: { webhookUrl: 'https://hook' },
+      huggingface: { token: 'token', repo: 'u/r' },
+      webdav: { baseUrl: 'https://dav', bearerToken: 'token' },
+      github: { repo: 'u/r', token: 'token' },
+    };
+    for (const [type, config] of Object.entries(valid)) {
+      assert.deepStrictEqual(validateProfileConfig({ type, config }), config, type);
+      assert.throws(() => validateProfileConfig({ type, config: {} }), (error) => (
+        ['STORAGE_CONFIG_REQUIRED', 'STORAGE_SECRET_REQUIRED'].includes(error.code)
+      ), type);
+    }
+  });
+
   it('masks secrets and reports presence without mutating the profile', function () {
     const presented = policy().presentProfile(PROFILE);
-    assert.deepStrictEqual(presented.config, { botToken: '********' });
+    assert.deepStrictEqual(presented.config, { botToken: '********', chatId: 'chat' });
     assert.deepStrictEqual(presented.secretsPresent, { botToken: true });
     assert.strictEqual(PROFILE.config.botToken, 'token');
     assert.ok(Object.isFrozen(presented.config) && Object.isFrozen(presented.secretsPresent));

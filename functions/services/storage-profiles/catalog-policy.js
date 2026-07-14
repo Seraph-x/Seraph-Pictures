@@ -12,14 +12,21 @@ function normalizedCandidate(input, defaults = {}) {
     metadata: Object.freeze({ ...(input.metadata ?? defaults.metadata ?? {}) }),
   };
   const normalized = normalizeStorageItem(raw);
-  return Object.freeze({ ...normalized, config: raw.config });
+  return Object.freeze({
+    ...normalized,
+    config: raw.config,
+    enabled: raw.enabled,
+    isDefault: raw.isDefault,
+  });
 }
 
 export function createProfile({ items, input, id, now }) {
   const sameType = items.filter((item) => item.type === String(input.type || '').toLowerCase());
   const candidate = normalizedCandidate(input, {
     id, enabled: input.enabled !== false,
-    isDefault: sameType.length === 0 || input.isDefault === true,
+    isDefault: sameType.length === 0 && !Object.hasOwn(input, 'isDefault')
+      ? undefined
+      : input.isDefault,
     createdAt: now, updatedAt: now,
   });
   return validateProfileMutation({ items, patch: candidate });

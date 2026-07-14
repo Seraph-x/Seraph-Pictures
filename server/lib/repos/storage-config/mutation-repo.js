@@ -15,14 +15,15 @@ class StorageConfigMutationRepository {
       this.lock.assertUnlocked();
       const items = this.queries.list(true);
       const sameType = items.filter((item) => item.type === input.type);
-      const enabled = input.enabled !== false;
       const candidate = validateProfileMutation({
         items,
         patch: {
           ...input,
-          enabled,
+          enabled: input.enabled !== false,
           id: this.ids.create(),
-          isDefault: sameType.length === 0 || input.isDefault === true,
+          isDefault: sameType.length === 0 && !Object.hasOwn(input, 'isDefault')
+            ? undefined
+            : input.isDefault,
         },
       });
       this.insert(candidate);

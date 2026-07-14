@@ -199,7 +199,9 @@ describe('Cloudflare Storage API routes', function () {
     const noKey = env({ CONFIG_ENCRYPTION_KEY: undefined });
     const rejected = await body(await routes.create.onRequestPost(context('/api/storage', noKey, {
       method: 'POST',
-      body: { name: 'Telegram', type: 'telegram', config: { botToken: 'token' } },
+      body: {
+        name: 'Telegram', type: 'telegram', config: { botToken: 'token', chatId: 'chat' },
+      },
     })), 500);
     assert.strictEqual(rejected.error.code, 'NO_ENC_KEY');
     assert.strictEqual(noKey.img_url.values.size, 0);

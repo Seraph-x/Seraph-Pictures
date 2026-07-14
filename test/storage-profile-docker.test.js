@@ -2,6 +2,7 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { DatabaseSync } = require('node:sqlite');
 const { initDatabase, get, run } = require('../server/db');
 const { StorageConfigRepository } = require('../server/lib/repos/storage-config-repo');
 
@@ -14,13 +15,14 @@ function createFixture() {
 }
 
 function telegram(name, options = {}) {
-  return {
+  const profile = {
     name,
     type: 'telegram',
     config: { botToken: `${name}-token`, chatId: `${name}-chat` },
     enabled: options.enabled !== false,
-    isDefault: options.isDefault === true,
   };
+  if (Object.hasOwn(options, 'isDefault')) profile.isDefault = options.isDefault;
+  return profile;
 }
 
 describe('Docker storage profile repository', function () {
@@ -54,6 +56,40 @@ describe('Docker storage profile repository', function () {
     assert.match(index.sql, /WHERE is_default = 1/i);
   });
 
+  it('upgrades the legacy chunk table without losing valid references', function () {
+    const legacyPath = path.join(fixture.root, 'legacy.db');
+    const legacy = new DatabaseSync(legacyPath);
+    legacy.exec(`CREATE TABLE storage_configs (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, type TEXT NOT NULL,
+      encrypted_payload TEXT NOT NULL, is_default INTEGER NOT NULL DEFAULT 0,
+      enabled INTEGER NOT NULL DEFAULT 1, metadata_json TEXT NOT NULL DEFAULT '{}',
+      created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+    );
+    CREATE TABLE chunk_uploads (
+      upload_id TEXT PRIMARY KEY, file_name TEXT NOT NULL, file_size INTEGER NOT NULL,
+      file_type TEXT, total_chunks INTEGER NOT NULL, chunk_size INTEGER NOT NULL DEFAULT 0,
+      received_bytes INTEGER NOT NULL DEFAULT 0, storage_mode TEXT, storage_config_id TEXT,
+      upload_source TEXT NOT NULL DEFAULT 'image-host', visibility TEXT NOT NULL DEFAULT 'public',
+      folder_path TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL
+    );
+    INSERT INTO storage_configs VALUES ('profile', 'P', 'telegram', '{}', 1, 1, '{}', 1, 1);
+    INSERT INTO chunk_uploads(upload_id, file_name, file_size, total_chunks,
+      storage_config_id, created_at, expires_at) VALUES ('upload', 'a', 1, 1, 'profile', 1, 2);`);
+    legacy.close();
+
+    const upgraded = initDatabase(legacyPath);
+    const keys = upgraded.prepare('PRAGMA foreign_key_list(chunk_uploads)').all();
+    assert.ok(keys.some((item) => item.from === 'storage_config_id'));
+    assert.strictEqual(get(upgraded, 'SELECT storage_config_id FROM chunk_uploads').storage_config_id, 'profile');
+    upgraded.close();
+  });
+
+  it('rejects an explicit non-default first profile', function () {
+    assert.throws(() => fixture.repo.create(telegram('invalid', { isDefault: false })), {
+      code: 'STORAGE_DEFAULT_REQUIRED',
+    });
+  });
+
   it('preserves IDs and replaces config when a profile type changes', function () {
     const source = fixture.repo.create(telegram('source'));
     const replacement = fixture.repo.create(telegram('replacement'));
@@ -71,6 +107,11 @@ describe('Docker storage profile repository', function () {
   it('blocks delete and type changes for every durable reference state', function () {
     const profile = fixture.repo.create(telegram('referenced'));
     fixture.repo.reserveReference({ operationId: 'op-1', storageId: profile.id });
+    const other = fixture.repo.create(telegram('other'));
+    assert.throws(
+      () => fixture.repo.reserveReference({ operationId: 'op-1', storageId: other.id }),
+      { code: 'STORAGE_PROFILE_INTEGRITY_ERROR' },
+    );
 
     assert.throws(() => fixture.repo.delete(profile.id), { code: 'STORAGE_PROFILE_IN_USE' });
     assert.throws(() => fixture.repo.update(profile.id, {
@@ -86,6 +127,11 @@ describe('Docker storage profile repository', function () {
     ) VALUES (?, ?, ?, ?, ?, ?, ?)`, ['up-1', 'a.bin', 1, 1, profile.id, Date.now(), Date.now() + 60000]);
 
     assert.throws(() => fixture.repo.delete(profile.id), { code: 'STORAGE_PROFILE_IN_USE' });
+    assert.throws(() => run(fixture.db, `INSERT INTO chunk_uploads(
+      upload_id, file_name, file_size, total_chunks, storage_config_id, created_at, expires_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)`, [
+      'orphan', 'b.bin', 1, 1, 'missing-profile', Date.now(), Date.now() + 60000,
+    ]), /FOREIGN KEY/);
   });
 
   it('fails profile mutations while the migration lock is owned', function () {
