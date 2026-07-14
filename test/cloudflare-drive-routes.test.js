@@ -72,6 +72,23 @@ function context(url, env, options = {}) {
       body: options.body ? JSON.stringify(options.body) : undefined,
     }),
     env,
+    data: {
+      storageLifecycle: {
+        resolver: { resolve: async () => ({ id: 'telegram-a', type: 'telegram' }) },
+        adapterFactory: () => ({}),
+        references: {
+          releaseStart: async () => {},
+          releaseFinish: async () => {},
+        },
+        backend: { remove: async () => {} },
+        metadata: {
+          remove: async ({ record }) => {
+            await env.img_url.delete(record.fileId);
+            return { deleted: true };
+          },
+        },
+      },
+    },
   };
 }
 

@@ -56,12 +56,16 @@ function backendFor(type) {
   return backend;
 }
 
-async function writeBackend({ context, input, adapter, profile }) {
+export async function writeProfileBackend({ context, input, adapter, profile }) {
   const backend = backendFor(profile.type);
+  const metadataProfile = Object.freeze({
+    ...profile,
+    storageOperationId: input.storageOperationId,
+  });
   const artifact = await backend({
     ...input,
     env: adapterEnvironment(context.env, adapter),
-    profile,
+    profile: metadataProfile,
     deferMetadata: true,
   });
   if (artifact instanceof Response) {
@@ -84,7 +88,12 @@ export async function executeProfileUpload({ context, selection, upload }) {
     references,
     adapterFactory: ({ profile }) => createStorageAdapter({ profile, env: context.env }),
     backend: {
-      write: ({ adapter, profile }) => writeBackend({ context, input: upload, adapter, profile }),
+      write: ({ adapter, profile }) => writeProfileBackend({
+        context,
+        input: { ...upload, storageOperationId: operation.operationId },
+        adapter,
+        profile,
+      }),
     },
     metadata: { create: ({ artifact }) => artifact.persist() },
   });

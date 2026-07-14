@@ -59,7 +59,9 @@ describe('Cloudflare profile-bound write operation', function () {
     const { uploadToR2 } = await import('../functions/services/direct-upload-backends.js');
     const objects = [];
     const records = [];
-    const profile = { id: 'r2-a', type: 'r2', generation: 'g1' };
+    const profile = {
+      id: 'r2-a', type: 'r2', generation: 'g1', storageOperationId: 'upload-1',
+    };
     const artifact = await uploadToR2({
       file: new Blob(['image'], { type: 'image/png' }),
       fileName: 'a.png', extension: 'png', profile, deferMetadata: true,
@@ -75,6 +77,7 @@ describe('Cloudflare profile-bound write operation', function () {
     assert.strictEqual(response.status, 200);
     assert.strictEqual(records[0][1].storageConfigId, 'r2-a');
     assert.strictEqual(records[0][1].storageGeneration, 'g1');
+    assert.strictEqual(records[0][1].storageOperationId, 'upload-1');
   });
 });
 

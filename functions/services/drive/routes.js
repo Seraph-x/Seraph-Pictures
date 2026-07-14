@@ -5,6 +5,7 @@ import paginationModule from '../../../shared/storage/pagination.cjs';
 import { createDriveRepository } from './repository.js';
 import { deleteFileBatch, deleteFolder } from './deletion.js';
 import { normalizeDrivePath } from './records.js';
+import { migrateFileBatch } from './migration.js';
 
 const { driveEnvelope } = contractModule;
 const { normalizePageRequest } = paginationModule;
@@ -127,4 +128,8 @@ export async function deleteFilesRoute(context) {
   const input = await body(context);
   const repository = createDriveRepository(context.env);
   return success('mutation', await deleteFileBatch(context, repository, input.ids));
+}
+
+export async function migrateFilesRoute(context) {
+  return success('mutation', await migrateFileBatch(context, await body(context)));
 }

@@ -51,12 +51,11 @@ async function sendToTelegram(options) {
   }
 }
 
-async function persistMetadata(options) {
+function metadataArtifact(options) {
   const {
     env, fileId, extension, file, fileName, messageId, useSigned,
     folderPath, guest, profile,
   } = options;
-  if (!env.img_url || (!guest && !shouldWriteTelegramMetadata(env))) return;
   const metadata = appendCommonMetadata({
     TimeStamp: Date.now(), ListType: 'None', Label: 'None', liked: false,
     fileName, fileSize: file.size, storageType: 'telegram', telegramFileId: fileId,
@@ -64,13 +63,19 @@ async function persistMetadata(options) {
     ...(profile ? {
       storageConfigId: profile.id,
       storageGeneration: profile.generation,
+      storageOperationId: profile.storageOperationId,
     } : {}),
     ...(guest ? { guest: true, guestIp: guest.guestIp, tgBot: 'guest' } : {}),
   }, folderPath);
   const putOptions = { metadata };
   const days = guest ? Math.max(0, Math.round(Number(guest.retentionDays)) || 0) : 0;
   if (days) putOptions.expirationTtl = days * SECONDS_PER_DAY;
-  await env.img_url.put(`${fileId}.${extension}`, '', putOptions);
+  return Object.freeze({ key: `${fileId}.${extension}`, metadata, putOptions });
+}
+
+async function persistMetadata(env, artifact, guest) {
+  if (!env.img_url || (!guest && !shouldWriteTelegramMetadata(env))) return;
+  await env.img_url.put(artifact.key, '', artifact.putOptions);
 }
 
 async function sendNotice(options) {
@@ -106,13 +111,15 @@ export async function uploadToTelegramStorage(options) {
     : `${fileId}.${extension}`;
   if (!guest) await sendNotice({ env, directId, origin, messageId, fileId, fileName, fileSize: file.size });
   const response = uploadResponse(`/file/${directId}`);
-  const persist = () => persistMetadata({
+  const artifact = metadataArtifact({
     env, fileId, extension, file, fileName, messageId, useSigned,
     folderPath, guest, profile,
   });
+  const persist = () => persistMetadata(env, artifact, guest);
   if (deferMetadata) {
     return Object.freeze({
-      key: `${fileId}.${extension}`,
+      key: artifact.key,
+      metadata: artifact.metadata,
       persist: async () => { await persist(); return response; },
     });
   }

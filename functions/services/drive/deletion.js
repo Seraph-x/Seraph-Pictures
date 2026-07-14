@@ -10,6 +10,7 @@ async function deleteFile(context, id) {
       method: 'DELETE',
     }),
     env: context.env,
+    data: context.data,
     params: { id },
   });
   return response.ok;

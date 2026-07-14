@@ -14,6 +14,7 @@ function baseMetadata({ file, fileName, storageType, extra, folderPath, profile 
     ...(profile ? {
       storageConfigId: profile.id,
       storageGeneration: profile.generation,
+      storageOperationId: profile.storageOperationId,
     } : {}),
     ...extra,
   }, folderPath);
