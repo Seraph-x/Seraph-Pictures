@@ -2,7 +2,19 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const crypto = require('node:crypto');
+const { DatabaseSync } = require('node:sqlite');
 const { spawnSync } = require('node:child_process');
+
+const MIGRATION_FIXTURES = path.join(__dirname, 'fixtures', 'storage-migration');
+
+function loadMigrationFixture(name) {
+  return JSON.parse(fs.readFileSync(path.join(MIGRATION_FIXTURES, name), 'utf8'));
+}
+
+function sha256File(filePath) {
+  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+}
 
 function baseSource() {
   return {
@@ -258,4 +270,131 @@ describe('storage profile migration executor', function () {
     assert.ok(!fixture.events.includes('cf:abort-freeze'));
     assert.ok(!fixture.events.includes('docker:unlock'));
   });
+
+  it('rejects active uploads before staging and releases both acquired locks', async function () {
+    const scenario = loadMigrationFixture('active-uploads.json');
+    const fixture = await executorFixture();
+    fixture.cloudflare.freezeBegin = async () => {
+      fixture.events.push('cf:freeze');
+      return scenario.freeze;
+    };
+
+    await assert.rejects(fixture.executeStorageProfileMigration({
+      plan: baseSource(), cloudflare: fixture.cloudflare, docker: fixture.docker,
+      owner: 'operator', token: 'token-1',
+    }), { code: 'ACTIVE_MUTATIONS_REMAIN' });
+    assert.ok(!fixture.events.includes('cf:stage-catalog'));
+    assert.deepStrictEqual(fixture.events.slice(-2), ['cf:abort-freeze', 'docker:unlock']);
+  });
+
+  it('releases locks without rollback when activation is explicitly rejected', async function () {
+    const scenario = loadMigrationFixture('activation-failure.json');
+    const fixture = await executorFixture();
+    fixture.cloudflare.activate = async () => {
+      fixture.events.push('cf:activate');
+      return scenario.activation;
+    };
+
+    await assert.rejects(fixture.executeStorageProfileMigration({
+      plan: baseSource(), cloudflare: fixture.cloudflare, docker: fixture.docker,
+      owner: 'operator', token: 'token-1',
+    }), { code: scenario.activation.code });
+    assert.ok(!fixture.events.includes('cf:rollback'));
+    assert.deepStrictEqual(fixture.events.slice(-2), ['cf:abort-freeze', 'docker:unlock']);
+  });
+
+  it('rolls an activated catalog pointer back to the captured prior generation', async function () {
+    const scenario = loadMigrationFixture('rollback-pointer.json');
+    const fixture = await executorFixture();
+    let rollbackInput;
+    fixture.cloudflare.readAuthority = async () => scenario.authority;
+    fixture.cloudflare.verifyLive = async () => { throw new Error('verification failed'); };
+    fixture.cloudflare.rollback = async (input) => {
+      rollbackInput = input;
+      fixture.events.push('cf:rollback');
+    };
+
+    await assert.rejects(fixture.executeStorageProfileMigration({
+      plan: baseSource(), cloudflare: fixture.cloudflare, docker: fixture.docker,
+      owner: 'operator', token: 'token-1',
+    }), /verification failed/);
+    assert.strictEqual(rollbackInput.generation, scenario.authority.generation);
+    assert.strictEqual(rollbackInput.expectedGeneration, 'g1');
+  });
 });
+
+describe('storage profile persisted rehearsal', function () {
+  it('covers v1, Docker, legacy-only, disabled-only, and mixed references', async function () {
+    const { planStorageProfileMigration } = await import(
+      '../scripts/security/storage-profile-migration/planner.mjs'
+    );
+    const combined = planStorageProfileMigration(loadMigrationFixture('combined-source.json'));
+    const legacyOnly = planStorageProfileMigration(loadMigrationFixture('legacy-only-source.json'));
+    const disabledOnly = loadMigrationFixture('disabled-only-source.json');
+
+    assert.deepStrictEqual(combined.cloudflare.referenceCounts, {
+      'cf-archive': 1, 'cf-primary': 1, [combined.cloudflare.legacyTypeProfileIds.r2]: 1,
+    });
+    assert.deepStrictEqual(combined.docker.referenceCounts, { 'docker-webdav': 2 });
+    assert.strictEqual(legacyOnly.cloudflare.profiles.length, 2);
+    assert.strictEqual(legacyOnly.docker.profiles.length, 1);
+    assert.throws(() => planStorageProfileMigration(disabledOnly), {
+      code: 'STORAGE_MIGRATION_FAILED',
+    });
+  });
+
+  it('applies twice to disposable JSON and SQLite state without duplicate profiles', function () {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'seraph-profile-rehearsal-'));
+    const source = path.join(MIGRATION_FIXTURES, 'combined-source.json');
+    const cloudflareState = path.join(root, 'cloudflare-state.json');
+    const dockerState = path.join(root, 'docker.sqlite');
+    fs.copyFileSync(path.join(MIGRATION_FIXTURES, 'cloudflare-state.json'), cloudflareState);
+    const first = runPersistedRehearsal({ root, source, cloudflareState, dockerState, suffix: 'first' });
+    const second = runPersistedRehearsal({ root, source, cloudflareState, dockerState, suffix: 'second' });
+    const state = JSON.parse(fs.readFileSync(cloudflareState, 'utf8'));
+    const database = new DatabaseSync(dockerState, { readOnly: true });
+    const dockerProfiles = database.prepare('SELECT COUNT(*) AS count FROM storage_profiles').get().count;
+    const dockerReferences = database.prepare('SELECT COUNT(*) AS count FROM storage_references').get().count;
+    const dockerMarker = database.prepare('SELECT generation FROM migration_marker').get();
+    database.close();
+
+    assert.strictEqual(first.output.generation, second.output.generation);
+    assert.strictEqual(state.catalogs[first.output.generation].profiles.length, 3);
+    assert.strictEqual(state.ledgers[first.output.generation].references.length, 3);
+    assert.strictEqual(dockerProfiles, 1);
+    assert.strictEqual(dockerReferences, 2);
+    assert.strictEqual(dockerMarker.generation, first.output.generation);
+    assert.strictEqual(state.rollbackPointer, 'generation-v1');
+    assert.strictEqual(state.marker.generation, first.output.generation);
+    assert.notStrictEqual(first.hashes.cloudflare, second.hashes.cloudflare);
+    assert.notStrictEqual(first.hashes.docker, second.hashes.docker);
+    assert.strictEqual(first.output.mode, 'apply');
+    fs.rmSync(root, { recursive: true });
+  });
+});
+
+function runPersistedRehearsal(options) {
+  const cli = path.join(__dirname, '..', 'scripts', 'security', 'migrate-storage-profiles.mjs');
+  const driver = path.join(MIGRATION_FIXTURES, 'rehearsal-driver.mjs');
+  const cloudflareBackup = path.join(options.root, `${options.suffix}-cloudflare.json`);
+  const dockerBackup = path.join(options.root, `${options.suffix}-docker.sqlite`);
+  const result = spawnSync(process.execPath, [
+    cli, '--input', options.source, '--apply', '--driver', driver,
+    '--token', 'rehearsal-token', '--cloudflare-backup', cloudflareBackup,
+    '--docker-backup', dockerBackup,
+  ], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      STORAGE_MIGRATION_REHEARSAL_CF_STATE: options.cloudflareState,
+      STORAGE_MIGRATION_REHEARSAL_DOCKER_STATE: options.dockerState,
+    },
+  });
+  assert.strictEqual(result.status, 0, result.stderr);
+  return Object.freeze({
+    output: JSON.parse(result.stdout),
+    hashes: Object.freeze({
+      cloudflare: sha256File(cloudflareBackup), docker: sha256File(dockerBackup),
+    }),
+  });
+}

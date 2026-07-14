@@ -1,0 +1,17 @@
+{
+  "authority": {
+    "initialized": true,
+    "generation": "generation-v1"
+  },
+  "activeUploads": 0,
+  "catalogs": {
+    "generation-v1": {
+      "schemaVersion": 1,
+      "profiles": []
+    }
+  },
+  "ledgers": {},
+  "rollbackPointer": null,
+  "marker": null,
+  "freeze": null
+}

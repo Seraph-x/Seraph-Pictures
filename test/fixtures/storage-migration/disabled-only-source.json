@@ -1,0 +1,21 @@
+{
+  "cloudflare": {
+    "v1Catalog": { "schemaVersion": 1, "items": [] },
+    "files": []
+  },
+  "docker": {
+    "profiles": [
+      {
+        "id": "docker-disabled",
+        "name": "Disabled GitHub",
+        "type": "github",
+        "enabled": false,
+        "isDefault": false,
+        "config": { "owner": "fixture", "repo": "disabled" },
+        "createdAt": 1,
+        "updatedAt": 1
+      }
+    ],
+    "files": []
+  }
+}

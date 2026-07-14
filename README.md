@@ -124,6 +124,14 @@ docker compose logs api
 
 20 MiB 是 direct 阈值；只有 Cloudflare R2 使用 multipart。管理页保存的动态存储配置以 AES-GCM 加密：Cloudflare 写入 KV，Docker storage profiles 写入 SQLite；Redis 只可作为独立的通用设置存储。动态配置优先于环境变量，空白密钥字段表示保留旧值。R2 原生绑定仍由 Wrangler/Cloudflare 控制台管理。
 
+### 多实例 Storage Profile
+
+同一存储类型可创建多个命名 Profile，每个类型恰有一个 enabled default。管理员上传同时绑定 `storageMode` 与精确 `storageId`；禁用 Profile 不能接收新写入，但仍可读取、删除或迁移历史文件。环境变量只参与首次引导或显式迁移，运行时不会在 Profile 缺失、禁用或故障时回退到旧全局凭据。
+
+Cloudflare R2 Profile 可选择 `binding`（填写 Wrangler 绑定名，例如 `R2_BUCKET`）或 `s3`（填写 endpoint、bucket、access key 和 secret）；Docker R2 使用 S3-compatible 凭据。Guest Channel 始终独立，访客不能列举或提交管理员 `storageId`。
+
+升级既有 v1/Legacy/SQLite 数据前，先执行 dry-run，再用环境专用 driver 完成备份、freeze、stage、activate、live verify 和 marker。完整命令、回滚规则、错误含义及已验证哈希见 [多存储迁移演练](docs/2026-07-14_multi-storage-migration-rehearsal.md)。
+
 ## 安全模型
 
 - **认证**：Pages 通过 `AuthCoordinator` 处理初始化、登录失败限制和会话状态；绑定或持久化失败时 fail closed。初始化后环境凭据不是运行时回退。
@@ -193,6 +201,9 @@ npm run test:visual
 | multipart 残留 | 先 list 规则，再追加一日 abort 规则并复查；不要覆盖已有 lifecycle |
 | Passkey origin/RP 错误 | RP 仅填域名，origin 填完整 HTTPS 源站，二者与浏览器地址一致 |
 | Docker 启动拒绝 | 替换示例密码/密钥，检查持久卷权限并查看 `docker compose logs api` |
+| `STORAGE_PROFILE_NOT_FOUND` / `STORAGE_NOT_WRITABLE` | 检查请求中的精确 `storageId`、类型和 enabled 状态；不要回退全局凭据 |
+| `STORAGE_PROFILE_IN_USE` | Profile 仍被文件、分片任务或 lifecycle 引用；完成或 reconciliation 后再修改 |
+| `MIGRATION_ACTIVATION_AMBIGUOUS` | 保持 Cloudflare freeze 与 Docker lock，读取 authority/ledger 取得明确证据后恢复 |
 
 ## 维护与许可
 

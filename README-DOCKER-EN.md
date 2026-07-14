@@ -43,12 +43,29 @@ For backup, stop writes and back up `kvault_data`; also take a consistent Redis 
 
 Docker supports Telegram, R2, S3, Discord, Hugging Face, WebDAV, and GitHub through direct or chunked uploads. The default configured administrator ceiling is 100 MiB; Telegram is capped at 50 MiB, Discord at 25 MiB, and Hugging Face at 35 MiB. Lower backend limits still apply.
 
+Administrators can add multiple named profiles of the same type at `/storage-settings` or `/app/storage`, then edit, test, enable, set the per-type default, or delete each profile. Docker R2 profiles use an S3-compatible endpoint, bucket, access key, and secret. Every administrator write persists the exact `storageId`. Disabling a profile blocks only new writes; historical reads, deletion, and migration keep using the file's persisted profile and never fall back to old `.env` credentials.
+
 Guest uploads enforce boundaries that administrators cannot relax:
 
 - Both dedicated `TG_GUEST_BOT_TOKEN` and `TG_GUEST_CHAT_ID` are required. Missing values fail instead of falling back to the main bot.
 - The fixed per-IP quota is 10/day; retention is at least one day; the configurable ceiling is 20 MiB; `.env.example` uses a 5 MiB example default.
 - Only AVIF/GIF/JPEG/PNG/WebP files whose signature, MIME, and extension agree are accepted. Visibility defaults to `public`.
 - Metadata expiry invalidates project links but does not prove deletion of remote Telegram bytes; use a separate channel cleanup policy.
+
+## Profile migration and recovery
+
+Before migration, take a consistent Docker SQLite backup and build an input snapshot containing the Cloudflare v1 catalog, legacy settings, and file references. Run the dry-run first to inspect per-type defaults, deterministic legacy IDs, and reference counts, then apply through an environment-specific driver. The migration lock must be acquired before the first backend write; do not force progress while chunk or lifecycle references remain active.
+
+```bash
+node scripts/security/migrate-storage-profiles.mjs --input <SOURCE_SNAPSHOT.json>
+node scripts/security/migrate-storage-profiles.mjs \
+  --input <SOURCE_SNAPSHOT.json> --apply --driver <ENVIRONMENT_DRIVER.mjs> \
+  --token <ONE_TIME_OWNER_TOKEN> \
+  --cloudflare-backup <CLOUDFLARE_BACKUP.json> \
+  --docker-backup <DOCKER_BACKUP.sqlite>
+```
+
+For an explicit `STORAGE_MIGRATION_FAILED`, verify backups and the old pointer. For `MIGRATION_ACTIVATION_AMBIGUOUS`, keep the Cloudflare freeze and Docker lock until authority/ledger evidence permits reconciliation. See the [migration rehearsal report](docs/2026-07-14_multi-storage-migration-rehearsal.md) for the full rollback matrix.
 
 ## Production reverse proxy
 
@@ -70,6 +87,7 @@ npm run docker:smoke:ci
 | Passkey failure | Ensure RP is the domain, origin is the full HTTPS origin, and proxy headers are correct |
 | Chunk upload does not complete | Check volume capacity/permissions for `CHUNK_DIR` and API logs; do not fabricate success |
 | Guest upload rejected | Check the dedicated guest bot/chat, file authenticity, daily quota, and retention |
+| Profile cannot be deleted or retyped | Inspect file, chunk-task, and lifecycle references; finish or reconcile them first |
 
 Inspect containers and persistent volumes with:
 
