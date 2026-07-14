@@ -24,7 +24,8 @@
     "docker:down": "docker compose down",
     "docker:doctor": "node scripts/docker-storage-doctor.js",
     "docker:smoke:ci": "node scripts/docker-ci-smoke.js",
-    "regression:storage": "node scripts/storage-regression.js"
+    "regression:storage": "node scripts/storage-regression.js",
+    "migrate:storage-profiles": "node scripts/security/migrate-storage-profiles.mjs"
   },
   "dependencies": {
     "@cloudflare/pages-plugin-sentry": "^1.1.4",
