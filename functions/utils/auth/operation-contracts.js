@@ -27,6 +27,14 @@ function isConfigAuthority(value) {
     && value.digest.length > 0;
 }
 
+function isStorageCatalogAuthority(value) {
+  return isObject(value)
+    && typeof value.initialized === 'boolean'
+    && (value.initialized
+      ? typeof value.generation === 'string' && value.generation.length > 0
+      : value.generation === null);
+}
+
 function isShareRecord(value) {
   return isObject(value)
     && typeof value.shareId === 'string'
@@ -92,6 +100,11 @@ const VALIDATORS = Object.freeze({
     && Number.isInteger(value.committedVersion),
   configAbort: (value) => isObject(value) && typeof value.aborted === 'boolean',
   configAbortStale: (value) => isObject(value) && typeof value.aborted === 'boolean',
+  storageProfileCatalogReadAuthority: isStorageCatalogAuthority,
+  storageProfileCatalogActivate: (value) => isObject(value)
+    && value.ok === true
+    && typeof value.generation === 'string'
+    && value.generation.length > 0,
   shareCreate: (value) => isResult(value) && (!value.ok || isShareRecord(value.record)),
   shareRead: (value) => isObject(value)
     && (value.record === null || isShareRecord(value.record)),

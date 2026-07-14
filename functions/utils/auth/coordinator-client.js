@@ -30,6 +30,8 @@ const OPERATIONS = new Set([
   'configCommit',
   'configAbort',
   'configAbortStale',
+  'storageProfileCatalogReadAuthority',
+  'storageProfileCatalogActivate',
   'shareCreate',
   'shareRead',
   'shareConsume',

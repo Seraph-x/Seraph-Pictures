@@ -66,6 +66,38 @@ function makeEnv(overrides = {}) {
 }
 
 describe('storage-config (KV-backed runtime storage settings)', function () {
+  it('limits the HTTP boundary to Guest Channel settings', async function () {
+    const utility = await import('../functions/utils/storage-config.js');
+    const route = await import('../functions/api/storage-config.js');
+    const env = makeEnv({ APP_ENV: 'local', AUTH_DISABLED: 'true', DEFAULT_STORAGE_TYPE: 'telegram' });
+    await utility.writeStorageConfig(env, {
+      telegram: { botToken: 'admin-token', chatId: 'admin-chat' },
+      telegramGuest: { botToken: 'guest-token', chatId: 'guest-chat' },
+    });
+
+    const response = await route.onRequestGet({
+      env, request: new Request('https://vault.example/api/storage-config'),
+    });
+    const payload = await response.json();
+    assert.deepStrictEqual(Object.keys(payload.config), ['telegramGuest']);
+    assert.strictEqual(payload.preferredStorageType, 'telegram');
+    assert.ok(payload.schema.every((item) => item.type === 'telegramGuest'));
+  });
+
+  it('rejects administrator profile credentials at the legacy HTTP boundary', async function () {
+    const route = await import('../functions/api/storage-config.js');
+    const env = makeEnv({ APP_ENV: 'local', AUTH_DISABLED: 'true' });
+    const response = await route.onRequestPost({
+      env,
+      request: new Request('https://vault.example/api/storage-config', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ config: { telegram: { botToken: 'forbidden' } } }),
+      }),
+    });
+    assert.strictEqual(response.status, 400);
+    assert.strictEqual((await response.json()).error.code, 'STORAGE_PROFILE_CONFIG_FORBIDDEN');
+  });
+
   it('writes then reads back, masking secrets but exposing presence', async function () {
     const mod = await import('../functions/utils/storage-config.js');
     const env = makeEnv();
