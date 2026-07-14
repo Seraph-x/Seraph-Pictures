@@ -146,4 +146,57 @@ describe('Docker Storage and Drive shared runtime contract', function () {
     })), 400);
     assert.strictEqual(traversal.error.code, 'DRIVE_PATH_INVALID');
   });
+
+  it('routes canonical, batch, and migration lifecycle operations through exact profiles', async function () {
+    const container = createContainer(process.env);
+    const source = container.storageRepo.create({
+      name: 'Source', type: 'telegram', config: { botToken: 'source', chatId: 'source-chat' },
+    });
+    const destination = container.storageRepo.create({
+      name: 'Destination', type: 'telegram', config: { botToken: 'destination', chatId: 'destination-chat' },
+    });
+    for (const id of ['canonical-file', 'batch-file', 'migration-file']) {
+      container.fileRepo.create({
+        id, storageConfigId: source.id, storageType: source.type, storageKey: `${id}-key`,
+        fileName: `${id}.jpg`, fileSize: 4, mimeType: 'image/jpeg', visibility: 'private',
+        uploadSource: 'drive', accessVersion: 1, extra: { telegramMessageId: 42 },
+      });
+    }
+    const events = [];
+    container.storageFactory.createAdapter = (profile) => {
+      if (profile.id === source.id) return {
+        download: async () => new Response(new Uint8Array([1, 2, 3, 4])),
+        delete: async ({ operationId }) => { events.push(['delete', operationId]); return true; },
+      };
+      return {
+        upload: async ({ operationId }) => {
+          events.push(['upload', operationId]);
+          return { storageKey: 'migrated-key', metadata: { telegramFileId: 'migrated-key' } };
+        },
+      };
+    };
+    const app = createApp({ container });
+
+    const canonical = await json(await app.fetch(request('/api/manage/delete/canonical-file', {
+      method: 'DELETE',
+    })));
+    assert.strictEqual(canonical.fileId, 'canonical-file');
+    const batch = await json(await app.fetch(request('/api/drive/files/delete-batch', {
+      method: 'POST', body: { ids: ['batch-file'] },
+    })));
+    assert.strictEqual(batch.deleted, 1);
+    const migrated = await json(await app.fetch(request('/api/drive/files/migrate', {
+      method: 'POST',
+      body: { fileIds: ['migration-file'], destinationStorageId: destination.id },
+    })));
+    assert.strictEqual(migrated.results[0].storageId, destination.id);
+    assert.strictEqual(container.fileRepo.getById('migration-file').storage_config_id, destination.id);
+    assert.deepStrictEqual(events, [
+      ['delete', 'delete:canonical-file'],
+      ['delete', 'delete:batch-file'],
+      ['upload', `transfer:migration-file:${destination.id}`],
+      ['delete', `transfer:migration-file:${destination.id}`],
+    ]);
+    container.db.close();
+  });
 });

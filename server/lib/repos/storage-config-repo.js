@@ -8,6 +8,7 @@ const { StorageConfigQueryRepository } = require('./storage-config/query-repo');
 const { StorageConfigMutationRepository } = require('./storage-config/mutation-repo');
 const { StorageReferenceRepository } = require('./storage-config/reference-repo');
 const { StorageMigrationLockRepository } = require('./storage-config/migration-lock-repo');
+const { StorageLifecycleRepository } = require('./storage-config/lifecycle-repo');
 
 const BOOTSTRAP_ORDER = Object.freeze([
   ['telegram', 'Telegram'], ['r2', 'R2'], ['s3', 'S3'], ['discord', 'Discord'],
@@ -24,6 +25,7 @@ class StorageConfigRepository {
     this.queries = new StorageConfigQueryRepository({ db, mapRow: mapper });
     this.references = new StorageReferenceRepository({ db, clock: dependencies.clock });
     this.migrationLock = new StorageMigrationLockRepository({ db, clock: dependencies.clock });
+    this.lifecycle = new StorageLifecycleRepository({ db, clock: dependencies.clock });
     this.mutations = new StorageConfigMutationRepository({
       db,
       queries: this.queries,
@@ -69,6 +71,30 @@ class StorageConfigRepository {
   }
   acquireMigrationLock(input) { return transaction(this.db, () => this.migrationLock.acquire(input)); }
   releaseMigrationLock(input) { return transaction(this.db, () => this.migrationLock.release(input)); }
+  prepareFileDelete(input) {
+    return transaction(this.db, () => {
+      this.migrationLock.assertUnlocked();
+      return this.lifecycle.prepareDelete(input);
+    });
+  }
+  prepareFileTransfer(input) {
+    return transaction(this.db, () => {
+      this.migrationLock.assertUnlocked();
+      return this.lifecycle.prepareTransfer(input);
+    });
+  }
+  saveTransferArtifact(operationId, artifact) {
+    return transaction(this.db, () => this.lifecycle.saveArtifact(operationId, artifact));
+  }
+  markLifecycleReconciliation(operationId, error) {
+    return transaction(this.db, () => this.lifecycle.markReconciliation(operationId, error));
+  }
+  completeFileDelete(operationId) {
+    return transaction(this.db, () => this.lifecycle.completeDelete(operationId));
+  }
+  completeFileTransfer(operationId, destinationType) {
+    return transaction(this.db, () => this.lifecycle.completeTransfer(operationId, destinationType));
+  }
 
   resolveStorageSelection({ storageId, storageMode }) {
     return resolveProfileSelection({

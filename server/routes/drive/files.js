@@ -73,10 +73,41 @@ function registerDelete(app, helpers) {
   });
 }
 
+async function migrateBatch(services, ids, destinationStorageId) {
+  const results = [];
+  for (const id of ids) {
+    results.push(await services.uploadService.migrateFile(id, destinationStorageId));
+  }
+  return Object.freeze({ requested: ids.length, results: Object.freeze(results) });
+}
+
+function registerMigrate(app, helpers) {
+  app.post('/api/drive/files/migrate', async (context) => {
+    const unauthorized = requireDriveAuth(context, helpers);
+    if (unauthorized) return unauthorized;
+    try {
+      const body = await input(context);
+      const ids = idsFrom({ ids: body.fileIds || body.ids });
+      const destinationStorageId = String(body.destinationStorageId || '').trim();
+      if (!ids.length || !destinationStorageId) throw Object.assign(
+        new Error('STORAGE_MIGRATION_INPUT_REQUIRED'),
+        { code: 'STORAGE_MIGRATION_INPUT_REQUIRED', status: 400 },
+      );
+      const services = helpers.getServices(context);
+      return driveResponse(context, 'mutation', await migrateBatch(
+        services, ids, destinationStorageId,
+      ));
+    } catch (error) {
+      return driveError(context, helpers, error);
+    }
+  });
+}
+
 function registerDriveFileRoutes(app, helpers) {
   registerMove(app, helpers);
   registerRename(app, helpers);
   registerDelete(app, helpers);
+  registerMigrate(app, helpers);
 }
 
 module.exports = { registerDriveFileRoutes };

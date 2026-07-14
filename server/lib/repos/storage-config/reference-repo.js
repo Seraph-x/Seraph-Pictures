@@ -21,7 +21,10 @@ class StorageReferenceRepository {
       WHERE storage_config_id = ?`, [storageId]);
     const writes = get(this.db, `SELECT COUNT(1) AS count FROM storage_write_references
       WHERE storage_config_id = ?`, [storageId]);
-    return Number(files?.count || 0) + Number(chunks?.count || 0) + Number(writes?.count || 0);
+    const lifecycle = get(this.db, `SELECT COUNT(1) AS count FROM storage_file_lifecycle
+      WHERE source_storage_config_id = ? OR destination_storage_config_id = ?`, [storageId, storageId]);
+    return Number(files?.count || 0) + Number(chunks?.count || 0)
+      + Number(writes?.count || 0) + Number(lifecycle?.count || 0);
   }
 
   reserve({ operationId, storageId, state = DEFAULT_REFERENCE_STATE }) {

@@ -56,9 +56,9 @@ function preflightResponse(c, allowOrigin) {
   return new Response(null, { headers: c.res.headers, status: 204 });
 }
 
-function createApp() {
+function createApp(options = {}) {
   const app = new Hono();
-  const container = createContainer(process.env);
+  const container = options.container || createContainer(process.env);
   const helpers = createRouteHelpers(container);
 
   app.use('*', createCorsMiddleware(process.env));

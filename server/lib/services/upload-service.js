@@ -63,12 +63,14 @@ class UploadService {
     storageRepo,
     fileRepo,
     storageFactory,
+    storageLifecycle,
     resolveHostname = defaultResolveHostname,
     requestRemote = defaultRequestRemote,
   }) {
     this.storageRepo = storageRepo;
     this.fileRepo = fileRepo;
     this.storageFactory = storageFactory;
+    this.storageLifecycle = storageLifecycle;
     this.resolveHostname = resolveHostname;
     this.requestRemote = requestRemote;
   }
@@ -211,17 +213,11 @@ class UploadService {
   }
 
   async deleteFile(fileId) {
-    const file = this.fileRepo.getById(fileId);
-    if (!file) return { deleted: false, reason: 'not-found' };
+    return this.storageLifecycle.deleteFile(fileId);
+  }
 
-    const storageConfig = this.storageRepo.getById(file.storage_config_id, true);
-    if (storageConfig) {
-      const adapter = this.storageFactory.createAdapter(storageConfig);
-      await adapter.delete({ storageKey: file.storage_key, metadata: file.metadata });
-    }
-
-    this.fileRepo.delete(fileId);
-    return { deleted: true };
+  async migrateFile(fileId, destinationStorageId) {
+    return this.storageLifecycle.migrateFile(fileId, destinationStorageId);
   }
 }
 

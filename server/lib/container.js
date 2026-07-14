@@ -15,6 +15,7 @@ const { UploadService } = require('./services/upload-service');
 const { ChunkUploadService } = require('./services/chunk-service');
 const { LoginRateLimitService } = require('./services/login-rate-limit-service');
 const { ShareService } = require('./services/share-service');
+const { StorageLifecycleService } = require('./services/storage-lifecycle-service');
 const { createSettingsStore } = require('./settings/factory');
 
 function createContainer(env = process.env) {
@@ -36,11 +37,8 @@ function createContainer(env = process.env) {
   guestStorageRepo.ensureBootstrap();
   cleanupExpiredState(db);
 
-  const uploadService = new UploadService({
-    storageRepo,
-    fileRepo,
-    storageFactory,
-  });
+  const storageLifecycle = new StorageLifecycleService({ storageRepo, fileRepo, storageFactory });
+  const uploadService = new UploadService({ storageRepo, fileRepo, storageFactory, storageLifecycle });
 
   const chunkService = new ChunkUploadService({
     db,

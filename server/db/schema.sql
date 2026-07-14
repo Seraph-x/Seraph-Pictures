@@ -29,6 +29,26 @@ CREATE TABLE IF NOT EXISTS storage_write_references (
 CREATE INDEX IF NOT EXISTS idx_storage_write_references_profile
 ON storage_write_references(storage_config_id);
 
+CREATE TABLE IF NOT EXISTS storage_file_lifecycle (
+  operation_id TEXT PRIMARY KEY,
+  file_id TEXT NOT NULL UNIQUE,
+  operation_type TEXT NOT NULL,
+  source_storage_config_id TEXT NOT NULL,
+  destination_storage_config_id TEXT,
+  state TEXT NOT NULL,
+  artifact_json TEXT,
+  error_message TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  FOREIGN KEY(source_storage_config_id) REFERENCES storage_configs(id) ON DELETE RESTRICT,
+  FOREIGN KEY(destination_storage_config_id) REFERENCES storage_configs(id) ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS idx_storage_file_lifecycle_source
+ON storage_file_lifecycle(source_storage_config_id);
+CREATE INDEX IF NOT EXISTS idx_storage_file_lifecycle_destination
+ON storage_file_lifecycle(destination_storage_config_id);
+
 CREATE TABLE IF NOT EXISTS storage_migration_lock (
   singleton_id INTEGER PRIMARY KEY CHECK(singleton_id = 1),
   owner TEXT NOT NULL,
