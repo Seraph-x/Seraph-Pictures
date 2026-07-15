@@ -11,6 +11,7 @@
       globalThis.LegacyAdminComponents.dashboardPanel,
       globalThis.LegacyAdminComponents.fileBrowser,
       globalThis.LegacyAdminComponents.fileDialogs,
+      globalThis.LegacyAdminComponents.folderMoveDialog,
       globalThis.LegacyAdminComponents.fileToolbar,
     ].join('\n'),
     mixins: [...(globalThis.LegacyAdminMixins || []), profileMixin, migrationMixin],

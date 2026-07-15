@@ -1,6 +1,13 @@
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const MODULE_PATH = require.resolve('../legacy/pages/admin/folder-move-methods.js');
+const ROOT = path.resolve(__dirname, '..');
+
+function read(relativePath) {
+  return fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
+}
 
 function loadFolderMoveMixin() {
   const previous = global.LegacyAdminMixins;
@@ -247,5 +254,32 @@ describe('legacy Admin folder move dialog', function () {
     assert.equal(context.folderMoveTarget, 'archive');
     assert.equal(context.folderMovePending, false);
     assert.deepEqual(context.notifications, [['error', 'network failed']]);
+  });
+
+  it('renders the guarded autocomplete dialog template', function () {
+    const relativePath = 'legacy/pages/admin/components/folder-move-dialog.js';
+    assert.ok(fs.existsSync(path.join(ROOT, relativePath)), 'folder move dialog must exist');
+    const dialog = read(relativePath);
+    for (const pattern of [
+      /:visible\.sync="folderMoveDialogVisible"/, /v-model="folderMoveTarget"/,
+      /:fetch-suggestions="queryFolderMoveSuggestions"/, /@select="selectFolderMoveSuggestion"/,
+      /:before-close="closeFolderMoveDialog"/, /:close-on-click-modal="!folderMovePending"/,
+      /:close-on-press-escape="!folderMovePending"/, /@click="confirmFolderMove"/,
+    ]) assert.match(dialog, pattern);
+  });
+
+  it('loads and composes the folder move dialog before the Admin app closes', function () {
+    const html = read('admin.html');
+    const app = read('legacy/pages/admin/app.js');
+    const script = '/legacy/pages/admin/components/folder-move-dialog.js';
+    const scriptIndex = html.indexOf(script);
+    const appIndex = html.indexOf('/legacy/pages/admin/app.js');
+    const dialogIndex = app.indexOf('folderMoveDialog');
+    const toolbarIndex = app.indexOf('fileToolbar');
+
+    assert.notEqual(scriptIndex, -1);
+    assert.notEqual(dialogIndex, -1);
+    assert.ok(scriptIndex < appIndex);
+    assert.ok(dialogIndex < toolbarIndex);
   });
 });
