@@ -8,7 +8,7 @@
           <div class="admin-header-primary">
             <span class="home-btn" @click="goHome"><img src="/logo.png" alt="Seraph's Pictures Logo" class="brand-logo" loading="eager" onerror="this.onerror=null;this.src='/favicon.ico';" /></span>
             <span class="title" @click="refreshDashboard">{{ t('nav.admin') }}</span>
-            <div class="search-card"><el-input v-model="search" size="mini" :placeholder="t('admin.searchPlaceholder')"></el-input></div>
+            <div class="search-card"><el-input v-model="search" size="mini" prefix-icon="el-icon-search" :placeholder="t('admin.searchPlaceholder')"></el-input></div>
           </div>
           <div class="actions admin-header-tools">
             <el-dropdown @command="switchFileType" :hide-on-click="false">
@@ -25,7 +25,7 @@ ${globalThis.LegacyAdminComponents.profileFilter}
             <el-dropdown @command="switchStorageFilter" :hide-on-click="false">
               <span class="el-dropdown-link"><i :class="storageFilterIcon"></i></span>
               <el-dropdown-menu slot="dropdown">
-                <el-dropdown-item command="all" :class="{ 'el-dropdown-menu__item--selected': storageFilter === 'all' }"><i class="fas fa-database"></i> {{ t('admin.storageAll') }}</el-dropdown-item>
+                <el-dropdown-item command="all" :class="{ 'el-dropdown-menu__item--selected': storageFilter === 'all' }"><i class="fas fa-boxes"></i> {{ t('admin.storageAll') }}</el-dropdown-item>
                 <el-dropdown-item command="telegram" :class="{ 'el-dropdown-menu__item--selected': storageFilter === 'telegram' }"><i class="fab fa-telegram"></i> Telegram</el-dropdown-item>
                 <el-dropdown-item command="r2" :class="{ 'el-dropdown-menu__item--selected': storageFilter === 'r2' }"><i class="fas fa-cloud"></i> {{ t('admin.storageR2') }}</el-dropdown-item>
                 <el-dropdown-item command="s3" :class="{ 'el-dropdown-menu__item--selected': storageFilter === 's3' }"><i class="fas fa-database"></i> {{ t('admin.storageS3') }}</el-dropdown-item>
@@ -38,7 +38,7 @@ ${globalThis.LegacyAdminComponents.profileFilter}
             <el-dropdown @command="sort" :hide-on-click="false">
               <span class="el-dropdown-link"><i :class="sortIcon"></i></span>
               <el-dropdown-menu slot="dropdown">
-                <el-dropdown-item command="dateDesc" :class="{ 'el-dropdown-menu__item--selected': sortOption === 'dateDesc' }"><i class="fas fa-sort-amount-down"></i> {{ t('admin.sortDateDesc') }}</el-dropdown-item>
+                <el-dropdown-item command="dateDesc" :class="{ 'el-dropdown-menu__item--selected': sortOption === 'dateDesc' }"><i class="fas fa-sort-numeric-down"></i> {{ t('admin.sortDateDesc') }}</el-dropdown-item>
                 <el-dropdown-item command="nameAsc" :class="{ 'el-dropdown-menu__item--selected': sortOption === 'nameAsc' }"><i class="fas fa-sort-alpha-up"></i> {{ t('admin.sortNameAsc') }}</el-dropdown-item>
                 <el-dropdown-item command="sizeDesc" :class="{ 'el-dropdown-menu__item--selected': sortOption === 'sizeDesc' }"><i class="fas fa-sort-amount-down"></i> {{ t('admin.sortSizeDesc') }}</el-dropdown-item>
               </el-dropdown-menu>
@@ -56,7 +56,7 @@ ${globalThis.LegacyAdminComponents.profileFilter}
             <el-dropdown @command="switchViewMode" :hide-on-click="false">
               <span class="el-dropdown-link"><i :class="viewModeIcon"></i></span>
               <el-dropdown-menu slot="dropdown">
-                <el-dropdown-item command="grid" :class="{ 'el-dropdown-menu__item--selected': viewMode === 'grid' }"><i class="fas fa-th-large"></i> {{ t('admin.viewGrid') }}</el-dropdown-item>
+                <el-dropdown-item command="grid" :class="{ 'el-dropdown-menu__item--selected': viewMode === 'grid' }"><i class="fas fa-th"></i> {{ t('admin.viewGrid') }}</el-dropdown-item>
                 <el-dropdown-item command="list" :class="{ 'el-dropdown-menu__item--selected': viewMode === 'list' }"><i class="fas fa-list"></i> {{ t('admin.viewList') }}</el-dropdown-item>
               </el-dropdown-menu>
             </el-dropdown>
@@ -97,11 +97,26 @@ ${globalThis.LegacyAdminComponents.profileFilter}
             </el-dropdown>
           </div>
           <div class="admin-header-system">
-            <el-tooltip :content="t('admin.tooltipStorage')" placement="bottom"><i class="fas fa-server" @click="showStorageConfigPanel"></i></el-tooltip>
-            <el-tooltip :content="t('admin.tooltipStorageConfig')" placement="bottom"><i class="fas fa-database" @click="openStorageSettings"></i></el-tooltip>
-            <el-tooltip :content="t('admin.tooltipUiDesign')" placement="bottom"><i class="fas fa-sliders-h" @click="showUiDesignSettingsPanel"></i></el-tooltip>
-            <el-tooltip :content="t('admin.tooltipGuestUpload')" placement="bottom"><i class="fas fa-user-shield" @click="showGuestSettingsPanel"></i></el-tooltip>
-            <el-tooltip :content="t('admin.tooltipAccount')" placement="bottom"><i class="fas fa-user-cog" @click="showAccountSecurityPanel"></i></el-tooltip>
+            <el-dropdown trigger="click" @command="(cmd) => {
+              if (cmd === 'storageStatus') showStorageConfigPanel();
+              else if (cmd === 'storageConfig') openStorageSettings();
+              else if (cmd === 'modifyUi') showUiDesignSettingsPanel();
+              else if (cmd === 'guestSettings') showGuestSettingsPanel();
+              else if (cmd === 'accountSettings') showAccountSecurityPanel();
+            }">
+              <span class="el-dropdown-link system-settings-trigger">
+                <el-tooltip :content="t('admin.tooltipSystemSettings')" placement="bottom">
+                  <i class="fas fa-cog"></i>
+                </el-tooltip>
+              </span>
+              <el-dropdown-menu slot="dropdown" class="system-settings-dropdown-menu">
+                <el-dropdown-item command="storageStatus"><i class="fas fa-server"></i> {{ t('admin.tooltipStorage') }}</el-dropdown-item>
+                <el-dropdown-item command="storageConfig"><i class="fas fa-database"></i> {{ t('admin.tooltipStorageConfig') }}</el-dropdown-item>
+                <el-dropdown-item command="modifyUi"><i class="fas fa-sliders-h"></i> {{ t('admin.tooltipUiDesign') }}</el-dropdown-item>
+                <el-dropdown-item command="guestSettings"><i class="fas fa-user-shield"></i> {{ t('admin.tooltipGuestUpload') }}</el-dropdown-item>
+                <el-dropdown-item command="accountSettings"><i class="fas fa-user-cog"></i> {{ t('admin.tooltipAccount') }}</el-dropdown-item>
+              </el-dropdown-menu>
+            </el-dropdown>
             <button type="button" class="admin-theme-btn admin-lang-btn" data-i18n-toggle aria-label="切换语言">
               <span data-lang-label>EN</span>
             </button>

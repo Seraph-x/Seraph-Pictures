@@ -5,7 +5,7 @@ body {
   min-height: 100vh;
   background: var(--claude-bg);
   color: var(--claude-text);
-  font-family: "Manrope", "Noto Sans SC", "PingFang SC", "Segoe UI", sans-serif;
+  font-family: var(--font-sans);
 }
 
 .page { max-width: 1080px; margin: 0 auto; padding: 20px; position: relative; z-index: 5; }
@@ -32,7 +32,7 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-family: "Sora", "Manrope", "Noto Sans SC", sans-serif;
+  font-family: var(--font-serif);
   font-size: 1.3rem;
   font-weight: 700;
   letter-spacing: 0.02em;

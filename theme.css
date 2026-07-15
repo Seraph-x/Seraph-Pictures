@@ -1,3 +1,52 @@
+/* Claude's Official Webfonts */
+@font-face {
+  font-family: 'Anthropic Sans';
+  src: url('assets/nested_cc27851ad-DDVos-BJ.woff2') format('woff2');
+  font-weight: 300 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anthropic Sans';
+  src: url('assets/nested_c9d3a3a49-CJtkx3-S.woff2') format('woff2');
+  font-weight: 300 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anthropic Serif';
+  src: url('assets/nested_c66fc489e-2VcCjn5t.woff2') format('woff2');
+  font-weight: 300 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anthropic Serif';
+  src: url('assets/nested_cc410af59-Dcb-9NUS.woff2') format('woff2');
+  font-weight: 300 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anthropic Mono';
+  src: url('assets/nested_c5dbe0935-CQcSkHaI.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anthropic Mono';
+  src: url('assets/nested_c2f08283e-CZqJpOsc.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
 /* Claude-inspired global tokens shared by all legacy pages.
    Warm "Klimt" palette, theme-aware: :root = light, [data-theme=dark] = dark.
    All surface/text/accent colors derive from the --claude-* tokens, so any
@@ -18,27 +67,32 @@
 }
 
 :root {
-  /* Light (default) — warm cream surfaces, ink text, muted terracotta accent */
-  --claude-bg: #f6f2ec;
-  --claude-bg-2: #efe9df;
-  --claude-panel: #fdfbf7;
-  --claude-panel-soft: #f1ece3;
-  --claude-line: #e5ddcf;
-  --claude-text: #423d35;
-  --claude-text-strong: #26221c;
-  --claude-muted: #8c8478;
-  --claude-accent: #c2643f;
-  --claude-accent-strong: #ad5634;
-  --claude-danger: #c2533f;
-  --claude-ok: #6f8f5a;
+  /* Fonts Stack */
+  --font-sans: "Anthropic Sans", system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-serif: "Anthropic Serif", Georgia, "Times New Roman", serif;
+  --font-mono: "Anthropic Mono", ui-monospace, monospace;
+
+  /* Light (default) — exact official Claude colors */
+  --claude-bg: #f9f9f7;
+  --claude-bg-2: #f6f6f4;
+  --claude-panel: #fcfcfb;
+  --claude-panel-soft: #f0efec;
+  --claude-line: #e7e6e1;
+  --claude-text: #383835;
+  --claude-text-strong: #0b0b0b;
+  --claude-muted: #7b7974;
+  --claude-accent: #d97757;
+  --claude-accent-strong: #c6613f;
+  --claude-danger: #e2583e;
+  --claude-ok: #1a8633;
 
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 18px;
   --radius-pill: 999px;
-  --shadow-sm: 0 1px 2px rgba(38, 34, 28, 0.05);
-  --shadow: 0 6px 20px rgba(38, 34, 28, 0.08);
-  --shadow-hover: 0 12px 30px rgba(38, 34, 28, 0.12);
+  --shadow-sm: 0 1px 2px rgba(11, 11, 11, 0.05);
+  --shadow: 0 6px 20px rgba(11, 11, 11, 0.06);
+  --shadow-hover: 0 12px 30px rgba(11, 11, 11, 0.09);
 
   --primary-color: var(--claude-accent);
   --primary-light: var(--claude-accent-strong);
@@ -69,19 +123,25 @@ html[data-theme="light"] {
 
 html[data-theme="dark"] {
   color-scheme: dark;
-  /* Dark — warm charcoal surfaces (NOT navy), warm off-white text */
-  --claude-bg: #1c1b19;
-  --claude-bg-2: #151412;
-  --claude-panel: #262320;
-  --claude-panel-soft: #201e1b;
-  --claude-line: #38342e;
-  --claude-text: #d9d3c8;
-  --claude-text-strong: #efe9dd;
-  --claude-muted: #9c9488;
-  --claude-accent: #d9805c;
-  --claude-accent-strong: #e6936f;
-  --claude-danger: #e88a7c;
-  --claude-ok: #9cc98b;
+  
+  /* Fonts Stack */
+  --font-sans: "Anthropic Sans", system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-serif: "Anthropic Serif", Georgia, "Times New Roman", serif;
+  --font-mono: "Anthropic Mono", ui-monospace, monospace;
+
+  /* Dark — exact official Claude dark colors */
+  --claude-bg: #0d0d0d; /* Legacy baseline fallback match: --claude-bg: #1c1b19 */
+  --claude-bg-2: #0b0b0b;
+  --claude-panel: #151515;
+  --claude-panel-soft: #1e1e1d;
+  --claude-line: #2c2c2a;
+  --claude-text: #e7e6e1;
+  --claude-text-strong: #fcfcfb;
+  --claude-muted: #97958d;
+  --claude-accent: #d97757;
+  --claude-accent-strong: #c6613f;
+  --claude-danger: #de295f;
+  --claude-ok: #1a8633;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
@@ -403,6 +463,7 @@ body {
   background: var(--ui-page-bg) !important;
   background-color: var(--ui-page-bg) !important;
   background-image: none !important;
+  font-family: var(--font-sans) !important;
 }
 
 body::before {
@@ -414,6 +475,7 @@ html[data-theme="dark"] body {
   background: var(--ui-page-bg-dark) !important;
   background-color: var(--ui-page-bg-dark) !important;
   background-image: none !important;
+  font-family: var(--font-sans) !important;
 }
 
 .ui-bg-image-layer,

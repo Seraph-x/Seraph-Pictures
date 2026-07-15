@@ -9,7 +9,7 @@ body {
 
 body {
   color: var(--claude-text) !important;
-  font-family: "Inter", "SF Pro Text", "Segoe UI", "PingFang SC", "Noto Sans SC", sans-serif !important;
+  font-family: var(--font-sans) !important;
 }
 
 a {
@@ -57,7 +57,7 @@ a {
 
 .header-title,
 .login-card .title {
-  font-family: Georgia, "Times New Roman", "Noto Serif SC", serif !important;
+  font-family: var(--font-serif) !important;
   font-weight: 400 !important;
   letter-spacing: 0 !important;
 }
@@ -156,11 +156,11 @@ textarea:focus,
 
 .login-card .logo i::before {
   content: "*";
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
 }
 
 .login-card .logo i {
-  font-family: Georgia, "Times New Roman", serif !important;
+  font-family: var(--font-serif) !important;
 }
 
 .login-card .title::before {

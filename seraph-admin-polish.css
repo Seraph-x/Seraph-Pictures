@@ -233,3 +233,466 @@ body.admin-page .header-content .actions.admin-header-tools {
     grid-template-columns: 1fr;
   }
 }
+
+/* --- Premium Navigation Bar Visual Polish --- */
+
+/* Premium Glassmorphism for Admin Header (Preserving system transparency/blur) */
+.admin-page .header-content {
+  background: var(--card-bg, rgba(253, 251, 247, 0.92)) !important;
+  backdrop-filter: var(--ui-card-backdrop-filter, blur(10px)) !important;
+  -webkit-backdrop-filter: var(--ui-card-backdrop-filter, blur(10px)) !important;
+  border: 1px solid var(--surface-border, rgba(255, 255, 255, 0.45)) !important;
+  box-shadow: var(--shadow, 0 8px 32px 0 rgba(38, 34, 28, 0.08)) !important;
+  transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease !important;
+}
+
+html[data-theme="dark"] .admin-page .header-content {
+  background: var(--card-bg, rgba(38, 35, 32, 0.92)) !important;
+  backdrop-filter: var(--ui-card-backdrop-filter, blur(10px)) !important;
+  -webkit-backdrop-filter: var(--ui-card-backdrop-filter, blur(10px)) !important;
+  border: 1px solid var(--surface-border, rgba(255, 255, 255, 0.08)) !important;
+  box-shadow: var(--shadow, 0 8px 32px 0 rgba(0, 0, 0, 0.35)) !important;
+}
+
+.admin-page .header-content:hover {
+  box-shadow: var(--shadow-hover, 0 12px 40px 0 rgba(38, 34, 28, 0.12)) !important;
+}
+
+html[data-theme="dark"] .admin-page .header-content:hover {
+  box-shadow: var(--shadow-hover, 0 12px 40px 0 rgba(0, 0, 0, 0.45)) !important;
+}
+
+/* Micro-interactions & animations for navigation buttons/icons */
+.admin-header-tools .el-dropdown-link,
+.admin-header-system > i,
+.admin-header-system > .el-dropdown > .el-dropdown-link,
+.admin-header-system .admin-theme-btn {
+  border-radius: 50% !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  cursor: pointer;
+  background: transparent;
+  color: var(--claude-text) !important;
+}
+
+.admin-header-tools .el-dropdown-link:hover,
+.admin-header-system > i:hover,
+.admin-header-system > .el-dropdown > .el-dropdown-link:hover,
+.admin-header-system .admin-theme-btn:hover {
+  transform: scale(1.1);
+  background: rgba(194, 100, 63, 0.12) !important;
+  color: var(--claude-accent) !important;
+}
+
+html[data-theme="dark"] .admin-header-tools .el-dropdown-link:hover,
+html[data-theme="dark"] .admin-header-system > i:hover,
+html[data-theme="dark"] .admin-header-system > .el-dropdown > .el-dropdown-link:hover,
+html[data-theme="dark"] .admin-theme-btn:hover {
+  background: rgba(217, 128, 92, 0.18) !important;
+  color: var(--claude-accent) !important;
+}
+
+.admin-header-system > i:active,
+.admin-header-system > .el-dropdown > .el-dropdown-link:active,
+.admin-header-tools .el-dropdown-link:active {
+  transform: scale(0.95);
+}
+
+/* Segmented Pill Styling on Desktop */
+@media (min-width: 901px) {
+  .admin-header-tools {
+    background: rgba(255, 255, 255, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    padding: 4px 10px !important;
+    border-radius: 30px !important;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+    gap: 4px !important;
+  }
+
+  html[data-theme="dark"] .admin-header-tools {
+    background: rgba(0, 0, 0, 0.15) !important;
+    border: 1px solid rgba(255, 255, 255, 0.04) !important;
+  }
+
+  .admin-header-system {
+    background: rgba(255, 255, 255, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    padding: 4px 10px !important;
+    border-radius: 30px !important;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+    gap: 6px !important;
+  }
+
+  html[data-theme="dark"] .admin-header-system {
+    background: rgba(0, 0, 0, 0.15) !important;
+    border: 1px solid rgba(255, 255, 255, 0.04) !important;
+  }
+}
+
+/* Search input polish */
+.admin-header-primary .search-card .el-input__inner {
+  border-radius: 20px !important;
+  background: rgba(255, 255, 255, 0.4) !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+html[data-theme="dark"] .admin-header-primary .search-card .el-input__inner {
+  background: rgba(0, 0, 0, 0.2) !important;
+  border: 1px solid rgba(255, 255, 255, 0.04) !important;
+  color: var(--claude-text-strong) !important;
+}
+
+.admin-header-primary .search-card .el-input__inner:focus {
+  background: rgba(255, 255, 255, 0.8) !important;
+  border-color: var(--claude-accent) !important;
+  box-shadow: 0 0 0 3px rgba(194, 100, 63, 0.18) !important;
+}
+
+html[data-theme="dark"] .admin-header-primary .search-card .el-input__inner:focus {
+  background: rgba(0, 0, 0, 0.4) !important;
+  border-color: var(--claude-accent) !important;
+  box-shadow: 0 0 0 3px rgba(217, 128, 92, 0.25) !important;
+}
+
+/* Profile select styling */
+.admin-profile-filter {
+  border-radius: 20px !important;
+  padding: 5px 24px 5px 12px !important;
+  background: rgba(255, 255, 255, 0.5) !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  font-size: 13px !important;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.25s ease !important;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23423d35' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 8px center !important;
+  background-size: 14px !important;
+}
+
+html[data-theme="dark"] .admin-profile-filter {
+  background: rgba(0, 0, 0, 0.2) !important;
+  border-color: rgba(255, 255, 255, 0.04) !important;
+  color: var(--claude-text-strong) !important;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23d9d3c8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>") !important;
+}
+
+.admin-profile-filter:hover {
+  border-color: rgba(194, 100, 63, 0.3) !important;
+  background-color: rgba(255, 255, 255, 0.7) !important;
+}
+
+html[data-theme="dark"] .admin-profile-filter:hover {
+  border-color: rgba(217, 128, 92, 0.3) !important;
+  background-color: rgba(0, 0, 0, 0.3) !important;
+}
+
+/* System Settings Dropdown trigger icon styling */
+.system-settings-trigger {
+  cursor: pointer;
+  display: inline-grid;
+  place-items: center;
+}
+
+/* --- Responsive Layout Polish & Bugfixes --- */
+
+/* Override layout collapse between 901px and 1180px */
+@media (min-width: 901px) and (max-width: 1180px) {
+  .admin-page .header-content {
+    grid-template-columns: minmax(280px, 0.85fr) minmax(460px, 1.45fr) minmax(140px, 0.45fr) !important;
+    gap: 8px !important;
+    height: auto !important;
+    min-height: 64px !important;
+  }
+}
+
+/* Responsive override to prevent overflow on mobile stacking */
+@media (max-width: 900px) {
+  .admin-page .header-content {
+    height: auto !important;
+    min-height: 56px !important;
+    padding: 12px 14px !important;
+    gap: 12px !important;
+  }
+
+  .admin-header-primary,
+  .admin-header-tools,
+  .admin-header-system {
+    width: 100% !important;
+    justify-content: center !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .admin-header-tools {
+    border-top: 1px dashed var(--claude-line);
+    border-bottom: 1px dashed var(--claude-line);
+    padding: 8px 0 !important;
+  }
+}
+
+/* --- Navigation Bar Icon Beautification & Colors --- */
+
+/* General base transitions for dropdown links and buttons */
+.admin-header-tools > .el-dropdown > .el-dropdown-link i,
+.admin-header-system > .el-dropdown > .el-dropdown-link i,
+.admin-header-system > i,
+.admin-header-system .admin-theme-btn i {
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), color 0.22s ease !important;
+}
+
+/* 1. File Type Icon (Amber/Gold) */
+.admin-header-tools > .el-dropdown:nth-of-type(1) > .el-dropdown-link i {
+  color: #d97706 !important;
+}
+html[data-theme="dark"] .admin-header-tools > .el-dropdown:nth-of-type(1) > .el-dropdown-link i {
+  color: #fbbf24 !important;
+}
+.admin-header-tools > .el-dropdown:nth-of-type(1) > .el-dropdown-link:hover {
+  background: rgba(217, 119, 6, 0.12) !important;
+}
+
+/* 2. Storage Type Icon (Blue) */
+.admin-header-tools > .el-dropdown:nth-of-type(2) > .el-dropdown-link i {
+  color: #2563eb !important;
+}
+html[data-theme="dark"] .admin-header-tools > .el-dropdown:nth-of-type(2) > .el-dropdown-link i {
+  color: #60a5fa !important;
+}
+.admin-header-tools > .el-dropdown:nth-of-type(2) > .el-dropdown-link:hover {
+  background: rgba(37, 99, 235, 0.12) !important;
+}
+
+/* 3. Sort Icon (Emerald Green) */
+.admin-header-tools > .el-dropdown:nth-of-type(3) > .el-dropdown-link i {
+  color: #059669 !important;
+}
+html[data-theme="dark"] .admin-header-tools > .el-dropdown:nth-of-type(3) > .el-dropdown-link i {
+  color: #34d399 !important;
+}
+.admin-header-tools > .el-dropdown:nth-of-type(3) > .el-dropdown-link:hover {
+  background: rgba(5, 150, 105, 0.12) !important;
+}
+
+/* 4. Filter Icon (Purple) */
+.admin-header-tools > .el-dropdown:nth-of-type(4) > .el-dropdown-link i {
+  color: #7c3aed !important;
+}
+html[data-theme="dark"] .admin-header-tools > .el-dropdown:nth-of-type(4) > .el-dropdown-link i {
+  color: #a78bfa !important;
+}
+.admin-header-tools > .el-dropdown:nth-of-type(4) > .el-dropdown-link:hover {
+  background: rgba(124, 58, 237, 0.12) !important;
+}
+
+/* 5. View Mode Icon (Slate/Muted Gray) */
+.admin-header-tools > .el-dropdown:nth-of-type(5) > .el-dropdown-link i {
+  color: #4b5563 !important;
+}
+html[data-theme="dark"] .admin-header-tools > .el-dropdown:nth-of-type(5) > .el-dropdown-link i {
+  color: #9ca3af !important;
+}
+.admin-header-tools > .el-dropdown:nth-of-type(5) > .el-dropdown-link:hover {
+  background: rgba(75, 85, 99, 0.12) !important;
+}
+
+/* 6. Batch Operations Icon (Rose) */
+.admin-header-tools > .el-dropdown:nth-of-type(6) > .el-dropdown-link i {
+  color: #db2777 !important;
+}
+html[data-theme="dark"] .admin-header-tools > .el-dropdown:nth-of-type(6) > .el-dropdown-link i {
+  color: #f472b6 !important;
+}
+.admin-header-tools > .el-dropdown:nth-of-type(6) > .el-dropdown-link:hover {
+  background: rgba(219, 39, 119, 0.12) !important;
+}
+
+/* 7. Toolkit Icon (Teal/Cyan) */
+.admin-header-tools > .el-dropdown:nth-of-type(7) > .el-dropdown-link i {
+  color: #0891b2 !important;
+}
+html[data-theme="dark"] .admin-header-tools > .el-dropdown:nth-of-type(7) > .el-dropdown-link i {
+  color: #22d3ee !important;
+}
+.admin-header-tools > .el-dropdown:nth-of-type(7) > .el-dropdown-link:hover {
+  background: rgba(8, 145, 178, 0.12) !important;
+}
+
+/* 8. Settings Cog Icon (Slate) */
+.admin-header-system > .el-dropdown .system-settings-trigger i {
+  color: #57534e !important;
+}
+html[data-theme="dark"] .admin-header-system > .el-dropdown .system-settings-trigger i {
+  color: #a8a29e !important;
+}
+.admin-header-system > .el-dropdown .system-settings-trigger:hover {
+  background: rgba(120, 113, 108, 0.12) !important;
+}
+
+/* 9. Theme Toggle Icon (Sun/Moon - Terracotta/Gold) */
+.admin-header-system .admin-theme-btn i {
+  color: #ea580c !important;
+}
+html[data-theme="dark"] .admin-header-system .admin-theme-btn i {
+  color: #f59e0b !important;
+}
+.admin-header-system .admin-theme-btn:hover {
+  background: rgba(234, 88, 12, 0.12) !important;
+}
+
+/* 10. Logout Icon (Vibrant Red) */
+.admin-header-system > i.fa-sign-out-alt {
+  color: #dc2626 !important;
+}
+html[data-theme="dark"] .admin-header-system > i.fa-sign-out-alt {
+  color: #f87171 !important;
+}
+.admin-header-system > i.fa-sign-out-alt:hover {
+  background: rgba(220, 38, 38, 0.12) !important;
+}
+
+/* --- Folder Manager Directory Sidebar Beautification --- */
+
+/* 1. Sidebar Container */
+body.admin-page .folder-sidebar {
+  border-radius: var(--radius-lg) !important;
+  border: 1px solid var(--claude-line) !important;
+  background: var(--card-bg, var(--claude-panel)) !important;
+  box-shadow: var(--shadow) !important;
+}
+
+/* 2. Folder Stats Panel (Top total records header) */
+body.admin-page .folder-stats {
+  border-bottom: 1px solid var(--claude-line) !important;
+  color: var(--claude-muted) !important;
+  font-family: var(--font-sans) !important;
+}
+
+/* 3. Folder Manager Title Block */
+body.admin-page .folder-head {
+  border-bottom: 1px solid var(--claude-line) !important;
+  color: var(--claude-text-strong) !important;
+  padding: 10px 10px !important;
+  gap: 4px !important;
+}
+
+body.admin-page .folder-head-title {
+  font-family: var(--font-serif) !important;
+  font-weight: 500 !important;
+  color: var(--claude-text-strong) !important;
+  font-size: 15px !important; /* Elegant, compact title font size to prevent clipping */
+}
+
+body.admin-page .folder-head-title i {
+  color: var(--claude-accent) !important;
+  font-size: 15px !important;
+}
+
+/* 4. Vue circular Action Buttons in Folder Manager */
+body.admin-page .folder-head-actions {
+  gap: 3px !important;
+}
+
+body.admin-page .folder-head-actions .el-button {
+  background: var(--claude-panel-soft) !important;
+  border: 1px solid var(--claude-line) !important;
+  color: var(--claude-text) !important;
+  transition: all 0.2s ease !important;
+  width: 24px !important;
+  height: 24px !important;
+  font-size: 11px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+body.admin-page .folder-head-actions .el-button:hover {
+  background: var(--claude-accent) !important;
+  border-color: transparent !important;
+  color: #1f1f1d !important;
+  transform: translateY(-1px);
+}
+
+body.admin-page .folder-head-actions .el-button:active {
+  transform: translateY(0);
+}
+
+/* 5. Location Path */
+body.admin-page .folder-current {
+  color: var(--claude-muted) !important;
+  border-bottom: 1px dashed var(--claude-line) !important;
+}
+
+/* 6. Directory tree list and nodes */
+body.admin-page .folder-node {
+  color: var(--claude-text) !important;
+  font-family: var(--font-sans) !important;
+  font-weight: 500 !important;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.15s ease !important;
+}
+
+/* Folder node icon coloring */
+body.admin-page .folder-node-main i {
+  color: #d97706 !important; /* warm folder color */
+  transition: transform 0.2s ease !important;
+}
+html[data-theme="dark"] body.admin-page .folder-node-main i {
+  color: #fbbf24 !important;
+}
+
+/* Folder Node Hover State */
+body.admin-page .folder-node:hover {
+  background: rgba(217, 119, 87, 0.08) !important;
+  border-color: rgba(217, 119, 87, 0.2) !important;
+}
+html[data-theme="dark"] body.admin-page .folder-node:hover {
+  background: rgba(217, 119, 87, 0.12) !important;
+  border-color: rgba(217, 119, 87, 0.3) !important;
+}
+body.admin-page .folder-node:hover .folder-node-main i {
+  transform: scale(1.1) rotate(2deg);
+}
+
+/* Folder Node Active State */
+body.admin-page .folder-node.is-active {
+  background: rgba(217, 119, 87, 0.14) !important;
+  border-color: rgba(217, 119, 87, 0.3) !important;
+  color: var(--claude-accent-strong) !important;
+  font-weight: 600 !important;
+  border-left: 3px solid var(--claude-accent) !important;
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+html[data-theme="dark"] body.admin-page .folder-node.is-active {
+  background: rgba(217, 119, 87, 0.20) !important;
+  border-color: rgba(217, 119, 87, 0.4) !important;
+  color: var(--claude-text-strong) !important;
+}
+
+/* Folder count badge */
+body.admin-page .folder-node-count {
+  font-family: var(--font-mono) !important;
+  background: var(--claude-panel-soft) !important;
+  color: var(--claude-muted) !important;
+  border: 1px solid var(--claude-line) !important;
+  font-size: 11px !important;
+  padding: 1px 6px !important;
+  transition: all 0.2s ease !important;
+}
+
+body.admin-page .folder-node.is-active .folder-node-count {
+  background: var(--claude-accent) !important;
+  color: #1f1f1d !important;
+  border-color: transparent !important;
+}
+
+/* Breadcrumbs and Table Headers */
+body.admin-page .folder-crumb {
+  color: var(--claude-accent-strong) !important;
+}
+
+body.admin-page .list-view-card .el-table th {
+  color: var(--claude-text-strong) !important;
+}

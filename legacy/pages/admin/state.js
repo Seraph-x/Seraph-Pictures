@@ -176,7 +176,11 @@ computed: {
       isAllSelected() {
         return this.paginatedData.length > 0 && this.paginatedData.every(f => f.selected);
       },
-      sortIcon() { return `fas fa-sort-${this.sortOption === 'dateDesc' ? 'amount-down' : 'alpha-up'}`; },
+      sortIcon() {
+        return this.sortOption === 'dateDesc' ? 'fas fa-sort-numeric-down' :
+               this.sortOption === 'nameAsc' ? 'fas fa-sort-alpha-up' :
+               this.sortOption === 'sizeDesc' ? 'fas fa-sort-amount-down' : 'fas fa-sort';
+      },
       filterIcon() {
         return this.filterOption === 'all' ? 'fas fa-filter' :
         this.filterOption === 'favorites' ? 'fas fa-bookmark' :
@@ -192,17 +196,17 @@ computed: {
         this.fileType === 'document' ? 'fas fa-folder-open' : 'fas fa-th-large';
       },
       storageFilterIcon() {
-        return this.storageFilter === 'all' ? 'fas fa-database' :
+        return this.storageFilter === 'all' ? 'fas fa-boxes' :
         this.storageFilter === 'telegram' ? 'fab fa-telegram' :
         this.storageFilter === 'r2' ? 'fas fa-cloud' :
         this.storageFilter === 's3' ? 'fas fa-database' :
         this.storageFilter === 'discord' ? 'fab fa-discord' :
         this.storageFilter === 'huggingface' ? 'fas fa-robot' :
         this.storageFilter === 'webdav' ? 'fas fa-hard-drive' :
-        this.storageFilter === 'github' ? 'fab fa-github' : 'fas fa-database';
+        this.storageFilter === 'github' ? 'fab fa-github' : 'fas fa-boxes';
       },
       viewModeIcon() {
-        return this.viewMode === 'list' ? 'fas fa-list' : 'fas fa-th-large';
+        return this.viewMode === 'list' ? 'fas fa-list' : 'fas fa-th';
       },
       folderBreadcrumbs() {
         const parts = this.normalizeFolderPath(this.folderPath).split('/').filter(Boolean);
