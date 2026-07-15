@@ -36,15 +36,30 @@ function memory(rememberedId = '') {
 function createController(options = {}) {
   assert.ok(profilesModule, 'WebDAV profile controller module should exist');
   const states = [];
+  const storage = memory(options.rememberedId);
   const api = {
     listProfiles: async () => options.profiles || [],
-    testProfile: async () => ({ connected: true }),
+    testProfile: options.testProfile || (async () => ({ connected: true })),
   };
   if (options.listError) api.listProfiles = async () => { throw options.listError; };
   const controller = profilesModule.createController({
-    api, selection, storage: memory(options.rememberedId), onChange: (state) => states.push(state),
+    api, selection, storage, onChange: (state) => states.push(state),
   });
-  return { controller, states };
+  return { controller, states, storage };
+}
+
+function deferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((onResolve, onReject) => {
+    resolve = onResolve;
+    reject = onReject;
+  });
+  return { promise, resolve, reject };
+}
+
+async function settle() {
+  await new Promise((resolve) => setImmediate(resolve));
 }
 
 describe('legacy WebDAV profile controller selection', function () {
@@ -115,5 +130,82 @@ describe('legacy WebDAV profile controller snapshot', function () {
     const { controller } = createController({ profiles: [] });
     await controller.load();
     assert.throws(() => controller.snapshot(''), /STORAGE_SELECTION_REQUIRED/);
+  });
+});
+
+describe('legacy WebDAV profile controller connection lifecycle', function () {
+  it('starts a connection check for the initial selection', async function () {
+    const tested = [];
+    const { controller } = createController({
+      profiles: [DEFAULT_PROFILE],
+      testProfile: async (id) => { tested.push(id); return { connected: true }; },
+    });
+    await controller.load();
+    await settle();
+    assert.deepEqual(tested, [DEFAULT_PROFILE.id]);
+    assert.equal(controller.getState().connection.profileId, DEFAULT_PROFILE.id);
+    assert.equal(controller.getState().connection.result.connected, true);
+  });
+
+  it('remembers a new selection and checks its connection', async function () {
+    const tested = [];
+    const { controller, storage } = createController({
+      profiles: [DEFAULT_PROFILE, SECONDARY_PROFILE],
+      testProfile: async (id) => { tested.push(id); return { connected: true }; },
+    });
+    await controller.load();
+    await controller.select(SECONDARY_PROFILE.id);
+    assert.equal(controller.getState().selectedId, SECONDARY_PROFILE.id);
+    assert.equal(JSON.parse(storage.value()).byType.webdav, SECONDARY_PROFILE.id);
+    assert.deepEqual(tested, [DEFAULT_PROFILE.id, SECONDARY_PROFILE.id]);
+  });
+
+  it('refreshes only the current selection', async function () {
+    const tested = [];
+    const { controller } = createController({
+      profiles: [DEFAULT_PROFILE, SECONDARY_PROFILE],
+      testProfile: async (id) => { tested.push(id); return { connected: true }; },
+    });
+    await controller.load();
+    await controller.select(SECONDARY_PROFILE.id);
+    tested.length = 0;
+    await controller.refresh();
+    assert.deepEqual(tested, [SECONDARY_PROFILE.id]);
+  });
+
+  it('rejects an unknown connection selection', async function () {
+    const { controller } = createController({ profiles: [DEFAULT_PROFILE] });
+    await controller.load();
+    await assert.rejects(() => controller.select(DISABLED_PROFILE.id), /STORAGE_NOT_WRITABLE/);
+    assert.equal(controller.getState().selectedId, DEFAULT_PROFILE.id);
+  });
+
+  it('keeps uploads available when a connection check fails', async function () {
+    const { controller } = createController({
+      profiles: [DEFAULT_PROFILE],
+      testProfile: async () => { throw new Error('WEBDAV_UNREACHABLE'); },
+    });
+    await controller.load();
+    await settle();
+    assert.equal(controller.getState().connection.phase, 'error');
+    assert.equal(controller.getState().connection.error, 'WEBDAV_UNREACHABLE');
+    assert.equal(controller.getState().canUpload, true);
+  });
+
+  it('prevents a stale connection result from replacing the new selection', async function () {
+    const first = deferred();
+    const { controller } = createController({
+      profiles: [DEFAULT_PROFILE, SECONDARY_PROFILE],
+      testProfile: (id) => id === DEFAULT_PROFILE.id
+        ? first.promise
+        : Promise.resolve({ connected: true, message: 'secondary' }),
+    });
+    await controller.load();
+    await controller.select(SECONDARY_PROFILE.id);
+    first.resolve({ connected: false, message: 'stale' });
+    await first.promise;
+    await settle();
+    assert.equal(controller.getState().connection.profileId, SECONDARY_PROFILE.id);
+    assert.equal(controller.getState().connection.result.message, 'secondary');
   });
 });
