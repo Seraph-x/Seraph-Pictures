@@ -61,6 +61,7 @@ snapBatchToolbarToBottom() {
         this.batchToolbarPosition.top = window.innerHeight - height - bottomOffset;
       },
 handleGlobalKeydown(event) {
+        if (this.folderMoveDialogVisible) return;
         if (this.selectedFiles.length === 0) return;
         const target = event.target;
         const inputTags = ['INPUT', 'TEXTAREA'];
