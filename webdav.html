@@ -767,6 +767,7 @@
     <link rel="stylesheet" href="/mobile-refactor.css" />
   <link rel="stylesheet" href="/claude-theme.css">
   <link rel="stylesheet" href="/claude-layout.css">
+  <link rel="stylesheet" href="/legacy/pages/webdav/profile.css">
   </head>
   <body>
     <main class="page">
@@ -805,6 +806,11 @@
               <i class="fas fa-folder-tree"></i>
               <span id="folderPathPreview">当前目录：根目录</span>
             </div>
+          </div>
+          <div class="webdav-profile-target" id="webdavProfileTarget">
+            <label for="webdavProfileSelect" data-i18n="webdav.targetLabel">WebDAV 目标</label>
+            <select id="webdavProfileSelect" disabled></select>
+            <p class="webdav-profile-notice" id="webdavProfileNotice" role="status"></p>
           </div>
           <div class="toolbar-right">
             <button id="copyAllBtn" type="button" data-i18n="webdav.copyAll">复制全部链接</button>
@@ -894,6 +900,10 @@
       </section>
     </main>
 
+    <script src="/legacy/storage/api.js"></script>
+    <script src="/legacy/pages/upload/profile-mixin.js"></script>
+    <script src="/legacy/pages/webdav/profile-controller.js"></script>
+    <script src="/legacy/pages/webdav/profile-view.js"></script>
     <script>
       (function () {
         "use strict";
@@ -914,6 +924,15 @@
               "webdav.statusSub": "用于确认 WebDAV 配置和连接情况。",
               "webdav.refreshStatus": "刷新状态",
               "webdav.waiting": "等待检测",
+              "webdav.targetLabel": "WebDAV 目标",
+              "webdav.defaultSuffix": "（默认）",
+              "webdav.loadingProfiles": "正在加载 WebDAV 配置...",
+              "webdav.noWebdavProfiles": "没有可用的 WebDAV 配置",
+              "webdav.profileLoadFailed": "WebDAV 配置加载失败：{detail}",
+              "webdav.selectionReset": "原目标不可用，已切换到默认配置",
+              "webdav.checkingProfile": "正在检测 {name}...",
+              "webdav.connectedProfile": "{name} 已连接，可以上传。",
+              "webdav.unavailableProfile": "{name} 当前不可用：{detail}",
               "webdav.uploadDir": "上传目录",
               "webdav.uploadDirSub": "可填写多级目录，例如：项目A/一月。",
               "webdav.dirPathLabel": "目录路径",
@@ -985,6 +1004,15 @@
               "webdav.statusSub": "Confirm WebDAV configuration and connection.",
               "webdav.refreshStatus": "Refresh status",
               "webdav.waiting": "Awaiting check",
+              "webdav.targetLabel": "WebDAV target",
+              "webdav.defaultSuffix": " (default)",
+              "webdav.loadingProfiles": "Loading WebDAV profiles...",
+              "webdav.noWebdavProfiles": "No available WebDAV profiles",
+              "webdav.profileLoadFailed": "Failed to load WebDAV profiles: {detail}",
+              "webdav.selectionReset": "The previous target is unavailable; the default is selected",
+              "webdav.checkingProfile": "Checking {name}...",
+              "webdav.connectedProfile": "{name} is connected and ready for uploads.",
+              "webdav.unavailableProfile": "{name} is unavailable: {detail}",
               "webdav.uploadDir": "Upload directory",
               "webdav.uploadDirSub": "You can enter nested directories, e.g. ProjectA/January.",
               "webdav.dirPathLabel": "Directory path",
@@ -1072,6 +1100,8 @@
         var refreshStatusBtn = document.getElementById("refreshStatusBtn");
         var clearResultBtn = document.getElementById("clearResultBtn");
         var copyAllBtn = document.getElementById("copyAllBtn");
+        var profileController = null;
+        var profileView = null;
         var resultLinks = [];
         var fallbackSelectedFiles = [];
 
@@ -1546,6 +1576,9 @@
             updateFolderPreview();
             updateFilePickerState(getSelectedFiles());
             renderResultState();
+            if (profileView && profileController) {
+              profileView.render(profileController.getState());
+            }
           });
         }
       })();
