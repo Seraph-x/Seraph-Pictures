@@ -102,7 +102,9 @@ describe('frontend Pages entrypoint', function () {
   it('uses root API paths from the legacy WebDAV page copy', function () {
     const webdavHtml = readDistFile(legacyWebdavPath);
 
-    assert.match(webdavHtml, /request\("\/api\/status"\)/);
+    assert.match(webdavHtml, /\/legacy\/storage\/api\.js/);
+    assert.match(webdavHtml, /\/legacy\/pages\/webdav\/profile-controller\.js/);
+    assert.doesNotMatch(webdavHtml, /request\("\/api\/status"\)/);
     assert.match(webdavHtml, /request\("\/upload"/);
     assert.match(webdavHtml, /request\("\/api\/upload-from-url"/);
     assert.match(webdavHtml, /window\.location\.href = "\/login\?redirect="/);

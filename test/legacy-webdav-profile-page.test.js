@@ -88,6 +88,38 @@ describe('legacy WebDAV profile selector page contract', function () {
     assert.match(css, /\.webdav-profile-target\s*\{[\s\S]*flex:\s*1/);
     assert.match(css, /@media[^\{]*max-width:[^\{]*\{[\s\S]*\.webdav-profile-target\s*\{[\s\S]*flex-basis:\s*100%/);
   });
+
+  it('mounts the profile API after authentication and refreshes the selected profile', function () {
+    assert.doesNotMatch(HTML, /request\("\/api\/status"\)/);
+    const auth = HTML.indexOf('var authenticated = await ensureAuth()');
+    const initialize = HTML.indexOf('await initializeProfileSelector()', auth);
+    assert.ok(auth >= 0 && initialize > auth);
+    assert.match(HTML, /LegacyStorageApi\.createStorageApi\(\)/);
+    assert.match(HTML, /LegacyWebdavProfiles\.createController/);
+    assert.match(HTML, /LegacyWebdavProfileView\.createView/);
+    assert.match(HTML, /profileController\.load\(\)/);
+    assert.match(HTML, /onRefresh:\s*function \(\) \{\s*return profileController\.refresh\(\)/);
+  });
+
+  it('separates operation notices from the connection detail card', function () {
+    assert.match(HTML, /function setOperationStatus\(message, ok\)/);
+    const operation = HTML.match(/function setOperationStatus\(message, ok\) \{([\s\S]*?)\n\s*\}/)?.[1] || '';
+    assert.match(operation, /statusText\.textContent = message/);
+    assert.doesNotMatch(operation, /statusDetailText/);
+  });
+
+  it('snapshots one exact target before a file batch and reuses upload helpers', function () {
+    const snapshot = HTML.indexOf('var target = profileController.snapshot(folderPath)');
+    const loop = HTML.indexOf('for (var i = 0; i < files.length; i += 1)', snapshot);
+    assert.ok(snapshot >= 0 && snapshot < loop);
+    assert.match(HTML, /LegacyUploadProfiles\.appendUploadTarget\(form, target\)/);
+    assert.match(HTML, /LegacyUploadProfiles\.buildUrlUploadPayload\(\{\s*url: sourceUrl, target: target\s*\}\)/);
+  });
+
+  it('keeps both upload actions disabled until profiles finish loading', function () {
+    assert.match(HTML, /id="uploadFilesBtn"[^>]*disabled/);
+    assert.match(HTML, /id="uploadUrlBtn"[^>]*disabled/);
+  });
 });
 
 describe('legacy WebDAV profile selector view', function () {

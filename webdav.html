@@ -863,7 +863,7 @@
               </div>
               <span id="fileCountBadge" class="file-count-badge">0 个</span>
             </div>
-            <button id="uploadFilesBtn" type="button" class="btn-primary" data-i18n="webdav.startUpload">开始上传</button>
+            <button id="uploadFilesBtn" type="button" class="btn-primary" data-i18n="webdav.startUpload" disabled>开始上传</button>
           </div>
           <div id="fileQueueWrap" class="file-queue-wrap" style="display:none;">
             <div class="file-queue-head">
@@ -883,7 +883,7 @@
           </div>
           <div class="row">
             <input id="urlInput" type="text" placeholder="https://example.com/file.zip" />
-            <button id="uploadUrlBtn" type="button" class="btn-primary" data-i18n="webdav.uploadUrlBtn">上传 URL</button>
+            <button id="uploadUrlBtn" type="button" class="btn-primary" data-i18n="webdav.uploadUrlBtn" disabled>上传 URL</button>
           </div>
         </article>
 
@@ -1324,43 +1324,53 @@
           return data;
         }
 
-        function setStatus(message, ok) {
+        function setOperationStatus(message, ok) {
           statusPill.classList.remove("ok", "bad");
           if (ok === true) statusPill.classList.add("ok");
           if (ok === false) statusPill.classList.add("bad");
           statusText.textContent = message;
-          statusDetailText.textContent = message;
         }
 
-        async function checkStatus() {
-          setStatus(t("webdav.checking"), null);
-          var data = await request("/api/status");
-          var webdav = data.webdav || {};
-          var ok = Boolean(webdav.connected && webdav.enabled);
-          if (ok) {
-            setStatus(t("webdav.connected"), true);
-          } else {
-            var detail = webdav.message || t("webdav.notConfigured");
-            setStatus(t("webdav.unavailable", { detail: detail }), false);
-          }
+        async function initializeProfileSelector() {
+          var api = LegacyStorageApi.createStorageApi();
+          profileView = LegacyWebdavProfileView.createView({
+            elements: {
+              select: document.getElementById("webdavProfileSelect"),
+              notice: document.getElementById("webdavProfileNotice"),
+              connection: statusDetailText,
+              fileButton: uploadFilesBtn,
+              urlButton: uploadUrlBtn,
+              refreshButton: refreshStatusBtn,
+            },
+            t: t,
+          });
+          profileController = LegacyWebdavProfiles.createController({
+            api: api, selection: LegacyUploadProfiles,
+            storage: localStorage, onChange: profileView.render.bind(profileView),
+          });
+          profileView.bind({
+            onSelect: function (id) { return profileController.select(id); },
+            onRefresh: function () { return profileController.refresh(); },
+          });
+          await profileController.load();
         }
 
         async function uploadFiles() {
           var files = getSelectedFiles();
           if (!files.length) {
-            setStatus(t("webdav.pickFirst"), false);
+            setOperationStatus(t("webdav.pickFirst"), false);
             return;
           }
 
-          uploadFilesBtn.disabled = true;
+          profileView.setUploadBusy(true);
           try {
             var folderPath = normalizeFolderPath(folderPathInput.value);
+            var target = profileController.snapshot(folderPath);
             for (var i = 0; i < files.length; i += 1) {
-              setStatus(t("webdav.uploadingNth", { i: i + 1, total: files.length }), null);
+              setOperationStatus(t("webdav.uploadingNth", { i: i + 1, total: files.length }), null);
               var form = new FormData();
               form.append("file", files[i]);
-              form.append("storageMode", "webdav");
-              form.append("folderPath", folderPath);
+              LegacyUploadProfiles.appendUploadTarget(form, target);
               var payload = await request("/upload", { method: "POST", body: form });
               var first = Array.isArray(payload) ? payload[0] : payload;
               var src = first && first.src ? String(first.src) : "";
@@ -1371,31 +1381,30 @@
               }
             }
             clearSelectedFiles();
-            setStatus(t("webdav.allUploaded"), true);
+            setOperationStatus(t("webdav.allUploaded"), true);
           } finally {
-            uploadFilesBtn.disabled = false;
+            profileView.setUploadBusy(false);
           }
         }
 
         async function uploadFromUrl() {
           var sourceUrl = String(urlInput.value || "").trim();
           if (!sourceUrl) {
-            setStatus(t("webdav.enterUrl"), false);
+            setOperationStatus(t("webdav.enterUrl"), false);
             return;
           }
 
-          uploadUrlBtn.disabled = true;
+          profileView.setUploadBusy(true);
           try {
             var folderPath = normalizeFolderPath(folderPathInput.value);
-            setStatus(t("webdav.fetchingUrl"), null);
+            var target = profileController.snapshot(folderPath);
+            setOperationStatus(t("webdav.fetchingUrl"), null);
             var payload = await request("/api/upload-from-url", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                url: sourceUrl,
-                storageMode: "webdav",
-                folderPath: folderPath,
-              }),
+              body: JSON.stringify(LegacyUploadProfiles.buildUrlUploadPayload({
+                url: sourceUrl, target: target
+              })),
             });
             var src = payload && (payload.src || payload.url || (payload.file && payload.file.src));
             if (src) {
@@ -1403,9 +1412,9 @@
             } else {
               pushResult(t("webdav.urlUploadDone"), "ok");
             }
-            setStatus(t("webdav.urlUploadDone"), true);
+            setOperationStatus(t("webdav.urlUploadDone"), true);
           } finally {
-            uploadUrlBtn.disabled = false;
+            profileView.setUploadBusy(false);
           }
         }
 
@@ -1422,7 +1431,7 @@
         function onError(prefix, error) {
           var message = t("webdav.errorWithPrefix", { prefix: prefix, message: (error && error.message) || t("webdav.unknownError") });
           pushResult(message, "error");
-          setStatus(message, false);
+          setOperationStatus(message, false);
         }
 
         folderPathInput.addEventListener("input", updateFolderPreview);
@@ -1430,7 +1439,7 @@
         clearQueueBtn.addEventListener("click", function (event) {
           event.preventDefault();
           clearSelectedFiles();
-          setStatus(t("webdav.queueCleared"), null);
+          setOperationStatus(t("webdav.queueCleared"), null);
         });
 
         chooseFileBtn.addEventListener("click", function (event) {
@@ -1474,7 +1483,7 @@
           var dropped = event.dataTransfer ? ensureArray(event.dataTransfer.files) : [];
           if (!dropped.length) return;
           syncFilesFromDrop(dropped);
-          setStatus(t("webdav.droppedFiles", { n: dropped.length }), null);
+          setOperationStatus(t("webdav.droppedFiles", { n: dropped.length }), null);
         });
 
         fileInput.addEventListener("change", function () {
@@ -1482,16 +1491,10 @@
           var files = getSelectedFiles();
           updateFilePickerState(files);
           if (!files.length) {
-            setStatus(t("webdav.pickToUpload"), null);
+            setOperationStatus(t("webdav.pickToUpload"), null);
             return;
           }
-          setStatus(t("webdav.selectedToUpload", { n: files.length }), null);
-        });
-
-        refreshStatusBtn.addEventListener("click", function () {
-          checkStatus().catch(function (error) {
-            setStatus(error.message || t("webdav.statusCheckFailed"), false);
-          });
+          setOperationStatus(t("webdav.selectedToUpload", { n: files.length }), null);
         });
 
         uploadFilesBtn.addEventListener("click", function () {
@@ -1517,23 +1520,23 @@
           resultList.innerHTML = "";
           resultLinks = [];
           renderResultState();
-          setStatus(t("webdav.recordsCleared"), null);
+          setOperationStatus(t("webdav.recordsCleared"), null);
         });
 
         copyAllBtn.addEventListener("click", function () {
           var links = resultLinks.filter(Boolean);
           if (!links.length) {
-            setStatus(t("webdav.noLinksToCopy"), false);
+            setOperationStatus(t("webdav.noLinksToCopy"), false);
             return;
           }
           var text = links.join("\n");
           if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(text)
               .then(function () {
-                setStatus(t("webdav.copiedLinks", { n: links.length }), true);
+                setOperationStatus(t("webdav.copiedLinks", { n: links.length }), true);
               })
               .catch(function (error) {
-                setStatus(error.message || t("webdav.copyFailed"), false);
+                setOperationStatus(error.message || t("webdav.copyFailed"), false);
               });
             return;
           }
@@ -1548,7 +1551,7 @@
             copied = false;
           }
           textarea.remove();
-          setStatus(copied ? t("webdav.copiedLinks", { n: links.length }) : t("webdav.copyFailed"), copied);
+          setOperationStatus(copied ? t("webdav.copiedLinks", { n: links.length }) : t("webdav.copyFailed"), copied);
         });
 
         (async function init() {
@@ -1565,9 +1568,10 @@
 
           var authenticated = await ensureAuth();
           if (!authenticated) return;
-          await checkStatus();
+          await initializeProfileSelector();
+          setOperationStatus(t("webdav.pickToUpload"), null);
         })().catch(function (error) {
-          setStatus(error.message || t("webdav.initFailed"), false);
+          setOperationStatus(error.message || t("webdav.initFailed"), false);
         });
 
         if (window.I18n) {
