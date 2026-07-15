@@ -36,9 +36,9 @@ function memory(rememberedId = '') {
 function createController(options = {}) {
   assert.ok(profilesModule, 'WebDAV profile controller module should exist');
   const states = [];
-  const storage = memory(options.rememberedId);
+  const storage = options.storage || memory(options.rememberedId);
   const api = {
-    listProfiles: async () => options.profiles || [],
+    listProfiles: options.listProfiles || (async () => options.profiles || []),
     testProfile: options.testProfile || (async () => ({ connected: true })),
   };
   if (options.listError) api.listProfiles = async () => { throw options.listError; };
@@ -97,6 +97,18 @@ describe('legacy WebDAV profile controller selection', function () {
     assert.equal(controller.getState().notice, 'STORAGE_PROFILE_SELECTION_RESET');
   });
 
+  it('persists an invalid remembered fallback so the notice only appears once', async function () {
+    const storage = memory(DISABLED_PROFILE.id);
+    const first = createController({ profiles: [DEFAULT_PROFILE], storage });
+    await first.controller.load();
+    assert.equal(first.controller.getState().notice, 'STORAGE_PROFILE_SELECTION_RESET');
+    assert.equal(JSON.parse(storage.value()).byType.webdav, DEFAULT_PROFILE.id);
+
+    const second = createController({ profiles: [DEFAULT_PROFILE], storage });
+    await second.controller.load();
+    assert.equal(second.controller.getState().notice, '');
+  });
+
   it('publishes an empty selection when no enabled WebDAV exists', async function () {
     const { controller } = createController({ profiles: [OTHER_PROFILE, DISABLED_PROFILE] });
     await controller.load();
@@ -111,6 +123,31 @@ describe('legacy WebDAV profile controller selection', function () {
     assert.equal(controller.getState().phase, 'error');
     assert.equal(controller.getState().error, 'STORAGE_CONFIG_UNAVAILABLE');
     assert.equal(controller.getState().canUpload, false);
+  });
+
+  it('ignores a stale profile list response from an earlier load', async function () {
+    const first = deferred();
+    const second = deferred();
+    let calls = 0;
+    const { controller } = createController({
+      listProfiles: () => (++calls === 1 ? first.promise : second.promise),
+    });
+    const firstLoad = controller.load();
+    const secondLoad = controller.load();
+    second.resolve([SECONDARY_PROFILE]);
+    await secondLoad;
+    first.resolve([DEFAULT_PROFILE]);
+    await firstLoad;
+    assert.equal(controller.getState().selectedId, SECONDARY_PROFILE.id);
+  });
+
+  it('projects profile data without exposing nested configuration', async function () {
+    const configured = { ...DEFAULT_PROFILE, config: { password: 'secret' } };
+    const { controller } = createController({ profiles: [configured] });
+    await controller.load();
+    const [profile] = controller.getState().profiles;
+    assert.equal(Object.isFrozen(profile), true);
+    assert.equal('config' in profile, false);
   });
 });
 
@@ -158,6 +195,25 @@ describe('legacy WebDAV profile controller connection lifecycle', function () {
     assert.equal(controller.getState().selectedId, SECONDARY_PROFILE.id);
     assert.equal(JSON.parse(storage.value()).byType.webdav, SECONDARY_PROFILE.id);
     assert.deepEqual(tested, [DEFAULT_PROFILE.id, SECONDARY_PROFILE.id]);
+  });
+
+  it('never publishes a new selection with the previous profile connection', async function () {
+    const { controller, states } = createController({
+      profiles: [DEFAULT_PROFILE, SECONDARY_PROFILE],
+      testProfile: async () => ({ connected: true }),
+    });
+    await controller.load();
+    await settle();
+    const boundary = states.length;
+    await controller.select(SECONDARY_PROFILE.id);
+    const changed = states.slice(boundary).filter((state) => (
+      state.selectedId === SECONDARY_PROFILE.id
+    ));
+    assert.ok(changed.length > 0);
+    assert.ok(changed.every((state) => (
+      state.connection.profileId === SECONDARY_PROFILE.id
+      && state.connection.phase !== 'idle'
+    )));
   });
 
   it('refreshes only the current selection', async function () {

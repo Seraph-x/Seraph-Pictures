@@ -16,6 +16,7 @@
   function connectionText(state, t) {
     const connection = state.connection || {};
     const name = selectedProfile(state)?.name || '';
+    if (connection.profileId !== state.selectedId) return t('webdav.waiting');
     if (connection.phase === 'checking') return t('webdav.checkingProfile', { name });
     if (connection.phase === 'error') {
       return t('webdav.unavailableProfile', { name, detail: connection.error });
@@ -36,8 +37,17 @@
     }
 
     bind(actions) {
-      this.elements.select.addEventListener('change', (event) => actions.onSelect(event.target.value));
-      this.elements.refreshButton.addEventListener('click', () => actions.onRefresh());
+      this.actions = actions;
+      this.elements.select.addEventListener('change', (event) => {
+        this.runAction(() => actions.onSelect(event.target.value));
+      });
+      this.elements.refreshButton.addEventListener('click', () => {
+        this.runAction(actions.onRefresh);
+      });
+    }
+
+    runAction(action) {
+      Promise.resolve().then(action).catch(this.actions.onError);
     }
 
     render(state) {

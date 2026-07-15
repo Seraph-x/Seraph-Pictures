@@ -4,7 +4,13 @@
   const STORAGE_TYPE = 'webdav';
 
   function freezeProfiles(profiles) {
-    return Object.freeze(profiles.map((profile) => Object.freeze({ ...profile })));
+    return Object.freeze(profiles.map((profile) => Object.freeze({
+      id: String(profile.id),
+      name: String(profile.name),
+      type: String(profile.type),
+      enabled: Boolean(profile.enabled),
+      isDefault: Boolean(profile.isDefault),
+    })));
   }
 
   function idleConnection() {
@@ -44,6 +50,7 @@
       this.options = options;
       this.state = initialState();
       this.requestToken = 0;
+      this.loadToken = 0;
     }
 
     publish(patch) {
@@ -53,23 +60,34 @@
     }
 
     async load() {
-      this.publish({ phase: 'loading', error: '', canUpload: false });
+      const token = ++this.loadToken;
+      this.publish({
+        phase: 'loading', profiles: [], selectedId: '', notice: '', error: '',
+        canUpload: false, connection: idleConnection(),
+      });
       try {
         const listed = await this.options.api.listProfiles();
+        if (token !== this.loadToken) return this.state;
         const profiles = listed.filter((profile) => profile.type === STORAGE_TYPE && profile.enabled);
         if (!profiles.length) return this.publish({ phase: 'empty', profiles: [], selectedId: '', notice: '' });
         const rememberedId = this.options.selection.readProfileMemory(this.options.storage, STORAGE_TYPE);
         const choice = chooseProfile(profiles, rememberedId);
+        if (choice.notice) {
+          this.options.selection.rememberProfile(
+            this.options.storage, STORAGE_TYPE, choice.selected.id,
+          );
+        }
         const state = this.publish({
           phase: 'ready', profiles, selectedId: choice.selected.id,
-          notice: choice.notice, error: '', canUpload: true,
+          notice: choice.notice, error: '', canUpload: true, connection: idleConnection(),
         });
         void this.refresh();
         return state;
       } catch (error) {
+        if (token !== this.loadToken) return this.state;
         return this.publish({
           phase: 'error', profiles: [], selectedId: '', notice: '',
-          error: errorCode(error), canUpload: false,
+          error: errorCode(error), canUpload: false, connection: idleConnection(),
         });
       }
     }
@@ -78,15 +96,17 @@
       const profile = this.state.profiles.find((item) => item.id === id);
       if (!profile) throw new Error('STORAGE_NOT_WRITABLE');
       this.options.selection.rememberProfile(this.options.storage, STORAGE_TYPE, profile.id);
-      this.publish({ selectedId: profile.id, notice: '', error: '', canUpload: true });
-      return this.refresh();
+      return this.refresh({ selectedId: profile.id, notice: '', error: '', canUpload: true });
     }
 
-    async refresh() {
-      const profileId = this.state.selectedId;
+    async refresh(patch = {}) {
+      const profileId = patch.selectedId || this.state.selectedId;
       if (!profileId) return null;
       const token = ++this.requestToken;
-      this.publish({ connection: { phase: 'checking', profileId, result: null, error: '' } });
+      this.publish({
+        ...patch,
+        connection: { phase: 'checking', profileId, result: null, error: '' },
+      });
       try {
         const result = await this.options.api.testProfile(profileId);
         if (!this.isCurrent(token, profileId)) return null;

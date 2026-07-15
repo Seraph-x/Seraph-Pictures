@@ -53,6 +53,7 @@
 
 @media (max-width: 640px) {
   .webdav-profile-target {
+    width: 100%;
     min-width: 0;
     align-items: stretch;
     flex-direction: column;

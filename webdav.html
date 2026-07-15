@@ -904,6 +904,7 @@
     <script src="/legacy/pages/upload/profile-mixin.js"></script>
     <script src="/legacy/pages/webdav/profile-controller.js"></script>
     <script src="/legacy/pages/webdav/profile-view.js"></script>
+    <script src="/legacy/pages/webdav/upload-actions.js"></script>
     <script>
       (function () {
         "use strict";
@@ -1102,6 +1103,7 @@
         var copyAllBtn = document.getElementById("copyAllBtn");
         var profileController = null;
         var profileView = null;
+        var uploadActions = null;
         var resultLinks = [];
         var fallbackSelectedFiles = [];
 
@@ -1331,6 +1333,16 @@
           statusText.textContent = message;
         }
 
+        function renderFileUploadResult(payload) {
+          var first = Array.isArray(payload) ? payload[0] : payload;
+          var src = first && first.src ? String(first.src) : "";
+          if (src) {
+            pushResult(t("webdav.fileUploadOk"), "ok", toAbsoluteUrl(src));
+            return;
+          }
+          pushResult(t("webdav.fileUploadOkNoLink"), "ok");
+        }
+
         async function initializeProfileSelector() {
           var api = LegacyStorageApi.createStorageApi();
           profileView = LegacyWebdavProfileView.createView({
@@ -1348,9 +1360,21 @@
             api: api, selection: LegacyUploadProfiles,
             storage: localStorage, onChange: profileView.render.bind(profileView),
           });
+          uploadActions = LegacyWebdavUploadActions.createUploadActions({
+            profileController: profileController,
+            profileView: profileView,
+            selection: LegacyUploadProfiles,
+            FormDataClass: FormData,
+            request: request,
+            onProgress: function (index, total) {
+              setOperationStatus(t("webdav.uploadingNth", { i: index, total: total }), null);
+            },
+            onFileResult: renderFileUploadResult,
+          });
           profileView.bind({
             onSelect: function (id) { return profileController.select(id); },
             onRefresh: function () { return profileController.refresh(); },
+            onError: function (error) { onError(t("webdav.statusCheckFailed"), error); },
           });
           await profileController.load();
         }
@@ -1362,29 +1386,10 @@
             return;
           }
 
-          profileView.setUploadBusy(true);
-          try {
-            var folderPath = normalizeFolderPath(folderPathInput.value);
-            var target = profileController.snapshot(folderPath);
-            for (var i = 0; i < files.length; i += 1) {
-              setOperationStatus(t("webdav.uploadingNth", { i: i + 1, total: files.length }), null);
-              var form = new FormData();
-              form.append("file", files[i]);
-              LegacyUploadProfiles.appendUploadTarget(form, target);
-              var payload = await request("/upload", { method: "POST", body: form });
-              var first = Array.isArray(payload) ? payload[0] : payload;
-              var src = first && first.src ? String(first.src) : "";
-              if (src) {
-                pushResult(t("webdav.fileUploadOk"), "ok", toAbsoluteUrl(src));
-              } else {
-                pushResult(t("webdav.fileUploadOkNoLink"), "ok");
-              }
-            }
-            clearSelectedFiles();
-            setOperationStatus(t("webdav.allUploaded"), true);
-          } finally {
-            profileView.setUploadBusy(false);
-          }
+          var folderPath = normalizeFolderPath(folderPathInput.value);
+          await uploadActions.uploadFiles(files, folderPath);
+          clearSelectedFiles();
+          setOperationStatus(t("webdav.allUploaded"), true);
         }
 
         async function uploadFromUrl() {
@@ -1394,28 +1399,16 @@
             return;
           }
 
-          profileView.setUploadBusy(true);
-          try {
-            var folderPath = normalizeFolderPath(folderPathInput.value);
-            var target = profileController.snapshot(folderPath);
-            setOperationStatus(t("webdav.fetchingUrl"), null);
-            var payload = await request("/api/upload-from-url", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(LegacyUploadProfiles.buildUrlUploadPayload({
-                url: sourceUrl, target: target
-              })),
-            });
-            var src = payload && (payload.src || payload.url || (payload.file && payload.file.src));
-            if (src) {
-              pushResult(t("webdav.urlUploadOk"), "ok", toAbsoluteUrl(String(src)));
-            } else {
-              pushResult(t("webdav.urlUploadDone"), "ok");
-            }
-            setOperationStatus(t("webdav.urlUploadDone"), true);
-          } finally {
-            profileView.setUploadBusy(false);
+          var folderPath = normalizeFolderPath(folderPathInput.value);
+          setOperationStatus(t("webdav.fetchingUrl"), null);
+          var payload = await uploadActions.uploadUrl(sourceUrl, folderPath);
+          var src = payload && (payload.src || payload.url || (payload.file && payload.file.src));
+          if (src) {
+            pushResult(t("webdav.urlUploadOk"), "ok", toAbsoluteUrl(String(src)));
+          } else {
+            pushResult(t("webdav.urlUploadDone"), "ok");
           }
+          setOperationStatus(t("webdav.urlUploadDone"), true);
         }
 
         async function ensureAuth() {

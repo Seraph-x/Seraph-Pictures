@@ -59,6 +59,7 @@ describe('legacy WebDAV profile selector page contract', function () {
     const dependencies = [
       '/legacy/storage/api.js', '/legacy/pages/upload/profile-mixin.js',
       '/legacy/pages/webdav/profile-controller.js', '/legacy/pages/webdav/profile-view.js',
+      '/legacy/pages/webdav/upload-actions.js',
     ];
     const positions = dependencies.map((entry) => HTML.indexOf(entry));
     assert.ok(positions.every((position) => position >= 0));
@@ -87,6 +88,8 @@ describe('legacy WebDAV profile selector page contract', function () {
     const css = fs.readFileSync(cssPath, 'utf8');
     assert.match(css, /\.webdav-profile-target\s*\{[\s\S]*flex:\s*1/);
     assert.match(css, /@media[^\{]*max-width:[^\{]*\{[\s\S]*\.webdav-profile-target\s*\{[\s\S]*flex-basis:\s*100%/);
+    const narrow = css.match(/@media\s*\(max-width:\s*640px\)\s*\{([\s\S]*)\}\s*$/)?.[1] || '';
+    assert.match(narrow, /\.webdav-profile-target\s*\{[\s\S]*width:\s*100%/);
   });
 
   it('mounts the profile API after authentication and refreshes the selected profile', function () {
@@ -108,12 +111,10 @@ describe('legacy WebDAV profile selector page contract', function () {
     assert.doesNotMatch(operation, /statusDetailText/);
   });
 
-  it('snapshots one exact target before a file batch and reuses upload helpers', function () {
-    const snapshot = HTML.indexOf('var target = profileController.snapshot(folderPath)');
-    const loop = HTML.indexOf('for (var i = 0; i < files.length; i += 1)', snapshot);
-    assert.ok(snapshot >= 0 && snapshot < loop);
-    assert.match(HTML, /LegacyUploadProfiles\.appendUploadTarget\(form, target\)/);
-    assert.match(HTML, /LegacyUploadProfiles\.buildUrlUploadPayload\(\{\s*url: sourceUrl, target: target\s*\}\)/);
+  it('delegates file and URL requests to the tested upload coordinator', function () {
+    assert.match(HTML, /LegacyWebdavUploadActions\.createUploadActions/);
+    assert.match(HTML, /uploadActions\.uploadFiles\(files, folderPath\)/);
+    assert.match(HTML, /uploadActions\.uploadUrl\(sourceUrl, folderPath\)/);
   });
 
   it('keeps both upload actions disabled until profiles finish loading', function () {
@@ -161,6 +162,16 @@ describe('legacy WebDAV profile selector view', function () {
     assert.match(refs.connection.textContent, /connectedProfile/);
   });
 
+  it('does not label a previous profile connection as the current selection', function () {
+    const refs = elements();
+    const view = viewModule.createView({ elements: refs, t: translator });
+    view.render(readyState({
+      phase: 'ready', profileId: 'dav-backup', result: { connected: true }, error: '',
+    }));
+    assert.match(refs.connection.textContent, /waiting/);
+    assert.doesNotMatch(refs.connection.textContent, /connectedProfile/);
+  });
+
   it('binds selection and refresh events without issuing requests itself', async function () {
     assert.ok(viewModule, 'WebDAV profile view module should exist');
     const refs = elements();
@@ -173,6 +184,22 @@ describe('legacy WebDAV profile selector view', function () {
     refs.select.value = 'dav-backup';
     refs.select.emit('change');
     refs.refreshButton.emit('click');
+    await new Promise((resolve) => setImmediate(resolve));
     assert.deepEqual(events, ['select:dav-backup', 'refresh']);
+  });
+
+  it('reports rejected profile actions through one explicit error handler', async function () {
+    const refs = elements();
+    const errors = [];
+    const view = viewModule.createView({ elements: refs, t: translator });
+    view.bind({
+      onSelect: async () => { throw new Error('MEMORY_WRITE_FAILED'); },
+      onRefresh: () => { throw new Error('REFRESH_FAILED'); },
+      onError: (error) => errors.push(error.message),
+    });
+    refs.select.emit('change');
+    refs.refreshButton.emit('click');
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(errors.sort(), ['MEMORY_WRITE_FAILED', 'REFRESH_FAILED']);
   });
 });
