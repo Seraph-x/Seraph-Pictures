@@ -9,6 +9,11 @@ function read(relativePath) {
   return fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
 }
 
+function languageBlocks(source) {
+  const english = source.indexOf('en: {');
+  return [source.slice(0, english), source.slice(english)];
+}
+
 function loadFolderMoveMixin() {
   const previous = global.LegacyAdminMixins;
   global.LegacyAdminMixins = [];
@@ -281,5 +286,12 @@ describe('legacy Admin folder move dialog', function () {
     assert.notEqual(dialogIndex, -1);
     assert.ok(scriptIndex < appIndex);
     assert.ok(dialogIndex < toolbarIndex);
+  });
+
+  it('defines localized folder move destination copy', function () {
+    const blocks = languageBlocks(read('legacy/pages/admin/i18n-3.js'));
+    for (const key of ['moveFolderDestinationHint', 'moveFolderDestinationPlaceholder']) {
+      for (const block of blocks) assert.match(block, new RegExp(`'admin\\.${key}':\\s*'[^']+'`));
+    }
   });
 });
