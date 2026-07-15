@@ -107,6 +107,10 @@ body.admin-page .header-content .actions.admin-header-tools {
   align-items: stretch;
 }
 
+.ui-effect-grid {
+  grid-template-columns: repeat(auto-fill, minmax(82px, 1fr)) !important;
+}
+
 .ui-effect-grid .ui-segment {
   height: 100%;
 }

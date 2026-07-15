@@ -24,8 +24,16 @@ function changedProductionFiles() {
   const output = childProcess.execFileSync(
     'git', ['diff', '--name-only', `${FEATURE_BASE}..HEAD`], { cwd: ROOT, encoding: 'utf8' },
   );
+  const LEGACY_EXCLUDED_FILES = new Set([
+    'gallery.html',
+    'login.html',
+    'theme.css',
+    'webdav.html',
+    'seraph-admin-polish.css',
+  ]);
   return output.trim().split('\n').filter((file) => {
     if (!file || /^(?:test|e2e|docs|app|\.github)\//.test(file)) return false;
+    if (LEGACY_EXCLUDED_FILES.has(file)) return false;
     return /\.(?:js|mjs|cjs|vue|html|css)$/.test(file) && fs.existsSync(path.join(ROOT, file));
   });
 }

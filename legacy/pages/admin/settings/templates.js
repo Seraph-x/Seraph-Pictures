@@ -48,8 +48,11 @@
     <div class="ui-design-section-title"><i class="fas fa-wave-square"></i> {{t:admin.uiEffectSectionTitle}}</div>
     <div class="ui-segmented ui-effect-grid">
       <label class="ui-segment"><input type="radio" name="uiEffectStyle" value="none" {{v:effectNone}}><span>{{t:admin.uiEffectNone}}</span></label>
-      <label class="ui-segment"><input type="radio" name="uiEffectStyle" value="math" {{v:effectMath}}><span>{{t:admin.uiEffectMath}}</span></label>
-      <label class="ui-segment"><input type="radio" name="uiEffectStyle" value="particle" {{v:effectParticle}}><span>{{t:admin.uiEffectParticle}}</span></label>
+      <label class="ui-segment"><input type="radio" name="uiEffectStyle" value="feather" {{v:effectFeather}}><span>{{t:admin.uiEffectFeather}}</span></label>
+      <label class="ui-segment"><input type="radio" name="uiEffectStyle" value="dandelion" {{v:effectDandelion}}><span>{{t:admin.uiEffectDandelion}}</span></label>
+      <label class="ui-segment"><input type="radio" name="uiEffectStyle" value="petal" {{v:effectPetal}}><span>{{t:admin.uiEffectPetal}}</span></label>
+      <label class="ui-segment"><input type="radio" name="uiEffectStyle" value="snow" {{v:effectSnow}}><span>{{t:admin.uiEffectSnow}}</span></label>
+      <label class="ui-segment"><input type="radio" name="uiEffectStyle" value="firefly" {{v:effectFirefly}}><span>{{t:admin.uiEffectFirefly}}</span></label>
       <label class="ui-segment"><input type="radio" name="uiEffectStyle" value="texture" {{v:effectTexture}}><span>{{t:admin.uiEffectTexture}}</span></label>
     </div>
     <div class="ui-design-range-wrap"><div class="ui-design-range-head"><span>{{t:admin.uiEffectIntensity}}</span><span id="uiEffectIntensityValue"></span></div><input id="uiEffectIntensity" class="ui-design-range" type="range" min="0" max="100" value="{{v:effectIntensity}}"></div>

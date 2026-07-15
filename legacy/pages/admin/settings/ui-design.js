@@ -16,8 +16,13 @@
       cardBlur: shared.clamp(snapshot.cardBlur, 0, 32),
       effectIntensity: shared.clamp(snapshot.effectIntensity, 0, 100),
       followGlobal: checked(mode !== 'custom'), customLogin: checked(mode === 'custom'),
-      effectNone: checked(effect === 'none'), effectMath: checked(effect === 'math'),
-      effectParticle: checked(effect === 'particle'), effectTexture: checked(effect === 'texture'),
+      effectNone: checked(effect === 'none'),
+      effectFeather: checked(effect === 'feather'),
+      effectDandelion: checked(effect === 'dandelion'),
+      effectPetal: checked(effect === 'petal'),
+      effectSnow: checked(effect === 'snow'),
+      effectFirefly: checked(effect === 'firefly'),
+      effectTexture: checked(effect === 'texture'),
       optimizeMobile: checked(snapshot.optimizeMobile !== false),
     });
   }

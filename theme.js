@@ -184,7 +184,15 @@
   var LEGACY_LOGIN_MODE_KEY = "loginBackgroundMode";
   var LEGACY_LOGIN_URL_KEY = "loginBackgroundUrl";
   var API_ENDPOINT = "/api/ui-config";
-  var EFFECT_STYLES = { none: true, math: true, particle: true, texture: true };
+  var EFFECT_STYLES = {
+    none: true,
+    feather: true,
+    dandelion: true,
+    petal: true,
+    snow: true,
+    firefly: true,
+    texture: true,
+  };
 
   var DEFAULTS = {
     version: 1,
@@ -194,7 +202,7 @@
     loginBackgroundUrl: "",
     cardOpacity: 86,
     cardBlur: 14,
-    effectStyle: "math",
+    effectStyle: "firefly",
     effectIntensity: 22,
     optimizeMobile: true,
     brandName: "",
@@ -217,6 +225,33 @@
     symbols: [],
     particles: [],
   };
+
+  var pointer = { x: 0, y: 0, dx: 0, dy: 0, active: false };
+  var shockwaves = [];
+  var TWO_PI = Math.PI * 2;
+
+  if (typeof window !== "undefined") {
+    window.addEventListener("pointermove", function (e) {
+      if (render.style === "none" || render.style === "texture") return;
+      var x = e.clientX;
+      var y = e.clientY;
+      pointer.dx = x - pointer.x;
+      pointer.dy = y - pointer.y;
+      pointer.x = x;
+      pointer.y = y;
+      pointer.active = true;
+    }, { passive: true });
+
+    window.addEventListener("pointerdown", function (e) {
+      if (render.style === "none" || render.style === "texture") return;
+      shockwaves.push({
+        x: e.clientX,
+        y: e.clientY,
+        life: 1,
+        radius: 18
+      });
+    }, { passive: true });
+  }
 
   function cloneSettings(input) {
     return Object.assign({}, input || {});
@@ -629,143 +664,257 @@
   }
 
   function getEffectNodeCount(intensity, mobile) {
-    var count = Math.round(8 + intensity * 0.32);
-    if (mobile) count = Math.max(5, Math.round(count * 0.35));
-    return Math.min(40, Math.max(4, count));
+    var count = Math.round(10 + (intensity / 100) * 60);
+    if (mobile) count = Math.max(8, Math.round(count * 0.45));
+    return count;
   }
 
-  function buildMathSymbols(count, mobile) {
-    var chars = ["∑", "∫", "π", "√", "∞", "∆", "∂", "λ", "θ", "∇", "⊕", "≈", "µ"];
-    var symbols = [];
+  function createParticle(index, style, intensity) {
+    var seed = ((index * 9301 + 49297) % 233280) / 233280;
+    var depth = 0.55 + ((index * 17) % 45) / 100;
+    var speedMultiplier = (style === "dandelion" || style === "firefly") ? 0.35 : 0.85;
+    return {
+      x: seed * render.width,
+      y: (((index * 47) % 100) / 100) * render.height,
+      vx: (seed - 0.5) * 0.18,
+      vy: (0.18 + intensity / 120) * depth * speedMultiplier,
+      size: (5 + intensity * 0.18) * depth,
+      phase: seed * TWO_PI,
+      spin: index % 2 === 0 ? 1 : -1,
+      opacity: (intensity / 100) * depth * 0.8,
+      depth: depth,
+      seed: seed,
+      angle: seed * TWO_PI,
+    };
+  }
+
+  function buildAmbientParticles(style, intensity, mobile) {
+    var count = getEffectNodeCount(intensity, mobile);
+    var list = [];
     var i = 0;
     for (i = 0; i < count; i += 1) {
-      symbols.push({
-        text: chars[Math.floor(Math.random() * chars.length)],
-        x: Math.random() * render.width,
-        y: Math.random() * render.height,
-        vx: (Math.random() - 0.5) * (mobile ? 7 : 11),
-        vy: (mobile ? 4 : 7) + Math.random() * (mobile ? 6 : 10),
-        size: (mobile ? 10 : 11) + Math.random() * (mobile ? 7 : 12),
-        alpha: (mobile ? 0.06 : 0.05) + Math.random() * (mobile ? 0.08 : 0.11),
-      });
+      list.push(createParticle(i, style, intensity));
     }
-    render.symbols = symbols;
+    render.particles = list;
+    shockwaves = [];
   }
 
-  function buildParticles(count, mobile) {
-    var nodes = [];
-    var speed = mobile ? 11 : 16;
+  function updateAmbientParticles(deltaSec) {
     var i = 0;
-    for (i = 0; i < count; i += 1) {
-      nodes.push({
-        x: Math.random() * render.width,
-        y: Math.random() * render.height,
-        vx: (Math.random() - 0.5) * speed,
-        vy: (Math.random() - 0.5) * speed,
-        r: (mobile ? 0.75 : 0.9) + Math.random() * (mobile ? 1.2 : 1.5),
-      });
-    }
-    render.particles = nodes;
-  }
+    var wave = null;
+    var activeWaves = [];
 
-  function updateMathSymbols(deltaSec) {
-    var i = 0;
-    var item = null;
-    var width = render.width;
-    var height = render.height;
-    for (i = 0; i < render.symbols.length; i += 1) {
-      item = render.symbols[i];
-      item.y -= item.vy * deltaSec;
-      item.x += item.vx * deltaSec;
-
-      if (item.y < -40) item.y = height + 40;
-      if (item.x < -40) item.x = width + 40;
-      if (item.x > width + 40) item.x = -40;
-    }
-  }
-
-  function drawMathSymbols() {
-    var ctx = render.ctx;
-    var dark = root.getAttribute("data-theme") === "dark";
-    var rgb = dark ? "201, 214, 237" : "102, 113, 132";
-    var i = 0;
-    var item = null;
-
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-
-    for (i = 0; i < render.symbols.length; i += 1) {
-      item = render.symbols[i];
-      ctx.font =
-        Math.round(item.size) +
-        'px "Cambria Math", "Times New Roman", "Noto Sans SC", serif';
-      ctx.fillStyle = "rgba(" + rgb + ", " + item.alpha.toFixed(3) + ")";
-      ctx.fillText(item.text, item.x, item.y);
-    }
-  }
-
-  function updateParticles(deltaSec) {
-    var i = 0;
-    var point = null;
-    var width = render.width;
-    var height = render.height;
-    for (i = 0; i < render.particles.length; i += 1) {
-      point = render.particles[i];
-      point.x += point.vx * deltaSec;
-      point.y += point.vy * deltaSec;
-
-      if (point.x <= 0 || point.x >= width) point.vx *= -1;
-      if (point.y <= 0 || point.y >= height) point.vy *= -1;
-    }
-  }
-
-  function drawParticles() {
-    var ctx = render.ctx;
-    var dark = root.getAttribute("data-theme") === "dark";
-    var rgb = dark ? "184, 198, 225" : "119, 131, 150";
-    var dotAlphaBase = dark ? 0.23 : 0.18;
-    var lineAlphaBase = dark ? 0.16 : 0.12;
-    var intensityFactor = Math.max(0.2, render.intensity / 100);
-    var distanceLimit = render.mobile ? 110 : 145;
-    var i = 0;
-    var j = 0;
-    var a = null;
-    var b = null;
-    var dx = 0;
-    var dy = 0;
-    var distance = 0;
-    var alpha = 0;
-
-    for (i = 0; i < render.particles.length; i += 1) {
-      a = render.particles[i];
-      ctx.beginPath();
-      ctx.arc(a.x, a.y, a.r, 0, Math.PI * 2);
-      ctx.fillStyle =
-        "rgba(" + rgb + ", " + (dotAlphaBase * intensityFactor).toFixed(3) + ")";
-      ctx.fill();
-
-      for (j = i + 1; j < render.particles.length; j += 1) {
-        b = render.particles[j];
-        dx = a.x - b.x;
-        dy = a.y - b.y;
-        distance = Math.sqrt(dx * dx + dy * dy);
-        if (distance > distanceLimit) continue;
-        alpha =
-          ((1 - distance / distanceLimit) * lineAlphaBase * intensityFactor).toFixed(
-            3
-          );
-        ctx.beginPath();
-        ctx.moveTo(a.x, a.y);
-        ctx.lineTo(b.x, b.y);
-        ctx.strokeStyle = "rgba(" + rgb + ", " + alpha + ")";
-        ctx.lineWidth = 1;
-        ctx.stroke();
+    // Update shockwaves
+    for (i = 0; i < shockwaves.length; i += 1) {
+      wave = shockwaves[i];
+      wave.life -= deltaSec / 0.7;
+      wave.radius += deltaSec * 180;
+      if (wave.life > 0) {
+        activeWaves.push(wave);
       }
     }
+    shockwaves = activeWaves;
+
+    var width = render.width;
+    var height = render.height;
+    var particle = null;
+    var deltaFrames = deltaSec / 0.01667;
+
+    for (i = 0; i < render.particles.length; i += 1) {
+      particle = render.particles[i];
+      particle.phase += 0.012 * deltaFrames;
+      particle.vx += Math.sin(performance.now() / 900 + particle.phase) * 0.006 * particle.depth;
+      particle.vy += 0.002 * deltaFrames;
+
+      // Apply pointer wind
+      if (pointer.active) {
+        var dx = particle.x - pointer.x;
+        var dy = particle.y - pointer.y;
+        var distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance < 180) {
+          var force = (1 - distance / 180) * (render.intensity / 100);
+          particle.vx += (pointer.dx * 0.018 + dx * 0.002) * force;
+          particle.vy += (pointer.dy * 0.012 + dy * 0.001) * force;
+        }
+      }
+
+      // Apply shockwaves
+      var w = 0;
+      for (w = 0; w < shockwaves.length; w += 1) {
+        wave = shockwaves[w];
+        var sDx = particle.x - wave.x;
+        var sDy = particle.y - wave.y;
+        var sDist = Math.sqrt(sDx * sDx + sDy * sDy);
+        if (sDist < wave.radius && sDist < 240 && sDist > 0) {
+          var sForce = (1 - sDist / wave.radius) * wave.life * (render.intensity / 35);
+          particle.vx += (sDx / sDist) * sForce;
+          particle.vy += (sDy / sDist) * sForce;
+        }
+      }
+
+      // Move particle
+      particle.x += particle.vx * deltaFrames;
+      particle.y += particle.vy * deltaFrames;
+      particle.angle += particle.spin * 0.012 * deltaFrames;
+
+      // Friction
+      particle.vx *= 0.985;
+      particle.vy *= 0.995;
+
+      // Wrap particle
+      if (particle.y > height + particle.size * 3) {
+        resetParticleTop(particle, width);
+      }
+      if (particle.x < -particle.size * 4) {
+        particle.x = width + particle.size;
+      }
+      if (particle.x > width + particle.size * 4) {
+        particle.x = -particle.size;
+      }
+    }
+
+    // Decay pointer velocity
+    pointer.dx *= 0.85;
+    pointer.dy *= 0.85;
+  }
+
+  function resetParticleTop(particle, width) {
+    particle.x = ((particle.seed * 997 + particle.phase) % 1) * width;
+    particle.y = -particle.size * 3;
+    particle.vx = (particle.seed - 0.5) * 0.22;
+    particle.vy = (0.18 + render.intensity / 120) * particle.depth;
+  }
+
+  function drawAmbientParticles() {
+    var ctx = render.ctx;
+    var i = 0;
+    var particle = null;
+
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    for (i = 0; i < render.particles.length; i += 1) {
+      particle = render.particles[i];
+      drawAmbientParticle(ctx, particle, render.style);
+    }
+    ctx.restore();
+  }
+
+  function drawAmbientParticle(ctx, particle, style) {
+    if (style === "feather") drawDreamyFeather(ctx, particle);
+    if (style === "dandelion") drawDreamyDandelion(ctx, particle);
+    if (style === "petal") drawDreamyPetal(ctx, particle);
+    if (style === "snow") drawDreamySnow(ctx, particle);
+    if (style === "firefly") drawDreamyFirefly(ctx, particle);
+  }
+
+  function drawGlowDot(ctx, x, y, radius, color) {
+    var glow = ctx.createRadialGradient(x, y, 0, x, y, radius * 2.8);
+    glow.addColorStop(0, color);
+    glow.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(x, y, radius * 2.8, 0, TWO_PI);
+    ctx.fill();
+  }
+
+  function drawDreamyFeather(ctx, particle) {
+    ctx.save();
+    ctx.translate(particle.x, particle.y);
+    ctx.rotate(particle.angle);
+    ctx.globalAlpha = particle.opacity;
+    var length = particle.size * 2.4;
+    var width = particle.size * 0.58;
+    var gradient = ctx.createLinearGradient(0, -length, 0, length);
+    gradient.addColorStop(0, "rgba(255,255,255,0.18)");
+    gradient.addColorStop(0.5, "rgba(255,252,242,0.72)");
+    gradient.addColorStop(1, "rgba(190,178,160,0.2)");
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.moveTo(0, -length);
+    ctx.quadraticCurveTo(width, -length * 0.3, 0, length);
+    ctx.quadraticCurveTo(-width * 0.8, -length * 0.15, 0, -length);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(150,135,112,0.34)";
+    ctx.beginPath();
+    ctx.moveTo(0, -length * 0.82);
+    ctx.quadraticCurveTo(-width * 0.1, 0, 0, length * 0.9);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawDreamyDandelion(ctx, particle) {
+    ctx.save();
+    ctx.translate(particle.x, particle.y);
+    ctx.rotate(particle.angle * 0.35);
+    ctx.globalAlpha = particle.opacity;
+    ctx.strokeStyle = "rgba(255,255,245,0.72)";
+    ctx.lineWidth = 0.8;
+    var index = 0;
+    for (index = 0; index < 7; index += 1) {
+      var angle = (index / 7) * TWO_PI;
+      var endX = Math.cos(angle) * particle.size * 0.95;
+      var endY = Math.sin(angle) * particle.size * 0.95;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(endX, endY);
+      ctx.stroke();
+      drawGlowDot(ctx, endX, endY, particle.size * 0.17, "rgba(255,255,255,0.82)");
+    }
+    drawGlowDot(ctx, 0, 0, particle.size * 0.16, "rgba(225,210,170,0.72)");
+    ctx.restore();
+  }
+
+  function drawDreamyPetal(ctx, particle) {
+    ctx.save();
+    ctx.translate(particle.x, particle.y);
+    ctx.rotate(particle.angle);
+    ctx.globalAlpha = particle.opacity;
+    var gradient = ctx.createRadialGradient(0, 0, 1, 0, 0, particle.size * 1.6);
+    gradient.addColorStop(0, "rgba(255,205,205,0.82)");
+    gradient.addColorStop(1, "rgba(220,90,125,0.18)");
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.moveTo(0, -particle.size * 1.4);
+    ctx.bezierCurveTo(particle.size, -particle.size, particle.size, particle.size, 0, particle.size * 1.5);
+    ctx.bezierCurveTo(-particle.size, particle.size, -particle.size, -particle.size, 0, -particle.size * 1.4);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawDreamySnow(ctx, particle) {
+    ctx.save();
+    ctx.translate(particle.x, particle.y);
+    ctx.rotate(particle.angle);
+    ctx.globalAlpha = particle.opacity;
+    ctx.strokeStyle = "rgba(235,248,255,0.8)";
+    ctx.lineWidth = 0.9;
+    var index = 0;
+    for (index = 0; index < 6; index += 1) {
+      ctx.rotate(Math.PI / 3);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0, particle.size);
+      ctx.stroke();
+    }
+    drawGlowDot(ctx, 0, 0, particle.size * 0.42, "rgba(255,255,255,0.52)");
+    ctx.restore();
+  }
+
+  function drawDreamyFirefly(ctx, particle) {
+    var pulse = 0.55 + Math.sin(performance.now() / 260 + particle.phase) * 0.35;
+    ctx.save();
+    ctx.globalAlpha = particle.opacity * pulse;
+    drawGlowDot(ctx, particle.x, particle.y, particle.size * 0.9, "rgba(210,255,120,0.42)");
+    drawGlowDot(ctx, particle.x, particle.y, particle.size * 0.28, "rgba(255,255,190,0.92)");
+    ctx.restore();
   }
 
   function startRender(style, intensity, mobile) {
     stopRender(true);
+
+    if (style === "math") style = "dandelion";
+    if (style === "particle") style = "firefly";
+
     render.style = style;
     render.intensity = intensity;
     render.mobile = mobile;
@@ -775,9 +924,7 @@
       return;
     }
 
-    var nodeCount = getEffectNodeCount(intensity, mobile);
-    if (style === "math") buildMathSymbols(nodeCount, mobile);
-    if (style === "particle") buildParticles(nodeCount, mobile);
+    buildAmbientParticles(style, intensity, mobile);
 
     render.rafId = requestAnimationFrame(function frame(ts) {
       render.rafId = requestAnimationFrame(frame);
@@ -791,13 +938,8 @@
 
       clearCanvas();
 
-      if (render.style === "math") {
-        updateMathSymbols(deltaSec);
-        drawMathSymbols();
-      } else if (render.style === "particle") {
-        updateParticles(deltaSec);
-        drawParticles();
-      }
+      updateAmbientParticles(deltaSec);
+      drawAmbientParticles();
     });
   }
 
