@@ -2,7 +2,39 @@
   'use strict';
 
   globalThis.LegacyAdminMixins = globalThis.LegacyAdminMixins || [];
-  globalThis.LegacyAdminMixins.push({ methods: {
+  globalThis.LegacyAdminMixins.push({
+    data() {
+      return {
+        folderMoveDialogVisible: false,
+        folderMoveTarget: '',
+        folderMovePending: false,
+      };
+    },
+    computed: {
+      folderMoveSuggestions() {
+        const paths = (this.folders || [])
+          .map((folder) => this.normalizeFolderPath(folder.path || folder.folderPath || ''))
+          .filter(Boolean);
+        const depth = (value) => value.split('/').length;
+        const unique = [...new Set(paths)].sort((left, right) => {
+          return depth(left) - depth(right) || left.localeCompare(right, 'zh-CN');
+        });
+        const root = Object.freeze({ value: '', label: this.t('admin.rootDir') });
+        const folders = unique.map((value) => Object.freeze({ value, label: value }));
+        return Object.freeze([root, ...folders]);
+      },
+    },
+    methods: {
+    queryFolderMoveSuggestions(query, callback) {
+      const text = String(query || '').trim().toLocaleLowerCase();
+      const matches = text ? this.folderMoveSuggestions.filter((item) => {
+        return `${item.label} ${item.value}`.toLocaleLowerCase().includes(text);
+      }) : this.folderMoveSuggestions;
+      callback(matches);
+    },
+    selectFolderMoveSuggestion(item) {
+      this.folderMoveTarget = item.value;
+    },
     folderMoveSnapshot() {
       return Object.freeze({
         rows: this.tableData.map((file) => ({ ...file, metadata: { ...(file.metadata || {}) } })),
@@ -77,5 +109,6 @@
         this.handleFileDragEnd();
       }
     },
-  }});
+    },
+  });
 }
