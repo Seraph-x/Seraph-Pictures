@@ -81,24 +81,43 @@
         throw error;
       }
     },
-    async promptFolderMove() {
-      if (!this.selectedFiles.length) { this.$message.warning(this.t('admin.selectFilesFirst')); return; }
-      let prompt;
-      try {
-        prompt = await this.$prompt(this.t('admin.moveFilesPrompt'), this.t('admin.moveFilesTitle'), {
-          inputValue: this.folderPath || '', confirmButtonText: this.t('admin.confirmMove'),
-          cancelButtonText: this.t('admin.cancel'),
-        });
-      } catch (error) {
-        if (error === 'cancel' || error === 'close') return;
-        throw error;
+    resetFolderMoveDialog() {
+      this.folderMoveDialogVisible = false;
+      this.folderMoveTarget = '';
+    },
+    promptFolderMove() {
+      if (!this.selectedFiles.length) {
+        this.$message.warning(this.t('admin.selectFilesFirst'));
+        return;
       }
-      const targetFolderPath = this.normalizeFolderPath(prompt.value || '');
+      this.folderMoveTarget = this.normalizeFolderPath(this.folderPath || '');
+      this.folderMoveDialogVisible = true;
+    },
+    closeFolderMoveDialog(done) {
+      if (this.folderMovePending) return;
+      this.resetFolderMoveDialog();
+      if (typeof done === 'function') done();
+    },
+    async confirmFolderMove() {
+      if (this.folderMovePending) return;
+      const targetFolderPath = this.normalizeFolderPath(this.folderMoveTarget || '');
       const ids = this.selectedFiles.map((item) => item.name);
-      if (!await this.performFolderMove({ ids, targetFolderPath })) {
-        this.$message.info(this.t('admin.filesAlreadyInFolder')); return;
+      this.folderMovePending = true;
+      try {
+        const moved = await this.performFolderMove({ ids, targetFolderPath });
+        if (!moved) {
+          this.$message.info(this.t('admin.filesAlreadyInFolder'));
+          this.resetFolderMoveDialog();
+          return;
+        }
+        const folder = targetFolderPath || this.t('admin.rootDir');
+        this.$message.success(this.t('admin.movedNToFolder', { n: ids.length, folder }));
+        this.resetFolderMoveDialog();
+      } catch (error) {
+        this.$message.error(error?.message || this.t('admin.moveFilesFailed'));
+      } finally {
+        this.folderMovePending = false;
       }
-      this.$message.success(this.t('admin.movedNToFolder', { n: ids.length, folder: targetFolderPath || this.t('admin.rootDir') }));
     },
     async dropFilesIntoFolder(path, event) {
       const targetFolderPath = this.normalizeFolderPath(path);
