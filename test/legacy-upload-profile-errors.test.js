@@ -26,4 +26,56 @@ describe('legacy upload profile errors', function () {
     assert.match(component, /storageProfileError/);
     assert.match(component, /role="alert"/);
   });
+
+  it('preserves R2 choices when the initial Telegram type has no configured backend', async function () {
+    const r2 = { id: 'r2-default', type: 'r2', name: 'Cloudflare R2', enabled: true, isDefault: true };
+    const viewModel = profileViewModel({ listProfiles: async () => [r2] });
+    await viewModel.loadStorageProfiles();
+
+    assert.deepStrictEqual(viewModel.storageProfiles, [r2]);
+    assert.strictEqual(viewModel.storageId, '');
+    assert.strictEqual(viewModel.storageProfileError, 'STORAGE_SELECTION_REQUIRED');
+
+    viewModel.storageMode = 'r2';
+    viewModel.resolveStorageProfile();
+    assert.strictEqual(viewModel.storageId, r2.id);
+    assert.strictEqual(viewModel.storageProfileError, '');
+    assert.strictEqual(viewModel.storageTarget, 'r2 · Cloudflare R2');
+  });
+
+  it('clears an earlier selection error when a valid type is selected', function () {
+    const r2 = { id: 'r2-default', type: 'r2', name: 'Cloudflare R2', enabled: true, isDefault: true };
+    const viewModel = profileViewModel({});
+    viewModel.storageProfiles = [r2];
+    viewModel.storageMode = 'r2';
+    viewModel.storageProfileError = 'STORAGE_SELECTION_REQUIRED';
+
+    viewModel.resolveStorageProfile();
+    assert.strictEqual(viewModel.storageProfileError, '');
+    assert.strictEqual(viewModel.storageId, r2.id);
+  });
+
+  it('shows a selection error and clears the previous target when switching to an unconfigured type', function () {
+    const r2 = { id: 'r2-default', type: 'r2', name: 'Cloudflare R2', enabled: true, isDefault: true };
+    const viewModel = profileViewModel({});
+    viewModel.storageProfiles = [r2];
+    viewModel.storageMode = 'r2';
+    viewModel.resolveStorageProfile();
+    viewModel.storageMode = 'telegram';
+    assert.doesNotThrow(() => viewModel.resolveStorageProfile());
+    assert.strictEqual(viewModel.storageProfileError, 'STORAGE_SELECTION_REQUIRED');
+    assert.strictEqual(viewModel.storageId, '');
+    assert.strictEqual(viewModel.storageTarget, '');
+    assert.deepStrictEqual(viewModel.storageProfiles, [r2]);
+  });
+
+  it('clears stale choices and exposes catalog request failures', async function () {
+    const viewModel = profileViewModel({ listProfiles: async () => { throw new Error('STORAGE_CONFIG_UNAVAILABLE'); } });
+    viewModel.storageProfiles = [{ id: 'stale' }];
+    viewModel.storageId = 'stale';
+    await viewModel.loadStorageProfiles();
+    assert.deepStrictEqual(viewModel.storageProfiles, []);
+    assert.strictEqual(viewModel.storageId, '');
+    assert.strictEqual(viewModel.storageProfileError, 'STORAGE_CONFIG_UNAVAILABLE');
+  });
 });

@@ -94,6 +94,16 @@
     return String(cause?.code || cause?.message || 'STORAGE_PROFILE_LOAD_FAILED');
   }
 
+  function profileSelectionError(cause) {
+    return Object.freeze({
+      storageId: '',
+      storageName: '',
+      storageTarget: '',
+      storageProfileNotice: '',
+      storageProfileError: profileErrorCode(cause),
+    });
+  }
+
   function profileMethods(api, storage) {
     return {
       async loadStorageProfiles() {
@@ -101,27 +111,31 @@
         this.storageProfileError = '';
         try {
           this.storageProfiles = Object.freeze(await api.listProfiles());
-          this.resolveStorageProfile();
         } catch (cause) {
           this.storageProfiles = Object.freeze([]);
-          this.storageId = '';
-          this.storageName = '';
-          this.storageTarget = '';
-          this.storageProfileError = profileErrorCode(cause);
+          Object.assign(this, profileSelectionError(cause));
+          return;
         }
+        this.resolveStorageProfile();
       },
       resolveStorageProfile() {
-        const result = resolveUploadSelection({
-          profiles: this.storageProfiles,
-          storageMode: this.storageMode,
-          rememberedId: readProfileMemory(storage, this.storageMode),
-          isGuest: this.isGuest,
-        });
-        this.storageId = result.profile.id;
-        this.storageName = result.profile.name;
-        this.storageTarget = `${result.profile.type} · ${result.profile.name}`;
-        this.storageProfileNotice = result.notice;
-        return result.profile;
+        try {
+          const result = resolveUploadSelection({
+            profiles: this.storageProfiles,
+            storageMode: this.storageMode,
+            rememberedId: readProfileMemory(storage, this.storageMode),
+            isGuest: this.isGuest,
+          });
+          this.storageId = result.profile.id;
+          this.storageName = result.profile.name;
+          this.storageTarget = `${result.profile.type} · ${result.profile.name}`;
+          this.storageProfileNotice = result.notice;
+          this.storageProfileError = '';
+          return result.profile;
+        } catch (cause) {
+          Object.assign(this, profileSelectionError(cause));
+          return null;
+        }
       },
       selectStorageProfile(id) {
         const profile = this.storageProfiles.find((item) => (
