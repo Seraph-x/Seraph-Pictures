@@ -371,9 +371,6 @@ html[data-theme="dark"] .admin-header-primary .search-card .el-input__inner:focu
   appearance: none;
   -webkit-appearance: none;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23423d35' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>") !important;
-  background-repeat: no-repeat !important;
-  background-position: right 8px center !important;
-  background-size: 14px !important;
 }
 
 html[data-theme="dark"] .admin-profile-filter {
@@ -381,6 +378,14 @@ html[data-theme="dark"] .admin-profile-filter {
   border-color: rgba(255, 255, 255, 0.04) !important;
   color: var(--claude-text-strong) !important;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23d9d3c8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>") !important;
+}
+
+/* Keep arrow geometry after theme backgrounds, which reset background properties. */
+.admin-profile-filter,
+html[data-theme="dark"] .admin-profile-filter {
+  background-repeat: no-repeat !important;
+  background-position: right 8px center !important;
+  background-size: 14px !important;
 }
 
 .admin-profile-filter:hover {
