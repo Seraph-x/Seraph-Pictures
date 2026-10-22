@@ -23,28 +23,41 @@
 
 ## 原仓库指引
 
-本仓库源自 [cf-pages/Telegraph-Image](https://github.com/cf-pages/Telegraph-Image)（即 Telegraph-Image，Cloudflare Pages + Telegram 图床，CC0-1.0）。下面保留原仓库的部署指引，供从上游过来的读者、只需要最小 Telegram 部署的场景，以及对照行为差异时使用。本仓库已大幅演进，实际部署请以下文的 Cloudflare / Docker 章节为准，原仓库步骤作为背景参考。
+本仓库源自 [katelya77/K-Vault](https://github.com/katelya77/K-Vault) —— 以 Telegram 为核心的 Cloudflare Serverless 聚合云盘，兼容 R2、S3、Discord、Hugging Face、WebDAV、GitHub 多存储后端（CC0-1.0）。骨架至今仍能对上：根目录页面、`functions/`、`server/`、`kvault_data` 数据卷，以及同样那四个 workflow。K-Vault 自己的致谢里把 [cf-pages/Telegraph-Image](https://github.com/cf-pages/Telegraph-Image) 列为更早的上游参考；本仓库第一个 commit 也还带着 Telegraph-Image 的 README 和一个指向它的 fork-sync workflow。
 
-### 原仓库最小路径
+下面保留原仓库的部署指引，供从 K-Vault 过来的读者、只需要最小 Telegram 部署的场景，以及对照行为差异时使用。本仓库已分叉演进 —— 下文所述的 Coordinator Worker、Passkey 登录、Storage Profile 都不在原仓库中 —— 实际部署请以本章之后的 Cloudflare / Docker 章节为准，原仓库步骤作为背景参考。
 
-1. **创建 Bot**：向 [@BotFather](https://t.me/BotFather) 发送 `/newbot`，按提示命名，拿到 Bot Token。
-2. **创建频道**：新建 Telegram 频道，把该 Bot 加为频道管理员并授予发帖权限。
-3. **获取 Chat ID**：向 [@VersaToolsBot](https://t.me/VersaToolsBot) 或 [@GetTheirIDBot](https://t.me/GetTheirIDBot) 发消息获取；也可请求 `https://api.telegram.org/bot<BOT_TOKEN>/getUpdates`，读取 `result[].channel_post.chat.id`。频道 ID 以 `-100` 开头。
-4. **Fork 后部署**：Fork 原仓库，在 Cloudflare Dashboard 进入 **Workers 和 Pages → 创建 → Pages → 连接到 Git**，选择 Fork 的仓库并部署。Pages Functions 必须通过 Git 或 Wrangler CLI 发布，仅在面板上传不会带上 Functions。
-5. **填写原仓库变量**：在 **设置 → 环境变量** 中添加 `TG_Bot_Token`、`TG_Chat_ID`，管理后台另加可选的 `BASIC_USER`、`BASIC_PASS`。
-6. **同步上游**：原仓库自带 **Upstream Sync** Action，每天合并 `cf-pages/Telegraph-Image@main`。上游改动该 workflow 文件后 GitHub 会暂停定时任务，需要手动 Sync 一次。
+### 原仓库最小路径：Cloudflare Pages
+
+1. **Fork 并连接**：Fork K-Vault，在 Cloudflare Dashboard 进入 **Workers 和 Pages → 创建 → Pages → 连接到 Git**，选择 Fork 的仓库。
+2. **构建配置全部留空**：Framework preset 选 `None`；根目录、安装命令、构建命令、构建输出目录、部署命令一律留空。不要填 `npx wrangler deploy`（那是 Workers 的命令，Pages 会报 `The detected framework ("Hono") cannot be automatically configured`），也不要把输出目录指向 `frontend/dist` —— 原仓库直接发布仓库根目录。
+3. **绑定 KV**：新建 KV 命名空间，然后在 Pages 项目的 KV 命名空间绑定中把变量名填成 `img_url`。图片管理、分片任务和基础配置都依赖它。
+4. **至少配置一个存储后端**：进入 **设置 → 环境变量**。最快的是 Telegram：`TG_Bot_Token`、`TG_Chat_ID`，管理后台另加可选的 `BASIC_USER`、`BASIC_PASS`。R2、S3、Discord、Hugging Face、WebDAV、GitHub 为替代方案；改完变量必须重新部署，运行中的部署不会自动读取新配置。
+5. **验证**：访问 `/api/status`，确认 `telegram`、`kv`、`r2` 等状态符合预期。
+6. **可选 Direct Upload**：不用 Git 集成时执行 `npm run pages:deploy -- --project-name <PAGES_PROJECT>`，等价于 `npx wrangler pages deploy .`。Direct Upload 项目不要和 Git 集成项目混用。
+
+### 原仓库最小路径：Docker
+
+```bash
+docker volume create kvault_data
+docker run -d --name kvault --restart unless-stopped -p 8080:8080 \
+  -v kvault_data:/app/data ghcr.io/katelya77/k-vault:latest
+```
+
+管理后台在 `/admin.html`，WebDAV 页面在 `/webdav.html`，健康检查在 `/api/health`。首次启动时容器会把 `CONFIG_ENCRYPTION_KEY` 和 `SESSION_SECRET` 自动生成到数据卷内的 `/app/data/runtime.env`：删容器不丢，删数据卷才丢。已克隆仓库时执行 `docker compose up -d` 拉取已发布镜像，可选读取由 `.env.example` 复制而来的 `.env`（`PUBLIC_BASE_URL`、`DEFAULT_STORAGE_TYPE`、`UPLOAD_MAX_SIZE`、`CHUNK_SIZE`、`WEB_PORT`）。启动后也可以只在管理后台新增、测试、切换存储后端。
 
 ### 本仓库与原仓库的差异
 
-| 原仓库 | 本仓库 |
+| K-Vault（原仓库） | 本仓库 |
 | --- | --- |
-| `TG_Bot_Token`、`TG_Chat_ID` | `TG_BOT_TOKEN`、`TG_CHAT_ID`，访客上传另用独立 `TG_GUEST_*` |
-| 仅 Cloudflare Pages Functions | Pages Functions + Durable Object Coordinator Worker，另有 Docker/Hono 运行时 |
-| `.github/workflows/sync.yml` 定时同步上游 | 仅 CI、Docker 镜像、Docker smoke、Pages 部署，不再有 fork-sync 任务 |
-| 提交 `_nuxt/` 构建产物 | Vue 构建到 `frontend/dist`，由 `wrangler pages deploy` 发布 |
+| 直接发布仓库根目录静态页面，仅 Pages Functions | Vue 构建到 `frontend/dist` 后由 `wrangler pages deploy frontend/dist` 上传，另加承载 `AUTH_COORDINATOR`、`UPLOAD_COORDINATOR` 两个 Durable Object 的 Coordinator Worker |
+| `TG_Bot_Token`、`TG_Chat_ID` | `TG_BOT_TOKEN`、`TG_CHAT_ID`，访客上传另用独立 `TG_GUEST_BOT_TOKEN`、`TG_GUEST_CHAT_ID` |
+| `BASIC_USER` / `BASIC_PASS` 密码登录 | 密码 + Passkey/WebAuthn（`WEBAUTHN_RP_ID`、`WEBAUTHN_ORIGIN`、`MIGRATION_AUDIENCE`）；`AUTH_DISABLED` 仅允许本地运行 |
+| 由 `DEFAULT_STORAGE_TYPE` 加一组环境变量决定默认后端 | 另有可在管理端维护的多实例 Storage Profile |
+| 已发布镜像 `ghcr.io/katelya77/k-vault:latest` | `npm run docker:init-env` 后 `docker compose up -d --build` 从源码构建 |
 | CC0-1.0 | MIT，见 [LICENSE](LICENSE) |
 
-Telegram 侧的准备步骤仍然通用；下文的存储、Passkey、多 Profile 等能力属于本仓库，以本文档为准。
+Telegram 侧的准备步骤仍然通用，原仓库的 `/api/status`、`/admin.html`、`/webdav.html` 入口在这里也仍然存在。下文的 Coordinator、Passkey、API Token、Storage Profile 以及 `wrangler.jsonc` 替换清单属于本仓库，以本文档为准。
 
 ## 功能与界面
 
@@ -234,4 +247,4 @@ npm run test:visual
 
 核心目录：`frontend/`（Vue 与 Legacy 构建）、`functions/`（Pages Functions）、`workers/coordinator/`（DO Worker）、`server/`（Docker API）、`shared/`（跨运行时契约）、`test/` 与 `e2e/`（验证）、`docs/`（部署与安全报告）。R2 专项说明见 [Cloudflare Pages + R2](docs/cloudflare-pages-r2.md)，Docker English guide 见 [README-DOCKER-EN.md](README-DOCKER-EN.md)。
 
-提交变更时同步更新中英文文档，运行构建与相关测试，不提交生成物、真实凭据或账户专用配置。项目源自 [cf-pages/Telegraph-Image](https://github.com/cf-pages/Telegraph-Image)（CC0-1.0），本仓库依据 [MIT License](LICENSE) 发布。
+提交变更时同步更新中英文文档，运行构建与相关测试，不提交生成物、真实凭据或账户专用配置。项目源自 [katelya77/K-Vault](https://github.com/katelya77/K-Vault)（CC0-1.0），该仓库把 [cf-pages/Telegraph-Image](https://github.com/cf-pages/Telegraph-Image) 列为更早的上游参考；本仓库依据 [MIT License](LICENSE) 发布。

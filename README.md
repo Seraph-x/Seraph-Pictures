@@ -23,28 +23,41 @@ A private media workspace for Cloudflare and Docker with multiple storage backen
 
 ## Origin and upstream guidance
 
-This repository started as a fork of [cf-pages/Telegraph-Image](https://github.com/cf-pages/Telegraph-Image) — the Cloudflare Pages + Telegram image host also known as Telegraph-Image (CC0-1.0). The original project's setup path is kept here for readers arriving from upstream, for a minimal Telegram-only deployment, and for comparing behaviour. This fork has since diverged, so use the deployment sections below for anything you actually run and treat the upstream steps as background.
+This tree started from [katelya77/K-Vault](https://github.com/katelya77/K-Vault) — a Telegram-first serverless media vault on Cloudflare with R2, S3, Discord, Hugging Face, WebDAV, and GitHub backends (CC0-1.0). The shared skeleton is still visible: the root pages, `functions/`, `server/`, the `kvault_data` volume, and the same four workflows. K-Vault's own acknowledgements credit [cf-pages/Telegraph-Image](https://github.com/cf-pages/Telegraph-Image) as an earlier upstream reference, and this tree's first commit still carried the Telegraph-Image README plus a fork-sync workflow pointed at it.
 
-### Upstream minimum path
+The upstream deployment path is kept here for readers arriving from K-Vault, for a minimal Telegram-only deployment, and for comparing behaviour. This fork has diverged — the coordinator Worker, Passkey login, and Storage Profiles described below are not upstream — so deploy from the sections after this one and treat the upstream steps as background.
 
-1. **Create the bot.** Message [@BotFather](https://t.me/BotFather), send `/newbot`, follow the prompts, and copy the bot token.
-2. **Create the channel.** Create a Telegram channel and add that bot as an administrator with permission to post.
-3. **Read the chat ID.** Message [@VersaToolsBot](https://t.me/VersaToolsBot) or [@GetTheirIDBot](https://t.me/GetTheirIDBot), or call `https://api.telegram.org/bot<BOT_TOKEN>/getUpdates` and read `result[].channel_post.chat.id`. Channel IDs begin with `-100`.
-4. **Deploy from a fork.** Fork upstream, open the Cloudflare dashboard, go to **Workers & Pages → Create → Pages → Connect to Git**, select the fork, and deploy. Pages Functions must ship through Git or the Wrangler CLI; a dashboard-only upload does not include them.
-5. **Set the upstream variables.** In **Settings → Environment variables** add `TG_Bot_Token` and `TG_Chat_ID`, plus optional `BASIC_USER` and `BASIC_PASS` for the admin console.
-6. **Keep the fork current.** Upstream ships an **Upstream Sync** GitHub Action that merges `cf-pages/Telegraph-Image@main` daily. When upstream changes that workflow file, GitHub pauses the schedule and the fork needs one manual sync.
+### Upstream minimum path: Cloudflare Pages
+
+1. **Fork and connect.** Fork K-Vault, then open the Cloudflare dashboard → **Workers & Pages → Create → Pages → Connect to Git** and select the fork.
+2. **Leave the build settings empty.** Framework preset `None`; root directory, install command, build command, build output directory, and deploy command all empty. Do not put `npx wrangler deploy` there — that is a Workers command, and Pages answers with `The detected framework ("Hono") cannot be automatically configured`. Do not point the output directory at `frontend/dist` either; upstream publishes the repository root as-is.
+3. **Bind KV.** Create a KV namespace, then add a namespace binding to the Pages project with the variable name `img_url`. Image management, chunked upload tasks, and base configuration all depend on it.
+4. **Configure at least one storage backend** under **Settings → Environment variables**. Telegram is the shortest path: `TG_Bot_Token` and `TG_Chat_ID`, plus optional `BASIC_USER` and `BASIC_PASS` for the admin console. R2, S3, Discord, Hugging Face, WebDAV, and GitHub are alternatives; redeploy after any variable change, because a running deployment never re-reads configuration.
+5. **Verify.** Open `/api/status` and confirm the `telegram`, `kv`, and `r2` blocks report what you configured.
+6. **Optional direct upload.** Without Git integration: `npm run pages:deploy -- --project-name <PAGES_PROJECT>`, which is `npx wrangler pages deploy .`. Never mix a Direct Upload project with a Git-integrated one.
+
+### Upstream minimum path: Docker
+
+```bash
+docker volume create kvault_data
+docker run -d --name kvault --restart unless-stopped -p 8080:8080 \
+  -v kvault_data:/app/data ghcr.io/katelya77/k-vault:latest
+```
+
+The admin console is at `/admin.html`, WebDAV at `/webdav.html`, health at `/api/health`. On first start the container generates `CONFIG_ENCRYPTION_KEY` and `SESSION_SECRET` into `/app/data/runtime.env` inside the volume; removing the container keeps them, removing the volume does not. With a clone, `docker compose up -d` pulls the published image and reads an optional `.env` copied from `.env.example` (`PUBLIC_BASE_URL`, `DEFAULT_STORAGE_TYPE`, `UPLOAD_MAX_SIZE`, `CHUNK_SIZE`, `WEB_PORT`). Storage backends can also be added, tested, and switched from the console after startup.
 
 ### What differs in this fork
 
-| Upstream | This repository |
+| K-Vault (upstream) | This repository |
 | --- | --- |
-| `TG_Bot_Token`, `TG_Chat_ID` | `TG_BOT_TOKEN`, `TG_CHAT_ID`, plus dedicated `TG_GUEST_*` credentials for guest uploads |
-| Cloudflare Pages Functions only | Pages Functions plus a Durable Object coordinator Worker, and a Docker/Hono runtime |
-| Fork-sync workflow in `.github/workflows/sync.yml` | CI, Docker image, Docker smoke, and Pages deploy workflows; no fork-sync job |
-| Committed `_nuxt/` build output | Vue app built into `frontend/dist` and deployed with `wrangler pages deploy` |
+| Repository root published as static pages, Pages Functions only | Vue app built into `frontend/dist` and uploaded with `wrangler pages deploy frontend/dist`, plus a coordinator Worker hosting the `AUTH_COORDINATOR` and `UPLOAD_COORDINATOR` Durable Objects |
+| `TG_Bot_Token`, `TG_Chat_ID` | `TG_BOT_TOKEN`, `TG_CHAT_ID`, plus dedicated `TG_GUEST_BOT_TOKEN` and `TG_GUEST_CHAT_ID` for guest uploads |
+| Admin login with `BASIC_USER` / `BASIC_PASS` | Password plus Passkey/WebAuthn (`WEBAUTHN_RP_ID`, `WEBAUTHN_ORIGIN`, `MIGRATION_AUDIENCE`); `AUTH_DISABLED` is refused outside local runs |
+| Default backend chosen by `DEFAULT_STORAGE_TYPE` plus an environment block | Also multi-instance Storage Profiles managed from the console |
+| Published image `ghcr.io/katelya77/k-vault:latest` | Built from source with `docker compose up -d --build` after `npm run docker:init-env` |
 | CC0-1.0 | MIT, see [LICENSE](LICENSE) |
 
-The Telegram-side prerequisites above are still the fastest way to obtain a working bot and channel. Every storage, Passkey, and multi-profile behaviour described in the rest of this document belongs to this fork and is specified here rather than upstream.
+Telegram-side prerequisites are unchanged, and upstream's `/api/status`, `/admin.html`, and `/webdav.html` entry points still exist here. Everything specified below — the coordinator, Passkey, API tokens, Storage Profiles, and the `wrangler.jsonc` replacement list — belongs to this fork.
 
 ## Features and interfaces
 
@@ -234,4 +247,4 @@ Manifest ranges are support declarations, lockfiles record current exact resolut
 
 Key directories: `frontend/` (Vue and Legacy build), `functions/` (Pages Functions), `workers/coordinator/` (DO Worker), `server/` (Docker API), `shared/` (cross-runtime contracts), `test/` and `e2e/` (verification), and `docs/` (deployment/security reports). See [Cloudflare Pages + R2](docs/cloudflare-pages-r2.md) and the [Chinese Docker guide](README-DOCKER.md).
 
-Update both language documents in the same change, run the build and relevant tests, and never commit build output, real credentials, or account-specific configuration. Origin: forked from [cf-pages/Telegraph-Image](https://github.com/cf-pages/Telegraph-Image) (CC0-1.0); this tree is released under the [MIT License](LICENSE).
+Update both language documents in the same change, run the build and relevant tests, and never commit build output, real credentials, or account-specific configuration. Origin: started from [katelya77/K-Vault](https://github.com/katelya77/K-Vault) (CC0-1.0), which credits [cf-pages/Telegraph-Image](https://github.com/cf-pages/Telegraph-Image) as an earlier upstream reference; this tree is released under the [MIT License](LICENSE).
