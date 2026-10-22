@@ -49,7 +49,7 @@ The migration does not fall back to `BASIC_USER` or `BASIC_PASS` when a legacy K
 
 Before deployment, production KV was exported to an encrypted backup outside the repository:
 
-- Backup: `/Users/zhuzhishang/Documents/Seraph-Pictures-security-backups/2026-07-13-pre-2a0-kv.json`
+- Backup: `<backup directory>/2026-07-13-pre-2a0-kv.json`
 - Manifest: adjacent manifest file with SHA-256 verification
 - Ciphertext SHA-256: `91b62d8bfec6c9be1cbde6d058edb60315040b079459c1ecf2eab01bfdcc7df6`
 - Encryption key storage: macOS Keychain service `com.seraph-pictures.security-backup`, account `Seraph-Pictures`

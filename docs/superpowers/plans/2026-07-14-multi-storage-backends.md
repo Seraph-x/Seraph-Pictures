@@ -69,7 +69,7 @@ Split by responsibility before adding behavior to an oversized file.
 
 ## Baseline and Completion Commands
 
-Run from `/Users/zhuzhishang/Seraph-Pictures/.worktrees/multi-storage-backends`.
+Run from `<project directory>/.worktrees/multi-storage-backends`.
 
 ```bash
 npm run build
