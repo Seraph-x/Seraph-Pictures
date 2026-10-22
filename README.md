@@ -247,4 +247,6 @@ Manifest ranges are support declarations, lockfiles record current exact resolut
 
 Key directories: `frontend/` (Vue and Legacy build), `functions/` (Pages Functions), `workers/coordinator/` (DO Worker), `server/` (Docker API), `shared/` (cross-runtime contracts), `test/` and `e2e/` (verification), and `docs/` (deployment/security reports). See [Cloudflare Pages + R2](docs/cloudflare-pages-r2.md) and the [Chinese Docker guide](README-DOCKER.md).
 
+The [project introduction](PROJECT_INTRO.md) ([中文](PROJECT_INTRO-ZH.md)) summarises the current goals, the main route flow, the technical structure, and what has been removed from this version.
+
 Update both language documents in the same change, run the build and relevant tests, and never commit build output, real credentials, or account-specific configuration. Origin: started from [katelya77/K-Vault](https://github.com/katelya77/K-Vault) (CC0-1.0), which credits [cf-pages/Telegraph-Image](https://github.com/cf-pages/Telegraph-Image) as an earlier upstream reference; this tree is released under the [MIT License](LICENSE).

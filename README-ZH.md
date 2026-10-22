@@ -247,4 +247,6 @@ npm run test:visual
 
 核心目录：`frontend/`（Vue 与 Legacy 构建）、`functions/`（Pages Functions）、`workers/coordinator/`（DO Worker）、`server/`（Docker API）、`shared/`（跨运行时契约）、`test/` 与 `e2e/`（验证）、`docs/`（部署与安全报告）。R2 专项说明见 [Cloudflare Pages + R2](docs/cloudflare-pages-r2.md)，Docker English guide 见 [README-DOCKER-EN.md](README-DOCKER-EN.md)。
 
+[项目介绍](PROJECT_INTRO-ZH.md)（[English](PROJECT_INTRO.md)）概述当前目标、主流程路由、技术结构与本版本已移除的内容。
+
 提交变更时同步更新中英文文档，运行构建与相关测试，不提交生成物、真实凭据或账户专用配置。项目源自 [katelya77/K-Vault](https://github.com/katelya77/K-Vault)（CC0-1.0），该仓库把 [cf-pages/Telegraph-Image](https://github.com/cf-pages/Telegraph-Image) 列为更早的上游参考；本仓库依据 [MIT License](LICENSE) 发布。

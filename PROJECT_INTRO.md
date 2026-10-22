@@ -1,33 +1,35 @@
-# Seraph's Pictures 项目介绍
+# Seraph's Pictures — project introduction
 
-Seraph's Pictures 是一个私有媒体工作区，面向图片、文件、音频、视频和文档托管场景。项目当前以 Cloudflare Pages 为主要部署目标，使用根路径 Legacy 页面作为稳定主界面，同时保留 `/app` Vue App 作为新版体验和后续迁移入口。
+**English** | [中文](PROJECT_INTRO-ZH.md)
 
-## 当前目标
+Seraph's Pictures is a private media workspace for hosting images, files, audio, video, and documents. Cloudflare Pages is currently the primary deployment target: the legacy pages served from the root path are the stable main interface, while the `/app` Vue app is kept as the new experience and the entry point for the upcoming migration.
 
-- 提供轻量、私有、可部署到 Cloudflare Pages 的文件托管界面。
-- 保留直观的上传、浏览、后台管理和 WebDAV 上传流程。
-- 支持多存储后端，并推荐 WebDAV 作为聚合存储入口。
-- 支持 Passkey / WebAuthn 登录、带作用域的 API Token（公开 `/api/v1/*`）与访客上传（独立 Telegram bot / 频道）。
-- 统一 Seraph's Pictures 品牌和 Claude 风格视觉。
+## Current goals
 
-## 当前主流程
+- A lightweight, private file-hosting interface that deploys to Cloudflare Pages.
+- Straightforward upload, browsing, admin console, and WebDAV upload flows, kept intact.
+- Multiple storage backends, with WebDAV recommended as the aggregated storage entry point.
+- Passkey / WebAuthn sign-in, scoped API tokens (public `/api/v1/*`), and guest uploads (a separate Telegram bot / channel).
+- One consistent Seraph's Pictures brand and a Claude-style visual language.
+
+## Current main flow
 
 ```txt
-/              上传首页
-/login.html    登录页
-/admin.html    管理后台
-/gallery.html  图片浏览
-/webdav.html   WebDAV 上传中心
-/app/status    Vue 状态页
+/              upload home
+/login.html    sign-in page
+/admin.html    admin console
+/gallery.html  image gallery
+/webdav.html   WebDAV upload center
+/app/status    Vue status page
 ```
 
-## 技术结构
+## Technical structure
 
-- Legacy HTML：当前线上主流程。
-- Vue/Vite：构建到 `/app`，用于新版上传、Drive、Storage、Status 页面。
-- Cloudflare Functions：提供认证、上传、状态、管理、文件访问等 API。
-- Docker runtime：提供更完整的自托管后端和新版 Vue API。
+- Legacy HTML: the main flow that is live today.
+- Vue/Vite: builds into `/app` for the new upload, Drive, Storage, and Status pages.
+- Cloudflare Functions: authentication, upload, status, admin, and file-access APIs.
+- Docker runtime: the fuller self-hosted backend and the new Vue APIs.
 
-## 已清理内容
+## Removed content
 
-旧 `admin-imgtc.html`、`admin-waterfall.html` 和 `_nuxt/` 已从当前版本移除，避免继续暴露过期页面和历史构建产物。
+The old `admin-imgtc.html`, `admin-waterfall.html`, and `_nuxt/` have been removed from the current version so that stale pages and historical build output are no longer exposed.
