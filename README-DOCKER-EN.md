@@ -1,6 +1,6 @@
 # Seraph's Pictures Docker Guide
 
-[Project README](README-EN.md) | [中文 Docker 指南](README-DOCKER.md)
+[Project README](README.md) | [中文 Docker 指南](README-DOCKER.md)
 
 The Docker runtime targets VPS, NAS, and local private deployments. It combines a static frontend, Node/Hono API, and persistent data volume. Docker and Cloudflare both provide Storage, Drive, Share, Passkey, API Token, and guest-upload features; they differ in persistence, upload modes, and adapter implementations—not API availability.
 

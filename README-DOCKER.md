@@ -1,6 +1,6 @@
 # Seraph's Pictures Docker 运行指南
 
-[项目中文说明](README.md) | [English Docker guide](README-DOCKER-EN.md)
+[项目中文说明](README-ZH.md) | [English Docker guide](README-DOCKER-EN.md)
 
 Docker runtime 面向 VPS、NAS 与本地私有化部署，由静态前端、Node/Hono API 和持久数据卷组成。它与 Cloudflare runtime 都提供 Storage、Drive、Share、Passkey、API Token 和访客上传；两者差异在持久化、上传模式和存储适配实现，不在 API 是否存在。
 

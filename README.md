@@ -3,9 +3,9 @@
 
 # Seraph's Pictures
 
-面向 Cloudflare 与 Docker 的私有媒体工作区，支持多存储、访客图床、文件管理和安全分享。
+A private media workspace for Cloudflare and Docker with multiple storage backends, guest image hosting, file management, and secure sharing.
 
-**中文** | [English](README-EN.md)
+[中文](README-ZH.md) | **English**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Cloudflare](https://img.shields.io/badge/Cloudflare-Pages%20%2B%20Workers-F38020?logo=cloudflare&logoColor=white)
@@ -13,29 +13,54 @@
 ![Vue 3](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)
 </div>
 
-## 安全警告
+## Security warnings
 
 > [!WARNING]
-> Fork 后不要直接部署仓库内的 Wrangler 配置。必须替换两个配置文件中的项目名、Worker 名、全部 KV ID、R2 桶名、Durable Object `script_name`、WebAuthn 域名/来源和迁移 audience；先部署 Coordinator，再部署 Pages。
+> Do not deploy the checked-in Wrangler configuration unchanged after forking. Replace project and Worker names, every KV ID, R2 bucket name, Durable Object `script_name`, WebAuthn domain/origin, and migration audience in both configuration files. Deploy the Coordinator before Pages.
 
 > [!IMPORTANT]
-> 生产环境必须启用认证并使用 Secrets。`AUTH_DISABLED=true` 仅允许本地运行；Coordinator、KV 或加密密钥异常时服务会明确失败，不会降级到旧凭据或明文配置。
+> Production must keep authentication enabled and store secrets as Secrets. `AUTH_DISABLED=true` is local-only. Coordinator, KV, or encryption-key failures are explicit; the service does not degrade to legacy credentials or plaintext configuration.
 
-## 功能与界面
+## Origin and upstream guidance
 
-- 上传图片、音视频和文档，支持 URL 上传、分片/多段上传及 SSRF 防护。
-- Telegram、R2、S3、Discord、Hugging Face、WebDAV、GitHub 多存储适配。
-- 密码、Passkey/WebAuthn、作用域 API Token、短链和私有签名分享。
-- 目录树、筛选、批量移动/删除、重命名、可见性管理和在线预览。
-- 开放访客图床时使用隔离的 Telegram Bot/频道、固定配额和内容真实性校验。
-- Legacy 稳定界面：`/`、`/login.html`、`/admin.html`、`/gallery.html`、`/webdav.html`、`/storage-settings.html`。
-- Vue 界面：`/app/`、`/app/drive`、`/app/storage`、`/app/status`；两种运行时均已实现其 Storage、Drive 和 Share API。
+This repository started as a fork of [cf-pages/Telegraph-Image](https://github.com/cf-pages/Telegraph-Image) — the Cloudflare Pages + Telegram image host also known as Telegraph-Image (CC0-1.0). The original project's setup path is kept here for readers arriving from upstream, for a minimal Telegram-only deployment, and for comparing behaviour. This fork has since diverged, so use the deployment sections below for anything you actually run and treat the upstream steps as background.
 
-| 上传 | 图库 | 管理 | Passkey |
+### Upstream minimum path
+
+1. **Create the bot.** Message [@BotFather](https://t.me/BotFather), send `/newbot`, follow the prompts, and copy the bot token.
+2. **Create the channel.** Create a Telegram channel and add that bot as an administrator with permission to post.
+3. **Read the chat ID.** Message [@VersaToolsBot](https://t.me/VersaToolsBot) or [@GetTheirIDBot](https://t.me/GetTheirIDBot), or call `https://api.telegram.org/bot<BOT_TOKEN>/getUpdates` and read `result[].channel_post.chat.id`. Channel IDs begin with `-100`.
+4. **Deploy from a fork.** Fork upstream, open the Cloudflare dashboard, go to **Workers & Pages → Create → Pages → Connect to Git**, select the fork, and deploy. Pages Functions must ship through Git or the Wrangler CLI; a dashboard-only upload does not include them.
+5. **Set the upstream variables.** In **Settings → Environment variables** add `TG_Bot_Token` and `TG_Chat_ID`, plus optional `BASIC_USER` and `BASIC_PASS` for the admin console.
+6. **Keep the fork current.** Upstream ships an **Upstream Sync** GitHub Action that merges `cf-pages/Telegraph-Image@main` daily. When upstream changes that workflow file, GitHub pauses the schedule and the fork needs one manual sync.
+
+### What differs in this fork
+
+| Upstream | This repository |
+| --- | --- |
+| `TG_Bot_Token`, `TG_Chat_ID` | `TG_BOT_TOKEN`, `TG_CHAT_ID`, plus dedicated `TG_GUEST_*` credentials for guest uploads |
+| Cloudflare Pages Functions only | Pages Functions plus a Durable Object coordinator Worker, and a Docker/Hono runtime |
+| Fork-sync workflow in `.github/workflows/sync.yml` | CI, Docker image, Docker smoke, and Pages deploy workflows; no fork-sync job |
+| Committed `_nuxt/` build output | Vue app built into `frontend/dist` and deployed with `wrangler pages deploy` |
+| CC0-1.0 | MIT, see [LICENSE](LICENSE) |
+
+The Telegram-side prerequisites above are still the fastest way to obtain a working bot and channel. Every storage, Passkey, and multi-profile behaviour described in the rest of this document belongs to this fork and is specified here rather than upstream.
+
+## Features and interfaces
+
+- Upload images, media, and documents with URL upload, chunked/multipart paths, and SSRF protection.
+- Telegram, R2, S3, Discord, Hugging Face, WebDAV, and GitHub storage adapters.
+- Password and Passkey/WebAuthn login, scoped API tokens, short links, and signed private shares.
+- Folder tree, filtering, batch move/delete, rename, visibility controls, and previews.
+- Isolated Telegram bot/channel, fixed quotas, and content authenticity checks for public guest image hosting.
+- Stable Legacy UI: `/`, `/login.html`, `/admin.html`, `/gallery.html`, `/webdav.html`, `/storage-settings.html`.
+- Vue UI: `/app/`, `/app/drive`, `/app/storage`, `/app/status`; both runtimes implement its Storage, Drive, and Share APIs.
+
+| Upload | Gallery | Administration | Passkey |
 | :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/home.jpeg" width="210" alt="上传页"> | <img src="docs/screenshots/gallery.jpeg" width="210" alt="图库"> | <img src="docs/screenshots/admin.jpeg" width="210" alt="管理后台"> | <img src="docs/screenshots/login-passkey.jpeg" width="210" alt="Passkey 登录"> |
+| <img src="docs/screenshots/home.jpeg" width="210" alt="Upload page"> | <img src="docs/screenshots/gallery.jpeg" width="210" alt="Gallery"> | <img src="docs/screenshots/admin.jpeg" width="210" alt="Administration"> | <img src="docs/screenshots/login-passkey.jpeg" width="210" alt="Passkey login"> |
 
-## 架构
+## Architecture
 
 ```mermaid
 flowchart LR
@@ -52,14 +77,14 @@ flowchart LR
   adapters --> remote[Telegram / S3 / WebDAV / others]
 ```
 
-Cloudflare 以 Durable Objects 协调认证与 R2 multipart 状态，以 KV 保存元数据；Docker 以 Hono、SQLite（可选 Redis 设置存储）和持久卷运行。界面保持一致，持久化与适配实现不同。
+Cloudflare coordinates authentication and R2 multipart state with Durable Objects and stores metadata in KV. Docker runs Hono with SQLite, an optional Redis settings store, and persistent volumes. The UI is shared; persistence and adapter implementations differ.
 
-## 快速开始
+## Quick start
 
-| 目标 | 选择 | 最短路径 |
+| Goal | Choose | Shortest path |
 | --- | --- | --- |
-| 全球边缘、无服务器 | Cloudflare Pages + Worker | 创建 KV/R2/DO，改配置，先部署 Worker 后部署 Pages |
-| VPS、NAS、本地私有化 | Docker Compose | 生成 `.env`，修改密钥，构建并启动 |
+| Global edge, serverless | Cloudflare Pages + Worker | Create KV/R2/DO, edit configs, deploy Worker then Pages |
+| VPS, NAS, local private hosting | Docker Compose | Generate `.env`, replace secrets, build and start |
 
 ```bash
 npm ci
@@ -69,24 +94,24 @@ docker compose up -d --build
 npm run docker:doctor
 ```
 
-Node.js 22+ 用于开发与 Docker 后端。不要把 `.env`、真实 Token、密码或加密密钥提交到仓库。
+Development and the Docker backend require Node.js 22+. Never commit `.env`, real tokens, passwords, or encryption keys.
 
-## Cloudflare 部署
+## Cloudflare deployment
 
-1. 创建 Pages 项目、KV namespace、R2 bucket，以及承载两个 Durable Object 的 Worker。
-2. 在 `wrangler.jsonc` 和 `workers/coordinator/wrangler.jsonc` 中替换所有仓库专用值：
+1. Create a Pages project, KV namespace, R2 bucket, and a Worker that hosts both Durable Objects.
+2. Replace every repository-specific value in `wrangler.jsonc` and `workers/coordinator/wrangler.jsonc`:
 
-| 占位符 | 必须替换的位置 |
+| Placeholder | Replace in |
 | --- | --- |
 | `<PAGES_PROJECT>` | Pages `name` |
-| `<COORDINATOR_WORKER>` | Worker 顶层及 `env.production.name`、两个 DO `script_name` |
-| `<KV_NAMESPACE_ID>` | 两文件中全部 KV ID，包括 `env.production` |
-| `<R2_BUCKET>` | 两文件中全部桶名，包括 `env.production` |
-| `<YOUR_DOMAIN>` | `WEBAUTHN_RP_ID` 与 HTTPS `WEBAUTHN_ORIGIN` |
-| `<MIGRATION_AUDIENCE>` | 当前 KV audience；通常取你的 KV namespace ID |
+| `<COORDINATOR_WORKER>` | Worker top-level and `env.production.name`, plus both DO `script_name` values |
+| `<KV_NAMESPACE_ID>` | Every KV ID in both files, including `env.production` |
+| `<R2_BUCKET>` | Every bucket name in both files, including `env.production` |
+| `<YOUR_DOMAIN>` | `WEBAUTHN_RP_ID` and the HTTPS `WEBAUTHN_ORIGIN` |
+| `<MIGRATION_AUDIENCE>` | Current KV audience, normally your KV namespace ID |
 
-3. 在 Pages 生产 Secrets 中配置 `BASIC_USER`、`BASIC_PASS`、`SESSION_SECRET`、`CONFIG_ENCRYPTION_KEY`、`FILE_SHARE_SECRET_CURRENT`；按需增加主存储凭据及访客专用 `TG_GUEST_BOT_TOKEN`、`TG_GUEST_CHAT_ID`。普通变量配置 WebAuthn RP/origin，绑定名保持 `img_url`、`R2_BUCKET`、`AUTH_COORDINATOR`、`UPLOAD_COORDINATOR`。
-4. 保留已有 R2 生命周期规则，用“读取—追加—复查”添加 multipart 清理规则；禁止使用会整体替换规则集的操作：
+3. Configure `BASIC_USER`, `BASIC_PASS`, `SESSION_SECRET`, `CONFIG_ENCRYPTION_KEY`, and `FILE_SHARE_SECRET_CURRENT` as production Pages Secrets. Add main-storage credentials as needed and dedicated `TG_GUEST_BOT_TOKEN` plus `TG_GUEST_CHAT_ID` for guests. Use plain variables for WebAuthn RP/origin; keep binding names `img_url`, `R2_BUCKET`, `AUTH_COORDINATOR`, and `UPLOAD_COORDINATOR`.
+4. Preserve existing R2 lifecycle rules. Add multipart cleanup with a read-add-read sequence; never use an operation that replaces the complete ruleset:
 
 ```bash
 npx wrangler r2 bucket lifecycle list <R2_BUCKET>
@@ -98,9 +123,9 @@ npx wrangler pages deploy frontend/dist --project-name <PAGES_PROJECT> --branch 
 node scripts/probe-coordinator-binding.mjs --base-url https://<YOUR_DOMAIN>
 ```
 
-部署顺序不可颠倒。生命周期规则仅终止 `multipart/` 前缀下一天未完成的上传，不删除完整对象；若已有全前缀默认规则或其他规则，必须原样保留。`npm run pages:deploy` 会读取已检入配置，Fork 未完成全部替换前不要运行。
+Do not reverse the deployment order. The lifecycle rule only aborts incomplete uploads under `multipart/` after one day; it does not remove completed objects. Preserve any all-prefix default rule and every unrelated rule. `npm run pages:deploy` consumes the checked-in configuration, so a fork must not run it before completing every replacement.
 
-## Docker 部署
+## Docker deployment
 
 ```bash
 npm run docker:init-env
@@ -109,63 +134,63 @@ npm run docker:doctor
 docker compose logs api
 ```
 
-启动前修改 `.env` 中所有示例密钥。默认 SQLite 数据和配置位于 `kvault_data` 持久卷；`SETTINGS_STORE=redis` 时使用外部 Redis，Compose 的本地 Redis 通过 profile 启动。反向代理必须提供 HTTPS，并令 `PUBLIC_BASE_URL`、WebAuthn RP/origin 与公开域名一致。完整说明见 [Docker 中文指南](README-DOCKER.md)。
+Replace every example secret in `.env` before startup. SQLite data and configuration persist in `kvault_data` by default. Set `SETTINGS_STORE=redis` for external Redis; the Compose Redis service starts through its profile. A reverse proxy must provide HTTPS, and `PUBLIC_BASE_URL` plus WebAuthn RP/origin must match the public domain. See the [English Docker guide](README-DOCKER-EN.md).
 
-## 存储与上传能力
+## Storage and upload capabilities
 
-| 后端 | Cloudflare | Docker | 硬上限 |
+| Backend | Cloudflare | Docker | Hard ceiling |
 | --- | --- | --- | --- |
-| R2 | direct / multipart | direct / chunked | 管理员配置，默认最高 100 MiB |
-| S3、WebDAV | direct / streaming | direct / chunked | 管理员配置，默认最高 100 MiB |
-| Telegram | direct | direct / chunked | Cloudflare/访客 20 MiB；Docker 管理员最高 50 MiB |
+| R2 | direct / multipart | direct / chunked | Admin setting, 100 MiB default maximum |
+| S3, WebDAV | direct / streaming | direct / chunked | Admin setting, 100 MiB default maximum |
+| Telegram | direct | direct / chunked | 20 MiB on Cloudflare/guest; 50 MiB for Docker admin |
 | Discord | direct | direct / chunked | 25 MiB |
 | Hugging Face | direct | direct / chunked | 35 MiB |
-| GitHub | direct | direct / chunked | 管理员配置，默认最高 100 MiB |
+| GitHub | direct | direct / chunked | Admin setting, 100 MiB default maximum |
 
-20 MiB 是 direct 阈值；只有 Cloudflare R2 使用 multipart。管理页保存的动态存储配置以 AES-GCM 加密：Cloudflare 写入 KV，Docker storage profiles 写入 SQLite；Redis 只可作为独立的通用设置存储。动态配置优先于环境变量，空白密钥字段表示保留旧值。R2 原生绑定仍由 Wrangler/Cloudflare 控制台管理。
+The direct threshold is 20 MiB; only Cloudflare R2 uses multipart. Admin-saved dynamic storage settings are AES-GCM encrypted: Cloudflare writes them to KV, while Docker storage profiles always use SQLite; Redis is only an optional, separate general settings store. Dynamic settings take precedence over environment variables, and a blank secret field preserves its current value. Wrangler/the Cloudflare dashboard still controls the native R2 binding.
 
-### 多实例 Storage Profile
+### Multi-instance Storage Profiles
 
-同一存储类型可创建多个命名 Profile，每个类型恰有一个 enabled default。管理员上传同时绑定 `storageMode` 与精确 `storageId`；禁用 Profile 不能接收新写入，但仍可读取、删除或迁移历史文件。环境变量只参与首次引导或显式迁移，运行时不会在 Profile 缺失、禁用或故障时回退到旧全局凭据。
+One storage type may have multiple named profiles, with exactly one enabled default per type. Administrator uploads bind both `storageMode` and the exact `storageId`. Disabled profiles reject new writes but remain available for historical reads, deletion, and migration. Environment values are bootstrap or explicit-migration inputs only; runtime resolution never falls back to old global credentials when a profile is missing, disabled, or unavailable.
 
-Cloudflare R2 Profile 可选择 `binding`（填写 Wrangler 绑定名，例如 `R2_BUCKET`）或 `s3`（填写 endpoint、bucket、access key 和 secret）；Docker R2 使用 S3-compatible 凭据。Guest Channel 始终独立，访客不能列举或提交管理员 `storageId`。
+A Cloudflare R2 profile selects either `binding` mode (a Wrangler binding such as `R2_BUCKET`) or `s3` mode (endpoint, bucket, access key, and secret). Docker R2 uses S3-compatible credentials. Guest Channel remains isolated: guest callers cannot enumerate profiles or submit an administrator `storageId`.
 
-升级既有 v1/Legacy/SQLite 数据前，先执行 dry-run，再用环境专用 driver 完成备份、freeze、stage、activate、live verify 和 marker。完整命令、回滚规则、错误含义及已验证哈希见 [多存储迁移演练](docs/2026-07-14_multi-storage-migration-rehearsal.md)。
+Before upgrading v1/Legacy/SQLite state, run a dry-run and then use an environment-specific driver for backup, freeze, stage, activation, live verification, and marker commit. See the [multi-storage migration rehearsal](docs/2026-07-14_multi-storage-migration-rehearsal.md) for exact commands, rollback rules, error meanings, and verified hashes.
 
-## 安全模型
+## Security model
 
-- **认证**：Pages 通过 `AuthCoordinator` 处理初始化、登录失败限制和会话状态；绑定或持久化失败时 fail closed。初始化后环境凭据不是运行时回退。
-- **Passkey**：RP ID 是域名，origin 必须是对应 HTTPS 源站；更换域名后需重新注册凭据。
-- **文件可见性**：Drive 来源默认 `private`；image-host、API 与 Legacy 来源默认 `public`，API 可显式请求 `private`。私有访问使用带过期时间的签名和可撤销 lease；访客文件默认 `public`。
-- **访客上传**：必须同时配置独立的 `TG_GUEST_*`；缺失即拒绝，不回退管理员 Bot。仅接受签名、MIME 与扩展名一致的 AVIF/GIF/JPEG/PNG/WebP。每 IP 每日固定 10 次，保留期至少 1 天，配置上限 20 MiB，示例默认 5 MiB。
-- **删除语义**：访客元数据到期会令项目链接失效，但不代表 Telegram 远端字节已删除；远端清理需按频道策略单独执行。
+- **Authentication:** Pages uses `AuthCoordinator` for initialization, login-failure limits, and session state. Binding or persistence failures fail closed. Environment credentials are not a runtime fallback after initialization.
+- **Passkeys:** the RP ID is the domain and origin is its HTTPS origin. Register credentials again after changing domains.
+- **File visibility:** Drive sources default to `private`; image-host, API, and Legacy sources default to `public`, while APIs may explicitly request `private`. Private access uses expiring signatures and revocable leases. Guest files default to `public`.
+- **Guest uploads:** both dedicated `TG_GUEST_*` values are required. Missing values reject uploads instead of falling back to the administrator bot. Only AVIF/GIF/JPEG/PNG/WebP files whose signature, MIME, and extension agree are accepted. The fixed per-IP quota is 10/day, retention is at least one day, the configurable ceiling is 20 MiB, and the example default is 5 MiB.
+- **Deletion semantics:** guest metadata expiry invalidates project links but does not prove deletion of remote Telegram bytes. Apply a separate channel cleanup policy when remote deletion is required.
 
-第二阶段未引入新的付费第三方依赖，但 Cloudflare Pages、Workers、KV、R2 和 Durable Objects 可能按用量计费；部署前检查服务商当前定价与额度。
+Phase two introduced no new paid third-party dependency. Cloudflare Pages, Workers, KV, R2, and Durable Objects can still incur usage-based charges; review the provider's current pricing and allowances before deployment.
 
-## 配置参考
+## Configuration reference
 
-| 责任 | 变量或绑定 |
+| Responsibility | Variables or bindings |
 | --- | --- |
-| 认证/加密 | `BASIC_USER`、`BASIC_PASS`、`SESSION_SECRET`、`CONFIG_ENCRYPTION_KEY` |
-| 分享签名 | `FILE_SHARE_SECRET_CURRENT`、`FILE_SHARE_SECRET_PREVIOUS`、`FILE_SHARE_SECRET_PREVIOUS_VALID_UNTIL` |
-| Passkey | `WEBAUTHN_RP_ID`、`WEBAUTHN_ORIGIN`、`WEBAUTHN_RP_NAME` |
-| Pages 数据 | `img_url`、`R2_BUCKET`、`AUTH_COORDINATOR`、`UPLOAD_COORDINATOR` |
-| Telegram | `TG_BOT_TOKEN`、`TG_CHAT_ID`、`TG_GUEST_BOT_TOKEN`、`TG_GUEST_CHAT_ID` |
-| Docker 数据 | `DATA_DIR`、`DB_PATH`、`SETTINGS_STORE`、`SETTINGS_REDIS_URL`、`TRUST_PROXY` |
-| 可选后端 | `R2_*`、`S3_*`、`WEBDAV_*`、`DISCORD_*`、`HF_*`、`GITHUB_*` |
+| Authentication/encryption | `BASIC_USER`, `BASIC_PASS`, `SESSION_SECRET`, `CONFIG_ENCRYPTION_KEY` |
+| Share signing | `FILE_SHARE_SECRET_CURRENT`, `FILE_SHARE_SECRET_PREVIOUS`, `FILE_SHARE_SECRET_PREVIOUS_VALID_UNTIL` |
+| Passkeys | `WEBAUTHN_RP_ID`, `WEBAUTHN_ORIGIN`, `WEBAUTHN_RP_NAME` |
+| Pages data | `img_url`, `R2_BUCKET`, `AUTH_COORDINATOR`, `UPLOAD_COORDINATOR` |
+| Telegram | `TG_BOT_TOKEN`, `TG_CHAT_ID`, `TG_GUEST_BOT_TOKEN`, `TG_GUEST_CHAT_ID` |
+| Docker data | `DATA_DIR`, `DB_PATH`, `SETTINGS_STORE`, `SETTINGS_REDIS_URL`, `TRUST_PROXY` |
+| Optional backends | `R2_*`, `S3_*`, `WEBDAV_*`, `DISCORD_*`, `HF_*`, `GITHUB_*` |
 
-Docker 基础模板见 [.env.example](.env.example)。开放 Docker 访客上传时还需加入 `TG_GUEST_*`、`GUEST_RETENTION_DAYS`，并仅在可信反向代理之后设置 `TRUST_PROXY=true`。变量仅负责首次引导时，管理员保存的加密动态配置会优先；错误会显式返回，不能假定自动回退。
+See [.env.example](.env.example) for the base Docker template. Public Docker guest uploads also need `TG_GUEST_*`, `GUEST_RETENTION_DAYS`, and `TRUST_PROXY=true` only behind a trusted reverse proxy. Environment values bootstrap settings; encrypted dynamic settings saved by an administrator take precedence. Errors remain explicit—do not assume automatic fallback.
 
-## API 示例
+## API examples
 
-UI 路由 `/app/storage`、`/app/drive` 不等于 API。以下操作均要求管理员认证：
+UI routes `/app/storage` and `/app/drive` are not API routes. Every operation below requires administrator authentication:
 
-| 范围 | 方法与路径 |
+| Scope | Method and path |
 | --- | --- |
-| Storage 查询/创建 | `GET /api/storage/list`、`POST /api/storage` |
-| Storage 修改/测试 | `PUT/DELETE /api/storage/:id`、`POST /api/storage/default/:id`、`POST /api/storage/:id/test`、`POST /api/storage/test` |
-| Drive 查询/目录 | `GET /api/drive/tree`、`GET /api/drive/explorer`、`POST /api/drive/folders`、`POST /api/drive/folders/move`、`DELETE /api/drive/folders` |
-| Drive 文件/分享 | `POST /api/drive/files/move`、`POST /api/drive/files/rename`、`POST /api/drive/files/delete-batch`、`POST /api/share/sign` |
+| Storage query/create | `GET /api/storage/list`, `POST /api/storage` |
+| Storage mutation/test | `PUT/DELETE /api/storage/:id`, `POST /api/storage/default/:id`, `POST /api/storage/:id/test`, `POST /api/storage/test` |
+| Drive query/folders | `GET /api/drive/tree`, `GET /api/drive/explorer`, `POST /api/drive/folders`, `POST /api/drive/folders/move`, `DELETE /api/drive/folders` |
+| Drive files/sharing | `POST /api/drive/files/move`, `POST /api/drive/files/rename`, `POST /api/drive/files/delete-batch`, `POST /api/share/sign` |
 
 ```bash
 curl --fail-with-body https://<YOUR_DOMAIN>/api/auth/check
@@ -176,9 +201,9 @@ curl --fail-with-body -u '<ADMIN_USER>:<ADMIN_PASSWORD>' https://<YOUR_DOMAIN>/a
 curl --fail-with-body -u '<ADMIN_USER>:<ADMIN_PASSWORD>' --json '{"fileId":"<FILE_ID>"}' https://<YOUR_DOMAIN>/api/share/sign
 ```
 
-脚本集成使用后台签发的 Bearer Token 调用 `/api/v1/*`；不要在 URL 中传 Token。受保护 API 未认证时应返回 401/403，而不是伪造空结果。
+For scripts, issue a scoped Bearer token in the admin UI and call `/api/v1/*`; never put a token in a URL. Protected APIs should return 401/403 when unauthenticated, not fabricated empty results.
 
-## 验证
+## Verification
 
 ```bash
 npm run frontend:build
@@ -189,24 +214,24 @@ npm run test:auth-e2e
 npm run test:visual
 ```
 
-清单中的版本范围表示支持声明，lockfile 表示当前精确解析版本，安全报告表示某次完成验证时使用的版本，三者不可互换。浏览器 E2E 需要 Playwright 浏览器和对应运行时；生产验证结果见 [第二阶段安全报告](docs/2026-07-13_security-phase-two-report.md)。
+Manifest ranges are support declarations, lockfiles record current exact resolutions, and security reports record versions used by a completed verification; they are not interchangeable. Browser E2E requires Playwright browsers and its runtime. See the [phase-two security report](docs/2026-07-13_security-phase-two-report.md) for production evidence.
 
-## 故障排查
+## Troubleshooting
 
-| 现象 | 根因与处理 |
+| Symptom | Root cause and action |
 | --- | --- |
-| `COORDINATOR_BINDING_*` / 登录 5xx | Worker 未先部署、`script_name` 不一致或 DO 迁移缺失；核对两份配置并运行 binding probe |
-| `NO_ENC_KEY` | 设置 `CONFIG_ENCRYPTION_KEY` 或 `SESSION_SECRET`，不要保存明文凭据 |
-| `GUEST_STORAGE_NOT_CONFIGURED` | 同时设置访客 Bot Token 与 Chat ID |
-| multipart 残留 | 先 list 规则，再追加一日 abort 规则并复查；不要覆盖已有 lifecycle |
-| Passkey origin/RP 错误 | RP 仅填域名，origin 填完整 HTTPS 源站，二者与浏览器地址一致 |
-| Docker 启动拒绝 | 替换示例密码/密钥，检查持久卷权限并查看 `docker compose logs api` |
-| `STORAGE_PROFILE_NOT_FOUND` / `STORAGE_NOT_WRITABLE` | 检查请求中的精确 `storageId`、类型和 enabled 状态；不要回退全局凭据 |
-| `STORAGE_PROFILE_IN_USE` | Profile 仍被文件、分片任务或 lifecycle 引用；完成或 reconciliation 后再修改 |
-| `MIGRATION_ACTIVATION_AMBIGUOUS` | 保持 Cloudflare freeze 与 Docker lock，读取 authority/ledger 取得明确证据后恢复 |
+| `COORDINATOR_BINDING_*` / login 5xx | Worker not deployed first, mismatched `script_name`, or missing DO migration; compare both configs and run the binding probe |
+| `NO_ENC_KEY` | Set `CONFIG_ENCRYPTION_KEY` or `SESSION_SECRET`; never save plaintext credentials |
+| `GUEST_STORAGE_NOT_CONFIGURED` | Set both guest bot token and chat ID |
+| Incomplete multipart data | List rules, add the one-day abort rule, and list again; do not replace existing lifecycle rules |
+| Passkey origin/RP error | RP is the domain only; origin is the full HTTPS origin; both must match the browser address |
+| Docker refuses startup | Replace example passwords/keys, check volume permissions, and inspect `docker compose logs api` |
+| `STORAGE_PROFILE_NOT_FOUND` / `STORAGE_NOT_WRITABLE` | Check the exact `storageId`, type, and enabled state; do not fall back to global credentials |
+| `STORAGE_PROFILE_IN_USE` | Files, chunk tasks, or lifecycle operations still reference the profile; finish or reconcile them first |
+| `MIGRATION_ACTIVATION_AMBIGUOUS` | Keep the Cloudflare freeze and Docker lock; inspect authority/ledger evidence before recovery |
 
-## 维护与许可
+## Maintenance and license
 
-核心目录：`frontend/`（Vue 与 Legacy 构建）、`functions/`（Pages Functions）、`workers/coordinator/`（DO Worker）、`server/`（Docker API）、`shared/`（跨运行时契约）、`test/` 与 `e2e/`（验证）、`docs/`（部署与安全报告）。R2 专项说明见 [Cloudflare Pages + R2](docs/cloudflare-pages-r2.md)，Docker English guide 见 [README-DOCKER-EN.md](README-DOCKER-EN.md)。
+Key directories: `frontend/` (Vue and Legacy build), `functions/` (Pages Functions), `workers/coordinator/` (DO Worker), `server/` (Docker API), `shared/` (cross-runtime contracts), `test/` and `e2e/` (verification), and `docs/` (deployment/security reports). See [Cloudflare Pages + R2](docs/cloudflare-pages-r2.md) and the [Chinese Docker guide](README-DOCKER.md).
 
-提交变更时同步更新中英文文档，运行构建与相关测试，不提交生成物、真实凭据或账户专用配置。项目依据 [MIT License](LICENSE) 发布。
+Update both language documents in the same change, run the build and relevant tests, and never commit build output, real credentials, or account-specific configuration. Origin: forked from [cf-pages/Telegraph-Image](https://github.com/cf-pages/Telegraph-Image) (CC0-1.0); this tree is released under the [MIT License](LICENSE).
