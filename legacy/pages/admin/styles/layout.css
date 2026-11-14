@@ -25,3 +25,9 @@
 .list-view-card .el-table--striped .el-table__body tr.el-table__row--striped td{background:var(--surface-1) !important;}
 .list-actions .el-button{margin-left:0 !important;margin-right:6px;}
 .row-drag-handle{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;margin-right:6px;color:#9a8ab6;cursor:grab;vertical-align:middle;}
+
+.image-card .media-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:150px;height:calc(100% - 76px);padding:20px;color:var(--text-secondary, #666);background:var(--surface-2);text-align:center;font-size:13px;}
+.media-placeholder > i{font-size:28px;}
+.placeholder-actions{position:absolute;bottom:44px;left:0;right:0;display:flex;justify-content:center;padding:6px;}
+.placeholder-actions .overlay-buttons{display:flex;gap:6px;}
+.file-list-scope{margin:0 0 14px;padding:0 8px;color:var(--text-secondary, #666);font-size:13px;line-height:1.6;}

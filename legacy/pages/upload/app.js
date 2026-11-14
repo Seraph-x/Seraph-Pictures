@@ -24,8 +24,11 @@ async mounted() {
       this.registerUploadDocumentEvents();
       this.initializeUploadPreferences();
       if (!await this.checkAuth()) return;
-      await this.checkStorageTarget();
-      if (!this.isGuest) await this.loadStorageProfiles();
+      const [, profilesLoaded] = await Promise.all([
+        this.checkStorageTarget(),
+        this.isGuest ? Promise.resolve() : this.loadStorageProfiles({ resolveSelection: false }),
+      ]);
+      if (profilesLoaded) this.resolveStorageProfile();
       this.loadHistory();
     }
   });

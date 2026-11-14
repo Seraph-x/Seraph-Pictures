@@ -43,6 +43,22 @@ describe('legacy upload profile errors', function () {
     assert.strictEqual(viewModel.storageTarget, 'r2 · Cloudflare R2');
   });
 
+  it('resolves after a pending catalog load despite an interim selection error', async function () {
+    let finishLoading;
+    const pending = new Promise((resolve) => { finishLoading = resolve; });
+    const viewModel = profileViewModel({ listProfiles: () => pending });
+    const loading = viewModel.loadStorageProfiles({ resolveSelection: false });
+    viewModel.storageMode = 'r2';
+    viewModel.resolveStorageProfile();
+    assert.strictEqual(viewModel.storageProfileError, 'STORAGE_SELECTION_REQUIRED');
+    finishLoading([{ id: 'r2-default', type: 'r2', name: 'R2', enabled: true, isDefault: true }]);
+    const loaded = await loading;
+    assert.strictEqual(loaded, true);
+    if (loaded) viewModel.resolveStorageProfile();
+    assert.strictEqual(viewModel.storageId, 'r2-default');
+    assert.strictEqual(viewModel.storageProfileError, '');
+  });
+
   it('clears an earlier selection error when a valid type is selected', function () {
     const r2 = { id: 'r2-default', type: 'r2', name: 'Cloudflare R2', enabled: true, isDefault: true };
     const viewModel = profileViewModel({});

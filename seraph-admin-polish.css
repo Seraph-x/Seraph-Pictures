@@ -419,11 +419,21 @@ html[data-theme="dark"] .admin-profile-filter:hover {
 
 /* Responsive override to prevent overflow on mobile stacking */
 @media (max-width: 900px) {
-  .admin-page .header-content {
+  body.admin-page .header-content {
     height: auto !important;
     min-height: 56px !important;
     padding: 12px 14px !important;
     gap: 12px !important;
+  }
+
+  body.admin-page .main-container {
+    padding-top: 16px !important;
+  }
+
+  body.admin-page .pagination-container {
+    width: max-content;
+    max-width: calc(100vw - 24px);
+    box-sizing: border-box;
   }
 
   .admin-header-primary,
@@ -435,7 +445,8 @@ html[data-theme="dark"] .admin-profile-filter:hover {
     gap: 8px !important;
   }
 
-  .admin-header-tools {
+  body.admin-page .header-content .actions.admin-header-tools {
+    flex-wrap: wrap !important;
     border-top: 1px dashed var(--claude-line);
     border-bottom: 1px dashed var(--claude-line);
     padding: 8px 0 !important;

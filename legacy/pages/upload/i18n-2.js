@@ -1,6 +1,8 @@
 if (window.I18n) {
   I18n.register({
 zh: {
+'home.storageBackend': '存储实例',
+'home.storageSelectionReset': '上次选择的存储不可用，已选中默认存储。',
 'home.statusError': '失败',
 'home.tipWebp': '兼容性好，通常比 JPEG/PNG 更省空间',
 'home.tipAvif': '压缩率更高，适合现代浏览器',
@@ -58,6 +60,8 @@ zh: {
 'home.unknownFile': '未知文件'
 },
 en: {
+'home.storageBackend': 'Storage backend',
+'home.storageSelectionReset': 'The saved backend is unavailable. The default backend is selected.',
 'home.statusError': 'Failed',
 'home.tipWebp': 'Good compatibility, usually smaller than JPEG/PNG',
 'home.tipAvif': 'Higher compression ratio, suited to modern browsers',

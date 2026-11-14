@@ -1,18 +1,24 @@
 {
   'use strict';
   globalThis.LegacyAdminComponents = globalThis.LegacyAdminComponents || {};
-  globalThis.LegacyAdminComponents.fileBrowser = `            <template v-if="viewMode === 'grid'">
+  globalThis.LegacyAdminComponents.fileBrowser = `            <p v-if="nextCursor" class="file-list-scope" role="status">{{ t('admin.loadedSearchScope', { n: Number }) }}</p>
+            <template v-if="viewMode === 'grid'">
               <div class="content">
-                <template v-for="(item, index) in paginatedTableData" :key="index">
+                <template v-for="(item, index) in paginatedTableData">
             <!-- 图片 - 根据实际文件类型渲染 -->
-            <template v-if="getActualFileType(item.name) === 'image'">
-              <el-card class="image-card" :draggable="true" @dragstart="handleFileDragStart(item, $event)" @dragend="handleFileDragEnd">
+            <template v-if="getActualFileType(item) === 'image'">
+              <el-card :key="item.name" class="image-card" :draggable="true" @dragstart="handleFileDragStart(item, $event)" @dragend="handleFileDragEnd">
                 <span class="collect-icon" @click.stop="toggleLike(index, item.name)">
                 <i :class="item.metadata.liked ? 'fa-solid fa-bookmark liked' : 'fa-regular fa-bookmark not-liked'"></i>
                 </span>
                 <el-checkbox v-model="item.selected" :ref="'checkbox-' + index"></el-checkbox>
-                <el-image :src="'/file/' + item.name" :preview-src-list="['/file/' + item.name]" fit="cover" lazy="true"></el-image>
-                <div class="image-overlay">
+                <el-image v-if="shouldShowImage(item) && !isNsfwContent(item)" :alt="getDisplayFileName(item)" :src="'/file/' + item.name" :preview-src-list="['/file/' + item.name]" fit="cover" :lazy="true"></el-image>
+                <div v-else class="media-placeholder">
+                  <i class="fas fa-image" aria-hidden="true"></i>
+                  <span>{{ isNsfwContent(item) ? t('admin.safePreviewHidden') : t('admin.thumbnailPaused') }}</span>
+                  <el-button size="mini" @click.stop="openPreview(item)">{{ t('admin.preview') }}</el-button>
+                </div>
+                <div :class="{ 'image-overlay': shouldShowImage(item) && !isNsfwContent(item), 'placeholder-actions': !shouldShowImage(item) || isNsfwContent(item) }">
                   <div class="overlay-buttons">
                     <el-dropdown @command="(cmd) => handleQuickCopy(cmd, item.name)" trigger="click" size="mini">
                       <el-button size="mini" type="primary" @click.stop>{{ t('admin.copy') }} <i class="el-icon-arrow-down"></i></el-button>
@@ -45,10 +51,10 @@
               </el-card>
             </template>
             <!-- 视频 - 根据实际文件类型渲染 -->
-            <template v-else-if="getActualFileType(item.name) === 'video'">
-              <el-card class="video-card" :class="{ 'selected': item.selected }" :draggable="true" @dragstart="handleFileDragStart(item, $event)" @dragend="handleFileDragEnd">
+            <template v-else-if="getActualFileType(item) === 'video'">
+              <el-card :key="item.name" class="video-card" :class="{ 'selected': item.selected }" :draggable="true" @dragstart="handleFileDragStart(item, $event)" @dragend="handleFileDragEnd">
                 <div class="video-content">
-                  <video :src="'/file/' + item.name" controls style="width: 100%; height: 100%; object-fit: cover;"></video>
+                  <video preload="none" :src="'/file/' + item.name" controls style="width: 100%; height: 100%; object-fit: cover;"></video>
                   <div class="video-title">
                     <el-popover
                       trigger="click"
@@ -75,8 +81,8 @@
               </el-card>
             </template>
             <!-- 音频 - 根据实际文件类型渲染 -->
-            <template v-else-if="getActualFileType(item.name) === 'audio'">
-              <el-card class="audio-card" :class="{ 'selected': item.selected }" :draggable="true" @dragstart="handleFileDragStart(item, $event)" @dragend="handleFileDragEnd">
+            <template v-else-if="getActualFileType(item) === 'audio'">
+              <el-card :key="item.name" class="audio-card" :class="{ 'selected': item.selected }" :draggable="true" @dragstart="handleFileDragStart(item, $event)" @dragend="handleFileDragEnd">
                 <div class="audio-content">
                   <!-- 音频标题区域 -->
                   <div class="audio-header">
@@ -97,14 +103,14 @@
                           </template>
                         </el-popover>
                       </div>
-                      <div class="audio-subtitle">{{ getFileType(item.name) }}</div>
+                      <div class="audio-subtitle">{{ getFileType(item) }}</div>
                     </div>
                   </div>
                   <audio
                     class="custom-audio-player"
                     :src="'/file/' + item.name"
                     controls
-                    preload="metadata">
+                    preload="none">
                     {{ t('admin.audioNotSupported') }}
                   </audio>
                   <!-- 控制按钮区域 -->
@@ -121,12 +127,12 @@
             </template>
             <!-- 其他文件（文档等） - 默认渲染 -->
             <template v-else>
-              <el-card class="file-card" :class="{ 'selected': item.selected }" :draggable="true" @dragstart="handleFileDragStart(item, $event)" @dragend="handleFileDragEnd">
+              <el-card :key="item.name" class="file-card" :class="{ 'selected': item.selected }" :draggable="true" @dragstart="handleFileDragStart(item, $event)" @dragend="handleFileDragEnd">
                 <div class="file-content">
                   <!-- 文件标题区域 -->
                   <div class="file-header">
                     <div class="file-avatar">
-                      <i :class="getFileIcon(item.name)" style="font-size: 32px;"></i>
+                      <i :class="getFileIcon(item)" style="font-size: 32px;"></i>
                     </div>
                     <div class="file-info">
                       <div class="file-title">
@@ -142,7 +148,7 @@
                           </template>
                         </el-popover>
                       </div>
-                      <div class="file-subtitle">{{ getFileType(item.name) }}</div>
+                      <div class="file-subtitle">{{ getFileType(item) }}</div>
                     </div>
                   </div>
                   <!-- 控制按钮区域 -->
@@ -191,7 +197,7 @@
                   </el-table-column>
                   <el-table-column :label="t('admin.colType')" width="92" align="center">
                     <template slot-scope="scope">
-                      {{ getFileType(scope.row.name) }}
+                      {{ getFileType(scope.row) }}
                     </template>
                   </el-table-column>
                   <el-table-column :label="t('admin.colSize')" width="116" align="right">

@@ -80,7 +80,7 @@ checkBrokenFiles() {  // 检测失效文件
         });
       },
 getFileIcon(filename) {
-        const ext = filename.split('.').pop().toLowerCase();
+        const ext = this.getFileExtension(filename);
         const iconMap = {
           'pdf': 'fas fa-file-pdf',
           'doc,docx': 'fas fa-file-word',
@@ -104,8 +104,7 @@ getFileIcon(filename) {
         return 'fas fa-file';
       },
 getFileType(filename) {
-        const ext = filename.split('.').pop();
-        return `${ext.toUpperCase()}`;
+        return this.getFileExtension(filename).toUpperCase() || '—';
       },
 handleEditName(item) {
         this.$prompt('', '修改文件名', {
@@ -128,6 +127,7 @@ handleEditName(item) {
           .then(result => {
             if (result.success) {
               item.metadata.fileName = value;
+              this.updateStats();
               this.$message.success('文件名修改成功');
             } else {
               this.$message.error('文件名修改失败');

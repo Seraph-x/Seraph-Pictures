@@ -82,8 +82,19 @@ handleEscapeSelection() {
         if (this.previewData) this.closePreview();
         else this.clearSelection();
       },
-getActualFileType(fileName) {
-        const ext = fileName.split('.').pop().toLowerCase();
+getDisplayFileName(item) {
+        return typeof item === 'string' ? item : (item.metadata?.fileName || item.name);
+      },
+getFileExtension(item) {
+        const name = this.getDisplayFileName(item);
+        const dot = name.lastIndexOf('.');
+        return dot > 0 ? name.slice(dot + 1).toLowerCase() : '';
+      },
+getActualFileType(item) {
+        const mime = typeof item === 'object' ? item.metadata?.mimeType : '';
+        const family = String(mime || '').split('/')[0].toLowerCase();
+        if (['image', 'video', 'audio'].includes(family)) return family;
+        const ext = this.getFileExtension(item);
         if (this.fileConfig.image.exts.includes(ext)) return 'image';
         if (this.fileConfig.video.exts.includes(ext)) return 'video';
         if (this.fileConfig.audio.exts.includes(ext)) return 'audio';
@@ -92,8 +103,8 @@ getActualFileType(fileName) {
 openPreview(item) {
         const fileName = item.metadata?.fileName || item.name;
         const fileUrl = `${this.baseURL}/file/${item.name}`;
-        const fileType = this.getActualFileType(item.name);
-        const ext = item.name.split('.').pop().toLowerCase();
+        const fileType = this.getActualFileType(item);
+        const ext = this.getFileExtension(item);
         const base = { url: fileUrl, fileName: fileName, fileKey: item.name };
 
         // 图片 - 原生图片 Lightbox

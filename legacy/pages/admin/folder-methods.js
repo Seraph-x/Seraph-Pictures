@@ -83,7 +83,6 @@ applyFolderCacheEntry(entry) {
         this.totalCount = Number.isFinite(entry.totalCount) ? Number(entry.totalCount) : this.tableData.length;
         this.updateStats();
         this.calculatePageSize();
-        this.sortData(this.tableData);
         this.normalizeCurrentPage();
       },
 writeFolderCache(cacheKey) {

@@ -74,9 +74,12 @@ async loadMore(options = {}) {
         }
       },
 sortData(data) {
-          return this.sortOption === 'nameAsc' ? data.sort((a, b) => a.name.localeCompare(b.name)) :
-            this.sortOption === 'sizeDesc' ? data.sort((a, b) => b.metadata.fileSize - a.metadata.fileSize) :
-            data.sort((a, b) => b.metadata.TimeStamp - a.metadata.TimeStamp);
+        const compare = this.sortOption === 'nameAsc'
+          ? (a, b) => this.getDisplayFileName(a).localeCompare(this.getDisplayFileName(b))
+          : this.sortOption === 'sizeDesc'
+            ? (a, b) => b.metadata.fileSize - a.metadata.fileSize
+            : (a, b) => b.metadata.TimeStamp - a.metadata.TimeStamp;
+        return [...data].sort(compare);
       },
 formattedFileDetails(item) {
         const metadata = item.metadata;
@@ -164,10 +167,7 @@ updateStats() {
         }
         let fileCount = {image: 0, video: 0, audio: 0, document: 0};
         this.tableData.forEach(file => {
-          const ext = file.name.split('.').pop().toLowerCase();
-          const type = Object.keys(this.fileConfig).find(t =>
-            this.fileConfig[t].exts.includes(ext)
-          ) || 'document';
+          const type = this.getActualFileType(file);
           fileCount[type]++;
         });
         ['image', 'video', 'audio', 'document'].forEach((type) => {

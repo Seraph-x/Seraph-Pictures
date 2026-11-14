@@ -30,16 +30,7 @@
     },
     async loadInitialAdminData() {
       await this.refreshFileList({ syncFolders: true });
-      this.sortData(this.tableData);
       this.switchFileType(this.fileType, false);
-      if (!this.tableData.length || this.filteredTableData.length) return;
-      this.search = '';
-      this.filterOption = 'all';
-      this.storageFilter = 'all';
-      this.fileType = 'all';
-      this.folderPath = '';
-      await this.refreshFileList({ syncFolders: true });
-      this.$message.warning('检测到筛选条件无匹配，已自动恢复默认视图');
     },
     async loadAdminStatus() {
       const response = await fetch('/api/status', { credentials: 'include' });

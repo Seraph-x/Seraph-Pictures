@@ -85,7 +85,6 @@ applyFileListResult(options) {
         this.totalCount = Number.isFinite(total) ? total : mapped.length;
         this.updateStats();
         this.calculatePageSize();
-        this.sortData(this.tableData);
         this.normalizeCurrentPage();
         this.writeFolderCache(options.cacheKey);
       },

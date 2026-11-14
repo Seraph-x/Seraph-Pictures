@@ -20,7 +20,7 @@
 .preview-modal .preview-unsupported p{font-size:0.85em;opacity:0.7;}
 .preview-close{position:absolute;top:20px;right:20px;width:48px;height:48px;border:none;border-radius:50%;background:rgba(255, 255, 255, 0.15);color:white;font-size:1.5em;cursor:pointer;transition:all 0.3s;z-index:10001;}
 .preview-close:hover{background:rgba(255, 255, 255, 0.35);transform:rotate(90deg);}
-.preview-toolbar{margin-top:16px;display:flex;align-items:center;gap:16px;padding:10px 20px;background:rgba(255, 255, 255, 0.1);border-radius:12px;}
+.preview-toolbar{box-sizing:border-box;max-width:100%;margin-top:16px;display:flex;align-items:center;gap:16px;padding:10px 20px;background:rgba(255, 255, 255, 0.1);border-radius:12px;}
 .preview-toolbar .el-button{background:var(--surface-2) !important;border-color:rgba(17, 24, 39, 0.12) !important;}
 .preview-toolbar .el-button--primary{background:#c2643f !important;border-color:#c2643f !important;color:#fff !important;}
 .preview-filename{color:var(--text);font-size:0.9em;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}

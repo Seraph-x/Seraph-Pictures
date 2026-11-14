@@ -106,17 +106,18 @@
 
   function profileMethods(api, storage) {
     return {
-      async loadStorageProfiles() {
-        if (this.isGuest) return;
+      async loadStorageProfiles({ resolveSelection = true } = {}) {
+        if (this.isGuest) return false;
         this.storageProfileError = '';
         try {
           this.storageProfiles = Object.freeze(await api.listProfiles());
         } catch (cause) {
           this.storageProfiles = Object.freeze([]);
           Object.assign(this, profileSelectionError(cause));
-          return;
+          return false;
         }
-        this.resolveStorageProfile();
+        if (resolveSelection) this.resolveStorageProfile();
+        return true;
       },
       resolveStorageProfile() {
         try {

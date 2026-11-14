@@ -119,9 +119,9 @@ data() {
   },
 computed: {
       filteredTableData() {
+        const searchLower = this.search.toLowerCase();
         return this.tableData.filter(data => {
           // 搜索匹配
-          const searchLower = this.search.toLowerCase();
           const matchesSearch = !searchLower || [
             (data.metadata.fileName || '').toLowerCase(),
             data.name?.toLowerCase(),
@@ -136,35 +136,22 @@ computed: {
             'adult': data.metadata.Label?.toLowerCase() === 'adult',
           }[this.filterOption] ?? true;
 
-          // 文件类型匹配
-          const ext = data.name.split('.').pop().toLowerCase();
-          let matchesType = true;
-
-          if (this.fileType === 'all') {
-            // 全部模式：显示所有文件
-            matchesType = true;
-          } else if (this.fileType === 'document') {
-            // 文档模式：排除图片、视频、音频
-            matchesType = !Object.keys(this.fileConfig).some(type =>
-              type !== 'document' && type !== 'all' && this.fileConfig[type].exts.includes(ext)
-            );
-          } else {
-            // 特定类型模式
-            matchesType = this.fileConfig[this.fileType].exts.includes(ext);
-          }
+          const matchesType = this.fileType === 'all' || this.getActualFileType(data) === this.fileType;
 
           // 存储类型匹配
           const storagePrefix = this.getStorageType(data.name);
           const matchesStorage = this.storageFilter === 'all' || this.storageFilter === storagePrefix;
           // 目录筛选由后端 list 接口按 folderPath 负责，前端此处不再重复过滤，
           // 避免“全部文件”分页出现空白页。
-          const matchesFolder = true;
 
-          return matchesSearch && matchesFilter && matchesType && matchesStorage && matchesFolder;
+          return matchesSearch && matchesFilter && matchesType && matchesStorage;
         });
       },
+      sortedTableData() {
+        return this.sortData(this.filteredTableData);
+      },
       paginatedTableData() {
-        return this.sortData(this.filteredTableData)
+        return this.sortedTableData
           .slice((this.currentPage - 1) * this.pageSize, this.currentPage * this.pageSize);
       },
       paginationTotal() {
