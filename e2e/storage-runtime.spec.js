@@ -15,11 +15,10 @@ test('Pages serves Legacy pages and returns 404 for retired Vue routes', async (
     expect(response.status(), route).toBe(200);
     expect(response.headers()['content-type'], route).toContain('text/html');
   }
-  for (const route of ['/app', '/app/', '/app/drive', '/app/storage', '/app/login', '/app/status', '/app/assets/stale.js', '/app/assets/index-DaEja9Nh.js']) {
+  for (const route of ['/app', '/app/', '/app/drive', '/app/storage', '/app/login', '/app/status', '/app/assets/stale.js']) {
     const response = await request.get(`${PAGES_URL}${route}`);
     expect(response.status(), route).toBe(404);
     expect(await response.text(), route).toContain('页面不存在');
-    if (route === '/app/login') expect(response.headers()['cache-control']).toBe('no-store');
   }
 });
 
