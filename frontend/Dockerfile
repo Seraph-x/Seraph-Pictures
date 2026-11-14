@@ -6,10 +6,12 @@
 # avoids executing npm tooling through QEMU during multi-platform image builds.
 FROM --platform=$BUILDPLATFORM node:22-alpine AS build
 WORKDIR /repo
-COPY package.json *.html *.css *.js *.ico *.svg *.png ./
+COPY package.json ./
 COPY scripts/build-static.mjs scripts/build-static.mjs
-COPY legacy legacy
-COPY assets assets
+COPY frontend/pages frontend/pages
+COPY frontend/scripts frontend/scripts
+COPY frontend/styles frontend/styles
+COPY frontend/assets frontend/assets
 # The static packager uses Node built-ins and requires no npm install.
 RUN npm run build
 

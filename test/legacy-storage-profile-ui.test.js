@@ -10,7 +10,7 @@ function read(relativePath) {
 
 describe('legacy storage profile settings', function () {
   it('uses extracted assets and keeps the HTML shell below the source limit', function () {
-    const html = read('storage-settings.html');
+    const html = read('frontend/pages/storage-settings.html');
     assert.ok(html.split('\n').length <= 300);
     assert.match(html, /legacy\/pages\/storage-settings\.css/);
     for (const moduleName of ['api', 'selection', 'messages', 'settings-renderer', 'settings-controller']) {
@@ -21,7 +21,7 @@ describe('legacy storage profile settings', function () {
   });
 
   it('renders the approved per-card selectors, actions, locks, and masked fields', function () {
-    const renderer = read('legacy/storage/settings-renderer.js');
+    const renderer = read('frontend/scripts/storage/settings-renderer.js');
     assert.match(renderer, /data-storage-profile-select/);
     assert.match(renderer, /LEGACY_STORAGE_ACTIONS[^\n]*add[^\n]*edit[^\n]*toggle[^\n]*default[^\n]*delete[^\n]*test/);
     assert.match(renderer, /'data-action': action/);
@@ -33,7 +33,7 @@ describe('legacy storage profile settings', function () {
   });
 
   it('keeps same-type selection immutable and status-labelled', function () {
-    const selection = require('../legacy/storage/selection.js');
+    const selection = require('../frontend/scripts/storage/selection.js');
     const profiles = [
       { id: 'tg-a', type: 'telegram', name: 'Primary', enabled: true, isDefault: true, config: {} },
       { id: 'tg-b', type: 'telegram', name: 'Archive', enabled: false, isDefault: false, config: {} },
@@ -49,7 +49,7 @@ describe('legacy storage profile settings', function () {
   });
 
   it('protects defaults and exposes test/delete failures beside their card', async function () {
-    const { createSettingsController } = require('../legacy/storage/settings-controller.js');
+    const { createSettingsController } = require('../frontend/scripts/storage/settings-controller.js');
     const calls = [];
     const api = {
       async listProfiles() {
@@ -88,7 +88,7 @@ describe('legacy storage profile settings', function () {
   });
 
   it('sends exact profile IDs for edit, enable, and default actions', async function () {
-    const { createSettingsController } = require('../legacy/storage/settings-controller.js');
+    const { createSettingsController } = require('../frontend/scripts/storage/settings-controller.js');
     const calls = [];
     const profiles = [
       {
@@ -126,7 +126,7 @@ describe('legacy storage profile settings', function () {
   });
 
   it('rejects malformed success envelopes instead of degrading to success', async function () {
-    const { createStorageApi } = require('../legacy/storage/api.js');
+    const { createStorageApi } = require('../frontend/scripts/storage/api.js');
     const response = (payload) => ({ ok: true, status: 200, async json() { return payload; } });
     const api = createStorageApi({
       fetchImpl: async (url, init) => response(init.method === 'DELETE'
@@ -143,7 +143,7 @@ describe('legacy storage profile settings', function () {
   });
 
   it('accepts only the documented root success envelopes', async function () {
-    const { createStorageApi } = require('../legacy/storage/api.js');
+    const { createStorageApi } = require('../frontend/scripts/storage/api.js');
     const profile = { id: 'tg-a', name: 'Primary', type: 'telegram', config: {} };
     const guest = { schema: [], config: {}, secretsPresent: {} };
     const response = (payload) => ({ ok: true, status: 200, async json() { return payload; } });
@@ -159,7 +159,7 @@ describe('legacy storage profile settings', function () {
   });
 
   it('keeps connection results scoped to the exact selected profile', async function () {
-    const { createSettingsController } = require('../legacy/storage/settings-controller.js');
+    const { createSettingsController } = require('../frontend/scripts/storage/settings-controller.js');
     const profiles = [
       { id: 'tg-a', type: 'telegram', name: 'Primary', enabled: true, isDefault: true, config: {} },
       { id: 'tg-b', type: 'telegram', name: 'Archive', enabled: true, isDefault: false, config: {} },
@@ -181,7 +181,7 @@ describe('legacy storage profile settings', function () {
   });
 
   it('requests Docker v2 envelopes and preserves exact legacy error codes', async function () {
-    const { createStorageApi } = require('../legacy/storage/api.js');
+    const { createStorageApi } = require('../frontend/scripts/storage/api.js');
     let observedInit = null;
     const api = createStorageApi({
       fetchImpl: async (_url, init) => {
@@ -219,22 +219,22 @@ describe('legacy upload and admin profile interfaces', function () {
 
   it('extracts both Vue 2 shells and every planned behavior module', function () {
     for (const shell of ['index.html', 'admin.html']) {
-      assert.ok(read(shell).split('\n').length <= 300, `${shell} exceeds 300 lines`);
+      assert.ok(read('frontend/pages/' + shell).split('\n').length <= 300, `${shell} exceeds 300 lines`);
     }
     for (const name of uploadModules) {
-      assert.ok(fs.existsSync(path.join(ROOT, `legacy/pages/upload/${name}.js`)), name);
+      assert.ok(fs.existsSync(path.join(ROOT, `frontend/scripts/pages/upload/${name}.js`)), name);
     }
     for (const name of adminModules) {
-      assert.ok(fs.existsSync(path.join(ROOT, `legacy/pages/admin/${name}.js`)), name);
+      assert.ok(fs.existsSync(path.join(ROOT, `frontend/scripts/pages/admin/${name}.js`)), name);
     }
-    assert.doesNotMatch(read('index.html'), /new Vue\s*\(/);
-    assert.doesNotMatch(read('admin.html'), /new Vue\s*\(/);
+    assert.doesNotMatch(read('frontend/pages/index.html'), /new Vue\s*\(/);
+    assert.doesNotMatch(read('frontend/pages/admin.html'), /new Vue\s*\(/);
   });
 
   it('keeps every extracted legacy page asset below 300 lines', function () {
     for (const page of ['upload', 'admin']) {
-      const directory = path.join(ROOT, `legacy/pages/${page}`);
-      const pending = [directory];
+      const directory = path.join(ROOT, `frontend/scripts/pages/${page}`);
+      const pending = [directory, path.join(ROOT, `frontend/styles/pages/${page}`)];
       while (pending.length) {
         const current = pending.pop();
         for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
@@ -249,7 +249,7 @@ describe('legacy upload and admin profile interfaces', function () {
   });
 
   it('snapshots exact upload instances and forwards them through every transport', function () {
-    const profileModule = require('../legacy/pages/upload/profile-mixin.js');
+    const profileModule = require('../frontend/scripts/pages/upload/profile-mixin.js');
     const target = profileModule.snapshotUploadTarget({
       storageMode: 'telegram',
       profile: { id: 'tg-a', type: 'telegram', name: 'Primary', enabled: true },
@@ -282,7 +282,7 @@ describe('legacy upload and admin profile interfaces', function () {
   });
 
   it('keeps Guest isolated and reports remembered profile replacement', function () {
-    const profileModule = require('../legacy/pages/upload/profile-mixin.js');
+    const profileModule = require('../frontend/scripts/pages/upload/profile-mixin.js');
     const profiles = [
       { id: 'tg-a', type: 'telegram', name: 'Primary', enabled: true, isDefault: true },
       { id: 'tg-b', type: 'telegram', name: 'Disabled', enabled: false, isDefault: false },
@@ -296,7 +296,7 @@ describe('legacy upload and admin profile interfaces', function () {
   });
 
   it('builds exact admin filters, enabled migration targets, and labels', function () {
-    const profileModule = require('../legacy/pages/admin/profile-mixin.js');
+    const profileModule = require('../frontend/scripts/pages/admin/profile-mixin.js');
     assert.equal(profileModule.buildProfileQuery({ storageId: 'tg-a' }).toString(), 'storageId=tg-a');
     const profiles = [
       { id: 'tg-a', type: 'telegram', name: 'Primary', enabled: true },
@@ -313,13 +313,13 @@ describe('legacy upload and admin profile interfaces', function () {
   });
 
   it('wires the upload picker without exposing profiles to Guest', function () {
-    const template = read('legacy/pages/upload/components/storage-target-picker.js');
+    const template = read('frontend/scripts/pages/upload/components/storage-target-picker.js');
     const methods = [
-      read('legacy/pages/upload/upload-methods.js'),
-      read('legacy/pages/upload/upload-methods-2.js'),
-      read('legacy/pages/upload/upload-methods-3.js'),
-      read('legacy/pages/upload/url-upload-methods.js'),
-      read('legacy/pages/upload/multipart-methods.js'),
+      read('frontend/scripts/pages/upload/upload-methods.js'),
+      read('frontend/scripts/pages/upload/upload-methods-2.js'),
+      read('frontend/scripts/pages/upload/upload-methods-3.js'),
+      read('frontend/scripts/pages/upload/url-upload-methods.js'),
+      read('frontend/scripts/pages/upload/multipart-methods.js'),
     ].join('\n');
     assert.match(template, /data-storage-profile-select/);
     assert.match(template, /v-if="!isGuest"/);
@@ -333,26 +333,26 @@ describe('legacy upload and admin profile interfaces', function () {
   });
 
   it('wires exact admin profile filters, labels, and migration controls', function () {
-    const templates = fs.readdirSync(path.join(ROOT, 'legacy/pages/admin/components'))
-      .map((name) => read(`legacy/pages/admin/components/${name}`)).join('\n');
+    const templates = fs.readdirSync(path.join(ROOT, 'frontend/scripts/pages/admin/components'))
+      .map((name) => read(`frontend/scripts/pages/admin/components/${name}`)).join('\n');
     const drive = [
-      read('legacy/pages/admin/drive-methods.js'),
-      read('legacy/pages/admin/drive-methods-2.js'),
-      read('legacy/pages/admin/drive-methods-3.js'),
+      read('frontend/scripts/pages/admin/drive-methods.js'),
+      read('frontend/scripts/pages/admin/drive-methods-2.js'),
+      read('frontend/scripts/pages/admin/drive-methods-3.js'),
     ].join('\n');
     assert.match(templates, /data-storage-profile-filter/);
     assert.match(templates, /data-migration-storage-profile/);
     assert.match(templates, /getProfileLabel\((?:item|scope\.row)\)/);
     assert.match(drive, /params\.set\('storageId',\s*this\.storageProfileId\)/);
-    assert.match(read('legacy/pages/admin/migration-methods.js'), /migrateSelectedFiles/);
+    assert.match(read('frontend/scripts/pages/admin/migration-methods.js'), /migrateSelectedFiles/);
   });
 
   it('binds UI design uploads to the exact enabled admin profile', async function () {
     const previousMixins = global.LegacyAdminMixins;
     const previousFetch = global.fetch;
     global.LegacyAdminMixins = [];
-    delete require.cache[require.resolve('../legacy/pages/admin/dashboard-methods.js')];
-    require('../legacy/pages/admin/dashboard-methods.js');
+    delete require.cache[require.resolve('../frontend/scripts/pages/admin/dashboard-methods.js')];
+    require('../frontend/scripts/pages/admin/dashboard-methods.js');
     const method = global.LegacyAdminMixins[0].methods.uploadUiDesignBackgroundFile;
     let submitted = null;
     global.fetch = async (_url, init) => {
@@ -383,8 +383,8 @@ describe('legacy upload and admin profile interfaces', function () {
     const previousMixins = global.LegacyAdminMixins;
     const previousFetch = global.fetch;
     global.LegacyAdminMixins = [];
-    delete require.cache[require.resolve('../legacy/pages/admin/dashboard-methods.js')];
-    require('../legacy/pages/admin/dashboard-methods.js');
+    delete require.cache[require.resolve('../frontend/scripts/pages/admin/dashboard-methods.js')];
+    require('../frontend/scripts/pages/admin/dashboard-methods.js');
     const method = global.LegacyAdminMixins[0].methods.uploadUiDesignBackgroundFile;
     global.fetch = async () => ({
       ok: true,
@@ -404,8 +404,8 @@ describe('legacy upload and admin profile interfaces', function () {
   it('distinguishes delete cancellation from confirmation failures', async function () {
     const previousMixins = global.LegacyAdminMixins;
     global.LegacyAdminMixins = [];
-    delete require.cache[require.resolve('../legacy/pages/admin/drive-methods-3.js')];
-    require('../legacy/pages/admin/drive-methods-3.js');
+    delete require.cache[require.resolve('../frontend/scripts/pages/admin/drive-methods-3.js')];
+    require('../frontend/scripts/pages/admin/drive-methods-3.js');
     const methods = global.LegacyAdminMixins[0].methods;
     const method = methods.handleDelete;
     const context = {
@@ -433,8 +433,8 @@ describe('legacy upload and admin profile interfaces', function () {
       querySelector: () => null,
     };
     global.window = { matchMedia: () => ({ matches: false }) };
-    delete require.cache[require.resolve('../legacy/pages/admin/core-methods.js')];
-    require('../legacy/pages/admin/core-methods.js');
+    delete require.cache[require.resolve('../frontend/scripts/pages/admin/core-methods.js')];
+    require('../frontend/scripts/pages/admin/core-methods.js');
     try {
       const method = global.LegacyAdminMixins[0].methods.updateMobileNavMetrics;
       method.call({ $el: null });

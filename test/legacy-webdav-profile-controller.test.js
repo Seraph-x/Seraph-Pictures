@@ -1,10 +1,10 @@
 const assert = require('node:assert/strict');
 
-const selection = require('../legacy/pages/upload/profile-mixin.js');
+const selection = require('../frontend/scripts/pages/upload/profile-mixin.js');
 
 let profilesModule = null;
 try {
-  profilesModule = require('../legacy/pages/webdav/profile-controller.js');
+  profilesModule = require('../frontend/scripts/pages/webdav/profile-controller.js');
 } catch (error) {
   if (error.code !== 'MODULE_NOT_FOUND') throw error;
 }

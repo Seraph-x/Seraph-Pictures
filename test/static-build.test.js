@@ -17,14 +17,14 @@ describe('Legacy-only static distribution', function () {
     fs.writeFileSync(path.join(directory, '_redirects'), '/app/* /app/index.html 200');
     buildStatic({ outputDir: directory });
     for (const file of ['index.html', 'admin.html', 'login.html', 'gallery.html', 'webdav.html', 'storage-settings.html', 'preview.html', '404.html']) {
-      assert.deepEqual(fs.readFileSync(path.join(directory, file)), fs.readFileSync(path.join(ROOT, file)));
+      assert.deepEqual(fs.readFileSync(path.join(directory, file)), fs.readFileSync(path.join(ROOT, 'frontend/pages', file)));
     }
-    assert.deepEqual(fs.readFileSync(path.join(directory, 'legacy/index.html')), fs.readFileSync(path.join(ROOT, 'index.html')));
-    assert.deepEqual(fs.readFileSync(path.join(directory, 'upload.html')), fs.readFileSync(path.join(ROOT, 'index.html')));
+    assert.deepEqual(fs.readFileSync(path.join(directory, 'legacy/index.html')), fs.readFileSync(path.join(ROOT, 'frontend/pages/index.html')));
+    assert.deepEqual(fs.readFileSync(path.join(directory, 'upload.html')), fs.readFileSync(path.join(ROOT, 'frontend/pages/index.html')));
     assert.ok(fs.existsSync(path.join(directory, 'legacy/pages/upload/components/page-header.js')));
     for (const moduleName of ['api', 'selection', 'messages', 'settings-renderer', 'settings-controller']) {
       const file = `legacy/storage/${moduleName}.js`;
-      assert.deepEqual(fs.readFileSync(path.join(directory, file)), fs.readFileSync(path.join(ROOT, file)));
+      assert.deepEqual(fs.readFileSync(path.join(directory, file)), fs.readFileSync(path.join(ROOT, 'frontend/scripts/storage', `${moduleName}.js`)));
     }
     assert.ok(fs.readdirSync(path.join(directory, 'assets')).some((file) => file.endsWith('.woff2')));
     for (const file of ['app', '_redirects', 'functions', '.env', '.dev.vars', 'frontend', 'node_modules', 'package.json', 'docs', 'test']) {
@@ -41,6 +41,17 @@ describe('Legacy-only static distribution', function () {
     assert.equal(fs.readFileSync(path.join(output, 'previous.html'), 'utf8'), 'previous');
   });
 
+  it('rejects output paths that could overwrite or include frontend source', async function () {
+    const { buildStatic } = await import('../scripts/build-static.mjs');
+    const source = path.join(directory, 'frontend/pages/index.html');
+    fs.mkdirSync(path.dirname(source), { recursive: true });
+    fs.writeFileSync(source, 'source must survive');
+    for (const output of ['frontend', 'frontend/pages', 'frontend/pages/dist']) {
+      assert.throws(() => buildStatic({ rootDir: directory, outputDir: path.join(directory, output) }), /overlap/);
+      assert.equal(fs.readFileSync(source, 'utf8'), 'source must survive');
+    }
+  });
+
   it('removes the Vue 3 source, install commands, and SPA routing', function () {
     const pkg = require('../package.json');
     assert.equal(pkg.scripts.build, 'node scripts/build-static.mjs');
@@ -53,6 +64,6 @@ describe('Legacy-only static distribution', function () {
     assert.doesNotMatch(nginx, /\/app\/index\.html/);
     assert.match(nginx, /try_files \$uri \$uri\.html \$uri\/ =404;/);
     assert.match(nginx, /location \/api\//);
-    assert.match(fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'), /vue@2/);
+    assert.match(fs.readFileSync(path.join(ROOT, 'frontend/pages/index.html'), 'utf8'), /vue@2/);
   });
 });

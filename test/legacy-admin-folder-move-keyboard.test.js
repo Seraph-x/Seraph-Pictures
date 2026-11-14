@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 
-const MODULE_PATH = require.resolve('../legacy/pages/admin/drive-methods.js');
+const MODULE_PATH = require.resolve('../frontend/scripts/pages/admin/drive-methods.js');
 
 function loadDriveMethods() {
   const previous = global.LegacyAdminMixins;

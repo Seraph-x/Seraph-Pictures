@@ -22,17 +22,26 @@ const CONTROL_TYPES = new Set([
 
 function changedProductionFiles() {
   const output = childProcess.execFileSync(
-    'git', ['diff', '--name-only', `${FEATURE_BASE}..HEAD`], { cwd: ROOT, encoding: 'utf8' },
+    'git', ['diff', '--name-status', '--find-renames', `${FEATURE_BASE}..HEAD`], { cwd: ROOT, encoding: 'utf8' },
   );
   const LEGACY_FILES_OUTSIDE_MULTI_STORAGE_SCOPE = new Set([
-    'gallery.html',
-    'login.html',
-    'theme.css',
-    'theme.js',
-    'webdav.html',
-    'seraph-admin-polish.css',
+    'frontend/pages/gallery.html',
+    'frontend/pages/login.html',
+    'frontend/styles/theme.css',
+    'frontend/scripts/theme.js',
+    'frontend/pages/webdav.html',
+    'frontend/styles/seraph-admin-polish.css',
   ]);
-  return output.trim().split('\n').filter((file) => {
+  return output.trim().split('\n').filter((line) => !line.startsWith('R100\t')).map((line) => {
+    const file = line.split('\t').at(-1);
+    if (file.startsWith('legacy/') && file.endsWith('.js')) return file.replace('legacy/', 'frontend/scripts/');
+    if (file.startsWith('legacy/') && file.endsWith('.css')) return 'frontend/styles/' + file.slice('legacy/'.length).replace('/styles/', '/');
+    if (!file.includes('/') && (/\.(html|css)$/.test(file) || ['theme.js', 'i18n.js'].includes(file))) {
+      const directory = { '.html': 'pages', '.css': 'styles', '.js': 'scripts' }[path.extname(file)];
+      return `frontend/${directory}/${file}`;
+    }
+    return file;
+  }).filter((file) => {
     if (!file || /^(?:test|e2e|docs|app|\.github)\//.test(file)) return false;
     if (LEGACY_FILES_OUTSIDE_MULTI_STORAGE_SCOPE.has(file)) return false;
     return /\.(?:js|mjs|cjs|vue|html|css)$/.test(file) && fs.existsSync(path.join(ROOT, file));

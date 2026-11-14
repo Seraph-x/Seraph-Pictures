@@ -1,13 +1,13 @@
 <div align="center">
-  <img src="logo.png" alt="Seraph's Pictures" width="140">
+  <img src="../frontend/assets/logo.png" alt="Seraph's Pictures" width="140">
 
 # Seraph's Pictures
 
 面向 Cloudflare 与 Docker 的私有媒体工作区，支持多存储、访客图床、文件管理和安全分享。
 
-**中文** | [English](README.md)
+**中文** | [English](../README.md)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../LICENSE)
 ![Cloudflare](https://img.shields.io/badge/Cloudflare-Pages%20%2B%20Workers-F38020?logo=cloudflare&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-supported-2496ED?logo=docker&logoColor=white)
 ![Vue 2](https://img.shields.io/badge/Vue-2-4FC08D?logo=vuedotjs&logoColor=white)
@@ -23,7 +23,7 @@
 
 ## 原仓库指引
 
-本仓库源自 [katelya77/K-Vault](https://github.com/katelya77/K-Vault) —— 以 Telegram 为核心的 Cloudflare Serverless 聚合云盘，兼容 R2、S3、Discord、Hugging Face、WebDAV、GitHub 多存储后端（CC0-1.0）。骨架至今仍能对上：根目录页面、`functions/`、`server/`、`kvault_data` 数据卷，以及同样那四个 workflow。K-Vault 自己的致谢里把 [cf-pages/Telegraph-Image](https://github.com/cf-pages/Telegraph-Image) 列为更早的上游参考；本仓库第一个 commit 也还带着 Telegraph-Image 的 README 和一个指向它的 fork-sync workflow。
+本仓库源自 [katelya77/K-Vault](https://github.com/katelya77/K-Vault) —— 以 Telegram 为核心的 Cloudflare Serverless 聚合云盘，兼容 R2、S3、Discord、Hugging Face、WebDAV、GitHub 多存储后端（CC0-1.0）。骨架至今仍能对上：页面入口、`functions/`、`server/`、`kvault_data` 数据卷，以及同样那四个 workflow。K-Vault 自己的致谢里把 [cf-pages/Telegraph-Image](https://github.com/cf-pages/Telegraph-Image) 列为更早的上游参考；本仓库第一个 commit 也还带着 Telegraph-Image 的 README 和一个指向它的 fork-sync workflow。
 
 下面保留原仓库的部署指引，供从 K-Vault 过来的读者、只需要最小 Telegram 部署的场景，以及对照行为差异时使用。本仓库已分叉演进 —— 下文所述的 Coordinator Worker、Passkey 登录、Storage Profile 都不在原仓库中 —— 实际部署请以本章之后的 Cloudflare / Docker 章节为准，原仓库步骤作为背景参考。
 
@@ -55,7 +55,7 @@ docker run -d --name kvault --restart unless-stopped -p 8080:8080 \
 | `BASIC_USER` / `BASIC_PASS` 密码登录 | 密码 + Passkey/WebAuthn（`WEBAUTHN_RP_ID`、`WEBAUTHN_ORIGIN`、`MIGRATION_AUDIENCE`）；`AUTH_DISABLED` 仅允许本地运行 |
 | 由 `DEFAULT_STORAGE_TYPE` 加一组环境变量决定默认后端 | 另有可在管理端维护的多实例 Storage Profile |
 | 已发布镜像 `ghcr.io/katelya77/k-vault:latest` | `npm run docker:init-env` 后 `docker compose up -d --build` 从源码构建 |
-| CC0-1.0 | MIT，见 [LICENSE](LICENSE) |
+| CC0-1.0 | MIT，见 [LICENSE](../LICENSE) |
 
 Telegram 侧的准备步骤仍然通用，原仓库的 `/api/status`、`/admin.html`、`/webdav.html` 入口在这里也仍然存在。下文的 Coordinator、Passkey、API Token、Storage Profile 以及 `wrangler.jsonc` 替换清单属于本仓库，以本文档为准。
 
@@ -71,7 +71,7 @@ Telegram 侧的准备步骤仍然通用，原仓库的 `/api/status`、`/admin.h
 
 | 上传 | 图库 | 管理 | Passkey |
 | :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/home.jpeg" width="210" alt="上传页"> | <img src="docs/screenshots/gallery.jpeg" width="210" alt="图库"> | <img src="docs/screenshots/admin.jpeg" width="210" alt="管理后台"> | <img src="docs/screenshots/login-passkey.jpeg" width="210" alt="Passkey 登录"> |
+| <img src="screenshots/home.jpeg" width="210" alt="上传页"> | <img src="screenshots/gallery.jpeg" width="210" alt="图库"> | <img src="screenshots/admin.jpeg" width="210" alt="管理后台"> | <img src="screenshots/login-passkey.jpeg" width="210" alt="Passkey 登录"> |
 
 ## 架构
 
@@ -168,7 +168,7 @@ docker compose logs api
 
 Cloudflare R2 Profile 可选择 `binding`（填写 Wrangler 绑定名，例如 `R2_BUCKET`）或 `s3`（填写 endpoint、bucket、access key 和 secret）；Docker R2 使用 S3-compatible 凭据。Guest Channel 始终独立，访客不能列举或提交管理员 `storageId`。
 
-升级既有 v1/Legacy/SQLite 数据前，先执行 dry-run，再用环境专用 driver 完成备份、freeze、stage、activate、live verify 和 marker。完整命令、回滚规则、错误含义及已验证哈希见 [多存储迁移演练](docs/2026-07-14_multi-storage-migration-rehearsal.md)。
+升级既有 v1/Legacy/SQLite 数据前，先执行 dry-run，再用环境专用 driver 完成备份、freeze、stage、activate、live verify 和 marker。完整命令、回滚规则、错误含义及已验证哈希见 [多存储迁移演练](2026-07-14_multi-storage-migration-rehearsal.md)。
 
 ## 安全模型
 
@@ -192,7 +192,7 @@ Cloudflare R2 Profile 可选择 `binding`（填写 Wrangler 绑定名，例如 `
 | Docker 数据 | `DATA_DIR`、`DB_PATH`、`SETTINGS_STORE`、`SETTINGS_REDIS_URL`、`TRUST_PROXY` |
 | 可选后端 | `R2_*`、`S3_*`、`WEBDAV_*`、`DISCORD_*`、`HF_*`、`GITHUB_*` |
 
-Docker 基础模板见 [.env.example](.env.example)。开放 Docker 访客上传时还需加入 `TG_GUEST_*`、`GUEST_RETENTION_DAYS`，并仅在可信反向代理之后设置 `TRUST_PROXY=true`。变量仅负责首次引导时，管理员保存的加密动态配置会优先；错误会显式返回，不能假定自动回退。
+Docker 基础模板见 [.env.example](../.env.example)。开放 Docker 访客上传时还需加入 `TG_GUEST_*`、`GUEST_RETENTION_DAYS`，并仅在可信反向代理之后设置 `TRUST_PROXY=true`。变量仅负责首次引导时，管理员保存的加密动态配置会优先；错误会显式返回，不能假定自动回退。
 
 ## API 示例
 
@@ -227,7 +227,7 @@ npm run test:auth-e2e
 npm run test:visual
 ```
 
-清单中的版本范围表示支持声明，lockfile 表示当前精确解析版本，安全报告表示某次完成验证时使用的版本，三者不可互换。浏览器 E2E 需要 Playwright 浏览器和对应运行时；生产验证结果见 [第二阶段安全报告](docs/2026-07-13_security-phase-two-report.md)。
+清单中的版本范围表示支持声明，lockfile 表示当前精确解析版本，安全报告表示某次完成验证时使用的版本，三者不可互换。浏览器 E2E 需要 Playwright 浏览器和对应运行时；生产验证结果见 [第二阶段安全报告](2026-07-13_security-phase-two-report.md)。
 
 ## 故障排查
 
@@ -245,8 +245,10 @@ npm run test:visual
 
 ## 维护与许可
 
-核心目录：`frontend/`（Legacy 部署产物 `frontend/dist` 与前端镜像定义 `frontend/Dockerfile`）、`functions/`（Pages Functions）、`workers/coordinator/`（DO Worker）、`server/`（Docker API）、`shared/`（跨运行时契约）、`test/` 与 `e2e/`（验证）、`docs/`（部署与安全报告）。R2 专项说明见 [Cloudflare Pages + R2](docs/cloudflare-pages-r2.md)，Docker English guide 见 [README-DOCKER-EN.md](README-DOCKER-EN.md)。
+核心目录：`frontend/`（`pages/` 页面源码、`scripts/` 脚本、`styles/` 样式、`assets/` 图片与字体、`dist/` 部署产物及 `Dockerfile` 镜像定义）、`functions/`（Pages Functions）、`workers/coordinator/`（DO Worker）、`server/`（Docker API）、`shared/`（跨运行时契约）、`test/` 与 `e2e/`（验证）、`docs/`（部署与安全报告）。R2 专项说明见 [Cloudflare Pages + R2](cloudflare-pages-r2.md)，Docker English guide 见 [README-DOCKER-EN.md](README-DOCKER-EN.md)。
 
 [项目介绍](PROJECT_INTRO-ZH.md)（[English](PROJECT_INTRO.md)）概述当前目标、主流程路由、技术结构与本版本已移除的内容。
 
-提交变更时同步更新中英文文档，运行构建与相关测试，不提交生成物、真实凭据或账户专用配置。项目源自 [katelya77/K-Vault](https://github.com/katelya77/K-Vault)（CC0-1.0），该仓库把 [cf-pages/Telegraph-Image](https://github.com/cf-pages/Telegraph-Image) 列为更早的上游参考；本仓库依据 [MIT License](LICENSE) 发布。
+提交变更时同步更新中英文文档，运行构建与相关测试，不提交生成物、真实凭据或账户专用配置。项目源自 [katelya77/K-Vault](https://github.com/katelya77/K-Vault)（CC0-1.0），该仓库把 [cf-pages/Telegraph-Image](https://github.com/cf-pages/Telegraph-Image) 列为更早的上游参考；本仓库依据 [MIT License](../LICENSE) 发布。
+
+源码与发布 URL 的映射、构建方式见[前端目录说明](../frontend/README.md)。

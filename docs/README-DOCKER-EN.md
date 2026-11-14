@@ -1,6 +1,6 @@
 # Seraph's Pictures Docker Guide
 
-[Project README](README.md) | [中文 Docker 指南](README-DOCKER.md)
+[Project README](../README.md) | [中文 Docker 指南](README-DOCKER.md)
 
 The Docker runtime targets VPS, NAS, and local private deployments. It combines a static frontend, Node/Hono API, and persistent data volume. Docker and Cloudflare both provide Storage, Drive, Share, Passkey, API Token, and guest-upload features; they differ in persistence, upload modes, and adapter implementations—not API availability.
 
@@ -30,7 +30,7 @@ Open the Legacy home page at `http://localhost:8080/`; administration is `/admin
 | Uploads | `UPLOAD_MAX_SIZE`, `UPLOAD_SMALL_FILE_THRESHOLD`, `CHUNK_SIZE` |
 | Backends | `TG_*`, `R2_*`, `S3_*`, `WEBDAV_*`, `DISCORD_*`, `HF_*`, `GITHUB_*` |
 
-See [.env.example](.env.example) for the base template; add the guest-row variables to `.env` as the deployment requires. SQLite data persists in `kvault_data` by default. Dynamic storage profiles are AES-GCM encrypted and always stored in SQLite; Redis is only an optional, separate general settings store. Dynamic settings take precedence over environment variables, and blank secret fields preserve existing values. Start the Compose Redis profile with:
+See [.env.example](../.env.example) for the base template; add the guest-row variables to `.env` as the deployment requires. SQLite data persists in `kvault_data` by default. Dynamic storage profiles are AES-GCM encrypted and always stored in SQLite; Redis is only an optional, separate general settings store. Dynamic settings take precedence over environment variables, and blank secret fields preserve existing values. Start the Compose Redis profile with:
 
 ```bash
 docker compose --profile redis up -d --build
@@ -65,7 +65,7 @@ node scripts/security/migrate-storage-profiles.mjs \
   --docker-backup <DOCKER_BACKUP.sqlite>
 ```
 
-For an explicit `STORAGE_MIGRATION_FAILED`, verify backups and the old pointer. For `MIGRATION_ACTIVATION_AMBIGUOUS`, keep the Cloudflare freeze and Docker lock until authority/ledger evidence permits reconciliation. See the [migration rehearsal report](docs/2026-07-14_multi-storage-migration-rehearsal.md) for the full rollback matrix.
+For an explicit `STORAGE_MIGRATION_FAILED`, verify backups and the old pointer. For `MIGRATION_ACTIVATION_AMBIGUOUS`, keep the Cloudflare freeze and Docker lock until authority/ledger evidence permits reconciliation. See the [migration rehearsal report](2026-07-14_multi-storage-migration-rehearsal.md) for the full rollback matrix.
 
 ## Production reverse proxy
 

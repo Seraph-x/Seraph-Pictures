@@ -25,7 +25,7 @@ Seraph's Pictures 是一个私有媒体工作区，面向图片、文件、音�
 
 ## 技术结构
 
-- Legacy HTML 与 Vue 2 runtime：当前支持的界面，通过 `npm run build` 打包到 `frontend/dist`。
+- `frontend/pages`、`frontend/scripts`、`frontend/styles`、`frontend/assets`：集中存放 Legacy HTML 与 Vue 2 runtime 源码，当前支持的界面，通过 `npm run build` 打包到 `frontend/dist`。
 - `frontend/Dockerfile`：Docker 部署所用静态前端镜像的定义。
 - Cloudflare Functions：提供认证、上传、状态、管理、文件访问等 API。
 - Docker runtime：提供自托管后端。两种运行时均保留共用的 Storage、Drive 和 Share API。

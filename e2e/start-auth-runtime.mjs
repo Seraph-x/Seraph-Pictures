@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
+import { buildStatic } from '../scripts/build-static.mjs';
 
 const COORDINATOR_URL = 'http://127.0.0.1:8791';
 const PAGES_URL = 'http://127.0.0.1:4182/login';
@@ -34,7 +35,8 @@ function createUnboundRoot() {
   const root = path.join(tempRoot, 'unbound');
   fs.mkdirSync(root);
   for (const asset of UNBOUND_ASSETS) {
-    const source = path.join(REPO_ROOT, asset);
+    const sourceRoot = ['functions', 'shared'].includes(asset) ? REPO_ROOT : path.join(REPO_ROOT, 'frontend/dist');
+    const source = path.join(sourceRoot, asset);
     const target = path.join(root, asset);
     const stat = fs.statSync(source);
     if (stat.isDirectory()) fs.cpSync(source, target, { recursive: true });
@@ -68,6 +70,7 @@ function cleanup() {
 }
 
 async function start() {
+  buildStatic();
   const coordinator = spawnWrangler([
     'dev', '--config', 'workers/coordinator/wrangler.jsonc',
     '--ip', '127.0.0.1', '--port', '8791',
@@ -84,7 +87,7 @@ async function start() {
   ], { cwd: unboundRoot, logName: 'unbound-pages.log' });
   await waitForUrl(UNBOUND_URL);
   const pages = spawnWrangler([
-    'pages', 'dev', '.', '--ip', '127.0.0.1', '--port', '4182',
+    'pages', 'dev', 'frontend/dist', '--ip', '127.0.0.1', '--port', '4182',
     '--inspector-port', '9231',
     '--do', 'AUTH_COORDINATOR=AuthCoordinator@k-vault-coordinator',
     '--kv', 'img_url', '--r2', 'R2_BUCKET',

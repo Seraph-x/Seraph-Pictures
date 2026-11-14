@@ -4,7 +4,7 @@ const vm = require('node:vm');
 
 function keyboardContext() {
   const sandbox = {};
-  vm.runInNewContext(fs.readFileSync('legacy/pages/admin/drive-methods.js', 'utf8'), sandbox);
+  vm.runInNewContext(fs.readFileSync('frontend/scripts/pages/admin/drive-methods.js', 'utf8'), sandbox);
   return { ...sandbox.LegacyAdminMixins[0].methods, selectedFiles: [{ name: 'file' }] };
 }
 

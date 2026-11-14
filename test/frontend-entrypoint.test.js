@@ -1,6 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const { legacyAssetSource } = require('./helpers/frontend-source');
 
 const repoRoot = path.resolve(__dirname, '..');
 const distIndexPath = path.join(repoRoot, 'frontend', 'dist', 'index.html');
@@ -9,29 +10,29 @@ const webdavPath = path.join(repoRoot, 'frontend', 'dist', 'webdav.html');
 const legacyIndexPath = path.join(repoRoot, 'frontend', 'dist', 'legacy', 'index.html');
 const legacyAdminPath = path.join(repoRoot, 'frontend', 'dist', 'legacy', 'admin.html');
 const legacyWebdavPath = path.join(repoRoot, 'frontend', 'dist', 'legacy', 'webdav.html');
-const sourceIndexPath = path.join(repoRoot, 'index.html');
-const sourceAdminPath = path.join(repoRoot, 'admin.html');
-const sourceGalleryPath = path.join(repoRoot, 'gallery.html');
-const sourceWebdavPath = path.join(repoRoot, 'webdav.html');
+const sourceIndexPath = path.join(repoRoot, 'frontend/pages/index.html');
+const sourceAdminPath = path.join(repoRoot, 'frontend/pages/admin.html');
+const sourceGalleryPath = path.join(repoRoot, 'frontend/pages/gallery.html');
+const sourceWebdavPath = path.join(repoRoot, 'frontend/pages/webdav.html');
 const extensionfulLegacyNavigation = /(?:href=|url: |window\.location\.(?:href|replace)\s*=\s*)['"]\/(?:gallery|admin|webdav|login|storage-settings)\.html\b/;
 
 function readDistFile(filePath) {
   return fs.readFileSync(filePath, 'utf8');
 }
 
-function readLegacyBundle(filePath, assetRoot) {
+function readLegacyBundle(filePath, resolveAsset) {
   const shell = readDistFile(filePath);
   const refs = [...shell.matchAll(/(?:src|href)="(\/legacy\/[^"?]+\.(?:js|css))/g)]
-    .map((match) => path.join(assetRoot, match[1].slice(1)));
+    .map((match) => resolveAsset(match[1]));
   return [shell, ...refs.map(readDistFile)].join('\n');
 }
 
 function sourceBundle(filePath) {
-  return readLegacyBundle(filePath, repoRoot);
+  return readLegacyBundle(filePath, legacyAssetSource);
 }
 
 function distBundle(filePath) {
-  return readLegacyBundle(filePath, path.join(repoRoot, 'frontend', 'dist'));
+  return readLegacyBundle(filePath, (url) => path.join(repoRoot, 'frontend/dist', url.slice(1)));
 }
 
 describe('frontend Pages entrypoint', function () {
@@ -156,7 +157,7 @@ describe('frontend Pages entrypoint', function () {
   it('does not animate full legacy document containers on initial page load', function () {
     const sourceIndex = readDistFile(sourceIndexPath);
     const sourceGallery = readDistFile(sourceGalleryPath);
-    const legacyLogin = readDistFile(path.join(repoRoot, 'login.html'));
+    const legacyLogin = readDistFile(path.join(repoRoot, 'frontend/pages/login.html'));
 
     assert.doesNotMatch(sourceIndex, /#app\s*\{[\s\S]*?animation:\s*fadeIn\b/);
     assert.doesNotMatch(sourceGallery, /#app\s*\{[\s\S]*?animation:\s*fadeIn\b/);

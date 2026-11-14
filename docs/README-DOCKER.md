@@ -30,7 +30,7 @@ docker compose logs api
 | 上传 | `UPLOAD_MAX_SIZE`、`UPLOAD_SMALL_FILE_THRESHOLD`、`CHUNK_SIZE` |
 | 后端 | `TG_*`、`R2_*`、`S3_*`、`WEBDAV_*`、`DISCORD_*`、`HF_*`、`GITHUB_*` |
 
-基础模板见 [.env.example](.env.example)；访客行中的扩展变量需按部署场景加入 `.env`。默认 SQLite 数据位于 `kvault_data` 持久卷。动态 storage profiles 以 AES-GCM 加密后始终保存在 SQLite；Redis 仅可作为独立的通用设置存储。动态配置优先于环境变量，空白密钥字段保留旧值。启用 Compose Redis：
+基础模板见 [.env.example](../.env.example)；访客行中的扩展变量需按部署场景加入 `.env`。默认 SQLite 数据位于 `kvault_data` 持久卷。动态 storage profiles 以 AES-GCM 加密后始终保存在 SQLite；Redis 仅可作为独立的通用设置存储。动态配置优先于环境变量，空白密钥字段保留旧值。启用 Compose Redis：
 
 ```bash
 docker compose --profile redis up -d --build
@@ -65,7 +65,7 @@ node scripts/security/migrate-storage-profiles.mjs \
   --docker-backup <DOCKER_BACKUP.sqlite>
 ```
 
-`STORAGE_MIGRATION_FAILED` 明确失败时核对备份和旧指针；`MIGRATION_ACTIVATION_AMBIGUOUS` 必须保留 Cloudflare freeze 与 Docker lock，取得 authority/ledger 证据后再 reconciliation。详细演练和回滚矩阵见 [迁移演练报告](docs/2026-07-14_multi-storage-migration-rehearsal.md)。
+`STORAGE_MIGRATION_FAILED` 明确失败时核对备份和旧指针；`MIGRATION_ACTIVATION_AMBIGUOUS` 必须保留 Cloudflare freeze 与 Docker lock，取得 authority/ledger 证据后再 reconciliation。详细演练和回滚矩阵见 [迁移演练报告](2026-07-14_multi-storage-migration-rehearsal.md)。
 
 ## 生产反向代理
 

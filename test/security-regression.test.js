@@ -231,7 +231,7 @@ describe('security regressions', function () {
   });
 
   it('sanitizes external redirect targets in legacy login page', function () {
-    const loginHtml = fs.readFileSync(path.join(__dirname, '..', 'login.html'), 'utf8');
+    const loginHtml = fs.readFileSync(path.join(__dirname, '..', 'frontend/pages/login.html'), 'utf8');
     assert.match(loginHtml, /function sanitizeRedirectTarget/);
     assert.doesNotMatch(loginHtml, /window\.location\.replace\(redirect\);/);
   });
@@ -304,7 +304,7 @@ describe('security regressions', function () {
   });
 
   it('does not load hardcoded browser Sentry from the legacy admin page', function () {
-    const adminHtml = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');
+    const adminHtml = fs.readFileSync(path.join(__dirname, '..', 'frontend/pages/admin.html'), 'utf8');
 
     assert.doesNotMatch(adminHtml, /js\.sentry-cdn\.com/);
   });

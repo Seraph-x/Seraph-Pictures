@@ -6,7 +6,7 @@ const vm = require('node:vm');
 function adminContext(files) {
   const sandbox = { window: {}, document: { location: { origin: 'https://example.test' } } };
   vm.createContext(sandbox);
-  for (const file of files) vm.runInContext(fs.readFileSync(path.resolve('legacy/pages/admin', file), 'utf8'), sandbox);
+  for (const file of files) vm.runInContext(fs.readFileSync(path.resolve('frontend/scripts/pages/admin', file), 'utf8'), sandbox);
   const mixins = sandbox.LegacyAdminMixins;
   return Object.assign({}, ...mixins.map((mixin) => mixin.data?.() || {}), ...mixins.map((mixin) => mixin.methods || {}));
 }

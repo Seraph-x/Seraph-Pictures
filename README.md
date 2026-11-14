@@ -1,11 +1,11 @@
 <div align="center">
-  <img src="logo.png" alt="Seraph's Pictures" width="140">
+  <img src="frontend/assets/logo.png" alt="Seraph's Pictures" width="140">
 
 # Seraph's Pictures
 
 A private media workspace for Cloudflare and Docker with multiple storage backends, guest image hosting, file management, and secure sharing.
 
-[中文](README-ZH.md) | **English**
+[中文](docs/README-ZH.md) | **English**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Cloudflare](https://img.shields.io/badge/Cloudflare-Pages%20%2B%20Workers-F38020?logo=cloudflare&logoColor=white)
@@ -23,7 +23,7 @@ A private media workspace for Cloudflare and Docker with multiple storage backen
 
 ## Origin and upstream guidance
 
-This tree started from [katelya77/K-Vault](https://github.com/katelya77/K-Vault) — a Telegram-first serverless media vault on Cloudflare with R2, S3, Discord, Hugging Face, WebDAV, and GitHub backends (CC0-1.0). The shared skeleton is still visible: the root pages, `functions/`, `server/`, the `kvault_data` volume, and the same four workflows. K-Vault's own acknowledgements credit [cf-pages/Telegraph-Image](https://github.com/cf-pages/Telegraph-Image) as an earlier upstream reference, and this tree's first commit still carried the Telegraph-Image README plus a fork-sync workflow pointed at it.
+This tree started from [katelya77/K-Vault](https://github.com/katelya77/K-Vault) — a Telegram-first serverless media vault on Cloudflare with R2, S3, Discord, Hugging Face, WebDAV, and GitHub backends (CC0-1.0). The shared skeleton is still visible: the page entrypoints, `functions/`, `server/`, the `kvault_data` volume, and the same four workflows. K-Vault's own acknowledgements credit [cf-pages/Telegraph-Image](https://github.com/cf-pages/Telegraph-Image) as an earlier upstream reference, and this tree's first commit still carried the Telegraph-Image README plus a fork-sync workflow pointed at it.
 
 The upstream deployment path is kept here for readers arriving from K-Vault, for a minimal Telegram-only deployment, and for comparing behaviour. This fork has diverged — the coordinator Worker, Passkey login, and Storage Profiles described below are not upstream — so deploy from the sections after this one and treat the upstream steps as background.
 
@@ -147,7 +147,7 @@ npm run docker:doctor
 docker compose logs api
 ```
 
-Replace every example secret in `.env` before startup. SQLite data and configuration persist in `kvault_data` by default. Set `SETTINGS_STORE=redis` for external Redis; the Compose Redis service starts through its profile. A reverse proxy must provide HTTPS, and `PUBLIC_BASE_URL` plus WebAuthn RP/origin must match the public domain. See the [English Docker guide](README-DOCKER-EN.md).
+Replace every example secret in `.env` before startup. SQLite data and configuration persist in `kvault_data` by default. Set `SETTINGS_STORE=redis` for external Redis; the Compose Redis service starts through its profile. A reverse proxy must provide HTTPS, and `PUBLIC_BASE_URL` plus WebAuthn RP/origin must match the public domain. See the [English Docker guide](docs/README-DOCKER-EN.md).
 
 ## Storage and upload capabilities
 
@@ -245,8 +245,10 @@ Manifest ranges are support declarations, lockfiles record current exact resolut
 
 ## Maintenance and license
 
-Key directories: `frontend/` (Legacy deployment output at `frontend/dist` and the frontend image definition at `frontend/Dockerfile`), `functions/` (Pages Functions), `workers/coordinator/` (DO Worker), `server/` (Docker API), `shared/` (cross-runtime contracts), `test/` and `e2e/` (verification), and `docs/` (deployment/security reports). See [Cloudflare Pages + R2](docs/cloudflare-pages-r2.md) and the [Chinese Docker guide](README-DOCKER.md).
+Key directories: `frontend/` (page source in `pages/`, JavaScript in `scripts/`, CSS in `styles/`, images/fonts in `assets/`, deployment output in `dist/`, and the frontend image definition in `Dockerfile`), `functions/` (Pages Functions), `workers/coordinator/` (DO Worker), `server/` (Docker API), `shared/` (cross-runtime contracts), `test/` and `e2e/` (verification), and `docs/` (deployment/security reports). See [Cloudflare Pages + R2](docs/cloudflare-pages-r2.md) and the [Chinese Docker guide](docs/README-DOCKER.md).
 
-The [project introduction](PROJECT_INTRO.md) ([中文](PROJECT_INTRO-ZH.md)) summarises the current goals, the main route flow, the technical structure, and what has been removed from this version.
+The [project introduction](docs/PROJECT_INTRO.md) ([中文](docs/PROJECT_INTRO-ZH.md)) summarises the current goals, the main route flow, the technical structure, and what has been removed from this version.
 
 Update both language documents in the same change, run the build and relevant tests, and never commit build output, real credentials, or account-specific configuration. Origin: started from [katelya77/K-Vault](https://github.com/katelya77/K-Vault) (CC0-1.0), which credits [cf-pages/Telegraph-Image](https://github.com/cf-pages/Telegraph-Image) as an earlier upstream reference; this tree is released under the [MIT License](LICENSE).
+
+See [frontend source layout](frontend/README.md) for the source-to-public-URL mapping and build commands.

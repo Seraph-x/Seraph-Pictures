@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const MODULE_PATH = require.resolve('../legacy/pages/admin/folder-move-methods.js');
+const MODULE_PATH = require.resolve('../frontend/scripts/pages/admin/folder-move-methods.js');
 const ROOT = path.resolve(__dirname, '..');
 
 function read(relativePath) {
@@ -262,7 +262,7 @@ describe('legacy Admin folder move dialog', function () {
   });
 
   it('renders the guarded autocomplete dialog template', function () {
-    const relativePath = 'legacy/pages/admin/components/folder-move-dialog.js';
+    const relativePath = 'frontend/scripts/pages/admin/components/folder-move-dialog.js';
     assert.ok(fs.existsSync(path.join(ROOT, relativePath)), 'folder move dialog must exist');
     const dialog = read(relativePath);
     for (const pattern of [
@@ -274,8 +274,8 @@ describe('legacy Admin folder move dialog', function () {
   });
 
   it('loads and composes the folder move dialog before the Admin app closes', function () {
-    const html = read('admin.html');
-    const app = read('legacy/pages/admin/app.js');
+    const html = read('frontend/pages/admin.html');
+    const app = read('frontend/scripts/pages/admin/app.js');
     const script = '/legacy/pages/admin/components/folder-move-dialog.js';
     const scriptIndex = html.indexOf(script);
     const appIndex = html.indexOf('/legacy/pages/admin/app.js');
@@ -289,7 +289,7 @@ describe('legacy Admin folder move dialog', function () {
   });
 
   it('defines localized folder move destination copy', function () {
-    const blocks = languageBlocks(read('legacy/pages/admin/i18n-3.js'));
+    const blocks = languageBlocks(read('frontend/scripts/pages/admin/i18n-3.js'));
     for (const key of ['moveFolderDestinationHint', 'moveFolderDestinationPlaceholder']) {
       for (const block of blocks) assert.match(block, new RegExp(`'admin\\.${key}':\\s*'[^']+'`));
     }

@@ -25,7 +25,7 @@ Seraph's Pictures is a private media workspace for hosting images, files, audio,
 
 ## Technical structure
 
-- Legacy HTML and Vue 2 runtime: the supported UI, packaged into `frontend/dist` with `npm run build`.
+- `frontend/pages`, `frontend/scripts`, `frontend/styles`, and `frontend/assets`: Legacy HTML and Vue 2 runtime source; the supported UI, packaged into `frontend/dist` with `npm run build`.
 - `frontend/Dockerfile`: the static frontend image definition for Docker deployments.
 - Cloudflare Functions: authentication, upload, status, admin, and file-access APIs.
 - Docker runtime: the self-hosted backend. Both runtimes retain the shared Storage, Drive, and Share APIs.

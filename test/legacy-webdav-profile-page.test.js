@@ -3,10 +3,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = path.resolve(__dirname, '..');
-const HTML = fs.readFileSync(path.join(ROOT, 'webdav.html'), 'utf8');
+const HTML = fs.readFileSync(path.join(ROOT, 'frontend/pages/webdav.html'), 'utf8');
 let viewModule = null;
 try {
-  viewModule = require('../legacy/pages/webdav/profile-view.js');
+  viewModule = require('../frontend/scripts/pages/webdav/profile-view.js');
 } catch (error) {
   if (error.code !== 'MODULE_NOT_FOUND') throw error;
 }
@@ -83,7 +83,7 @@ describe('legacy WebDAV profile selector page contract', function () {
   });
 
   it('defines a flexible desktop target and a full-row narrow layout', function () {
-    const cssPath = path.join(ROOT, 'legacy/pages/webdav/profile.css');
+    const cssPath = path.join(ROOT, 'frontend/styles/pages/webdav/profile.css');
     assert.equal(fs.existsSync(cssPath), true);
     const css = fs.readFileSync(cssPath, 'utf8');
     assert.match(css, /\.webdav-profile-target\s*\{[\s\S]*flex:\s*1/);

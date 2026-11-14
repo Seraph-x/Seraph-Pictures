@@ -10,9 +10,9 @@ function readRepoFile(relativePath) {
 
 describe('Claude-inspired theme contract', function () {
   it('uses Seraph branding on legacy login, gallery, and WebDAV', function () {
-    const legacyLogin = readRepoFile('login.html');
-    const galleryHtml = readRepoFile('gallery.html');
-    const webdavHtml = readRepoFile('webdav.html');
+    const legacyLogin = readRepoFile('frontend/pages/login.html');
+    const galleryHtml = readRepoFile('frontend/pages/gallery.html');
+    const webdavHtml = readRepoFile('frontend/pages/webdav.html');
 
     assert.match(legacyLogin, /<title>Seraph's Pictures<\/title>/);
     assert.match(legacyLogin, /<h1 class="title">Seraph's Pictures<\/h1>/);
@@ -23,10 +23,10 @@ describe('Claude-inspired theme contract', function () {
   });
 
   it('removes the legacy purple-pink gradient from default pages', function () {
-    const indexHtml = readRepoFile('index.html');
-    const loginHtml = readRepoFile('login.html');
-    const globalTheme = readRepoFile('theme.css');
-    const legacyTheme = readRepoFile('claude-theme.css');
+    const indexHtml = readRepoFile('frontend/pages/index.html');
+    const loginHtml = readRepoFile('frontend/pages/login.html');
+    const globalTheme = readRepoFile('frontend/styles/theme.css');
+    const legacyTheme = readRepoFile('frontend/styles/claude-theme.css');
 
     assert.match(globalTheme, /--claude-bg:\s*#1c1b19/);
     assert.match(globalTheme, /--primary-color:\s*var\(--claude-accent\)/);
@@ -41,7 +41,7 @@ describe('Claude-inspired theme contract', function () {
   });
 
   it('overrides legacy dark-theme specificity on default pages', function () {
-    const legacyTheme = readRepoFile('claude-theme.css');
+    const legacyTheme = readRepoFile('frontend/styles/claude-theme.css');
 
     assert.match(legacyTheme, /html\[data-theme="dark"\]\s+body/);
     assert.match(legacyTheme, /html\[data-theme="dark"\]\s+\.header/);
