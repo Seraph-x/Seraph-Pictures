@@ -20,9 +20,6 @@ const ROUTES = Object.freeze([
   { key: '/preview', url: '/preview?id=baseline.jpg' },
   { key: '/webdav', url: '/webdav' },
   { key: '/storage-settings', url: '/storage-settings' },
-  { key: '/app/drive', url: '/app/drive' },
-  { key: '/app/storage', url: '/app/storage' },
-  { key: '/app/status', url: '/app/status' },
 ]);
 
 function sha256(value) {

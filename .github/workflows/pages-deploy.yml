@@ -64,7 +64,7 @@ jobs:
       - name: Install root dependencies
         run: npm ci
 
-      - name: Build frontend (vite + legacy assets)
+      - name: Build Legacy static site
         run: npm run build
 
       - name: Run unit and integration tests
@@ -80,7 +80,7 @@ jobs:
         run: npx wrangler deploy --config workers/coordinator/wrangler.jsonc --env production --dry-run --outdir "$RUNNER_TEMP/coordinator-dry-run"
 
       - name: Compile Pages Functions
-        run: npx wrangler pages functions build frontend/dist --outfile "$RUNNER_TEMP/pages-functions.js"
+        run: npx wrangler pages functions build functions --outfile "$RUNNER_TEMP/pages-functions.js"
 
       - name: Create verified encrypted production KV backup
         run: node scripts/security/backup-kv-state.mjs --environment production --output "$RUNNER_TEMP/kv-security-backup.json"

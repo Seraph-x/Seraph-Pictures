@@ -18,7 +18,6 @@ const MIME_TYPES = Object.freeze({
 
 function resolveLegacyPath(pathname) {
   if (pathname === '/') return '/index.html';
-  if (pathname.startsWith('/app/')) return pathname;
   if (path.extname(pathname)) return pathname;
   return `${pathname}.html`;
 }
@@ -31,7 +30,6 @@ function resolveFile(pathname) {
     candidate = path.join(candidate, 'index.html');
   }
   if (fs.existsSync(candidate)) return candidate;
-  if (pathname.startsWith('/app/')) return path.join(ROOT, 'app/index.html');
   return null;
 }
 

@@ -9,6 +9,19 @@ const APP_HEADERS = Object.freeze({
   'X-Seraph-Client': 'app-v2',
 });
 
+test('Pages serves Legacy pages and returns 404 for retired Vue routes', async ({ request }) => {
+  for (const route of ['/', '/login', '/admin', '/gallery', '/storage-settings', '/webdav', '/preview', '/upload']) {
+    const response = await request.get(`${PAGES_URL}${route}`);
+    expect(response.status(), route).toBe(200);
+    expect(response.headers()['content-type'], route).toContain('text/html');
+  }
+  for (const route of ['/app', '/app/', '/app/drive', '/app/storage', '/app/login', '/app/status', '/app/assets/stale.js']) {
+    const response = await request.get(`${PAGES_URL}${route}`);
+    expect(response.status(), route).toBe(404);
+    expect(await response.text(), route).toContain('页面不存在');
+  }
+});
+
 function digest(value) {
   return createHash('sha256').update(value).digest('hex');
 }
@@ -42,22 +55,12 @@ async function createPagesR2(request, name = 'E2E R2') {
   return body.item.id;
 }
 
-async function uploadPagesFile(request, fileName, storageId) {
-  const upload = await initialize(request, fileName, storageId);
-  await expectJson(await request.post(`${PAGES_URL}/api/chunked-upload/chunk`, {
-    multipart: partForm(upload),
-  }));
-  return expectJson(await request.post(`${PAGES_URL}/api/chunked-upload/complete`, {
-    data: { uploadId: upload.uploadId },
-  }));
-}
-
 async function uploadPagesDriveFile(request, fileName, storageId) {
   return expectJson(await request.post(`${PAGES_URL}/upload`, {
     headers: APP_HEADERS,
     multipart: {
       file: { name: fileName, mimeType: 'image/png', buffer: Buffer.from(fileName) },
-      storageMode: 'r2', storageId, folderPath: '',
+      storageMode: 'r2', storageId, folderPath: '', uploadSource: 'drive',
     },
   }));
 }
@@ -101,14 +104,6 @@ async function exerciseDrive(request, baseURL, suffix) {
   }));
 }
 
-async function createTelegramProfile(request, name) {
-  const body = await expectJson(await request.post(`${PAGES_URL}/api/storage`, {
-    headers: APP_HEADERS,
-    data: { name, type: 'telegram', config: { botToken: `${name}-token`, chatId: `${name}-chat` } },
-  }));
-  return body.item;
-}
-
 test('real Pages R2 multipart persists retries, conflicts, completion, and cancellation', async ({ request }) => {
   const storageConfigId = await createPagesR2(request);
   const upload = await initialize(request, 'success.png', storageConfigId);
@@ -139,48 +134,7 @@ test('real Pages R2 multipart persists retries, conflicts, completion, and cance
   expect(cancel.phase).toBe('aborted');
 });
 
-test('Vue upload queue snapshots and sends the exact storage profile', async ({ page, request }) => {
-  const primary = await createTelegramProfile(request, 'Upload Primary');
-  const archive = await createTelegramProfile(request, 'Upload Archive');
-  let directBody = '';
-  let urlBody = null;
-  await page.route('**/api/status', (route) => route.fulfill({ json: {} }));
-  await page.route(/\/upload$/, async (route) => {
-    directBody = route.request().postData() || '';
-    await route.fulfill({ json: { src: '/file/direct-test' } });
-  });
-  await page.route('**/api/upload-from-url', async (route) => {
-    urlBody = route.request().postDataJSON();
-    await route.fulfill({ json: { src: '/file/url-test' } });
-  });
-  await page.goto(`${PAGES_URL}/app/`);
-  const selector = page.getByTestId('upload-storage-profile');
-  await expect(selector.locator(`option[value="${primary.id}"]`)).toHaveCount(1);
-  await expect(selector.locator(`option[value="${archive.id}"]`)).toHaveCount(1);
-  await selector.selectOption(archive.id);
-  await page.locator('input[type="file"]').setInputFiles({
-    name: 'exact.txt', mimeType: 'text/plain', buffer: Buffer.from('exact-profile'),
-  });
-  await selector.selectOption(primary.id);
-  await expect(page.getByText('Telegram · Upload Archive · 根目录 /')).toBeVisible();
-  await expect.poll(() => directBody).toContain(archive.id);
-
-  await page.locator('.url-row input').fill('https://example.test/image.png');
-  await page.getByRole('button', { name: '上传 URL' }).click();
-  await expect.poll(() => urlBody?.storageId).toBe(primary.id);
-  expect(urlBody.storageMode).toBe('telegram');
-
-  await selector.selectOption(archive.id);
-  await expectJson(await request.put(`${PAGES_URL}/api/storage/${archive.id}`, {
-    headers: APP_HEADERS, data: { enabled: false },
-  }));
-  await page.reload();
-  await expect(selector.locator(`option[value="${archive.id}"]`)).toHaveCount(0);
-  await expect(selector.locator(`option[value="${primary.id}"]`)).toHaveCount(1);
-  await expect(page.locator('.storage-profile-notice')).toBeVisible();
-});
-
-test('Drive filters, labels, uploads, migrates, and reports exact profiles', async ({ page, request }) => {
+test('Drive APIs filter, upload, migrate, and report exact profiles', async ({ request }) => {
   const sourceId = await createPagesR2(request, 'Drive Source');
   const destinationId = await createPagesR2(request, 'Drive Archive');
   await uploadPagesDriveFile(request, 'source-drive.png', sourceId);
@@ -196,20 +150,17 @@ test('Drive filters, labels, uploads, migrates, and reports exact profiles', asy
   ));
   expect(exactSource.files.map((file) => file.metadata.fileName)).toContain('source-drive.png');
 
-  await page.goto(`${PAGES_URL}/app/drive/`);
-  const filter = page.getByTestId('drive-storage-profile');
-  await expect(filter.locator(`option[value="${sourceId}"]`)).toContainText('Drive Source');
-  await filter.selectOption(sourceId);
-  await expect(page.locator('tbody').getByText('R2 · Drive Source', { exact: true })).toBeVisible();
-  await expect(page.getByText('archive-drive.png')).toHaveCount(0);
-
-  const destination = page.getByTestId('drive-migration-destination');
-  await page.locator('tbody input[type="checkbox"]').first().check();
-  await expect(destination.locator(`option[value="${sourceId}"]`)).toHaveCount(0);
-  await expect(destination.locator(`option[value="${destinationId}"]`)).toHaveCount(1);
-  await destination.selectOption(destinationId);
-  await page.getByTestId('drive-migrate').click();
-  await expect(page.getByText('source-drive.png')).toHaveCount(0);
+  expect(exactSource.files.map((file) => file.metadata.fileName)).not.toContain('archive-drive.png');
+  const source = exactSource.files.find((file) => file.metadata.fileName === 'source-drive.png');
+  expect(source.metadata).toMatchObject({ storageId: sourceId, storageName: 'Drive Source' });
+  await expectJson(await request.post(`${PAGES_URL}/api/drive/files/migrate`, {
+    headers: APP_HEADERS,
+    data: { fileIds: [source.name], destinationStorageId: destinationId },
+  }));
+  const remainingSource = await expectJson(await request.get(
+    `${PAGES_URL}/api/drive/explorer?storageId=${sourceId}&includeStats=1`,
+  ));
+  expect(remainingSource.files.map((file) => file.metadata.fileName)).not.toContain('source-drive.png');
   const migratedDestination = await expectJson(await request.get(
     `${PAGES_URL}/api/drive/explorer?storageId=${destinationId}&includeStats=1`,
   ));
@@ -218,15 +169,7 @@ test('Drive filters, labels, uploads, migrates, and reports exact profiles', asy
   );
   expect(migrated.metadata.storageId).toBe(destinationId);
 
-  await page.locator('.adapter-card').filter({ hasText: /^R2/ }).click();
-  const uploadProfile = page.getByTestId('upload-storage-profile');
-  await expect(uploadProfile.locator(`option[value="${destinationId}"]`)).toHaveCount(1);
-  await uploadProfile.selectOption(destinationId);
-  await page.locator('.drive-dropzone input[type="file"]').setInputFiles({
-    name: 'drive-exact.txt', mimeType: 'text/plain', buffer: Buffer.from('drive-exact-profile'),
-  });
-  await expect(page.locator('.queue-target').getByText('R2 · Drive Archive', { exact: false })).toBeVisible();
-  await expect(page.getByText('成功')).toBeVisible();
+  await uploadPagesDriveFile(request, 'drive-exact.txt', destinationId);
   const exactDestination = await expectJson(await request.get(
     `${PAGES_URL}/api/drive/explorer?storageId=${destinationId}&includeStats=1`,
   ));
@@ -236,12 +179,15 @@ test('Drive filters, labels, uploads, migrates, and reports exact profiles', asy
     uploadSource: 'drive', accessVersion: 1,
   });
 
-  await createTelegramProfile(request, 'Status Telegram One');
-  await createTelegramProfile(request, 'Status Telegram Two');
-  await page.goto(`${PAGES_URL}/app/status/`);
-  const statusGrid = page.locator('.storage-profile-status-grid');
-  await expect(statusGrid.getByText('Status Telegram One')).toBeVisible({ timeout: 15_000 });
-  await expect(statusGrid.getByText('Status Telegram Two')).toBeVisible();
+  const status = await expectJson(await request.get(`${PAGES_URL}/api/status`));
+  expect(status.storageProfiles).toEqual(expect.arrayContaining([
+    expect.objectContaining({
+      storageId: sourceId, storageName: 'Drive Source', storageType: 'r2', enabled: false,
+    }),
+    expect.objectContaining({
+      storageId: destinationId, storageName: 'Drive Archive', storageType: 'r2', enabled: true,
+    }),
+  ]));
 });
 
 test('Legacy upload and admin preserve exact profile identities', async ({ page, request }) => {

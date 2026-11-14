@@ -17,7 +17,7 @@ npm run docker:doctor
 docker compose logs api
 ```
 
-访问 `http://localhost:8080/`；管理页为 `/admin.html`，Vue Drive 与存储设置为 `/app/drive`、`/app/storage`。Docker 默认启用认证，`AUTH_DISABLED=true` 仅用于明确的本地隔离环境，不能作为生产修复手段。
+访问 Legacy 首页 `http://localhost:8080/`；管理页为 `/admin.html`，存储设置为 `/storage-settings.html`。旧 `/app` 界面及其子路径返回 HTTP 404。Docker 默认启用认证，`AUTH_DISABLED=true` 仅用于明确的本地隔离环境，不能作为生产修复手段。
 
 ## 数据与配置
 
@@ -43,7 +43,7 @@ npm run docker:doctor
 
 Docker 支持 Telegram、R2、S3、Discord、Hugging Face、WebDAV、GitHub，上传模式为 direct 或 chunked。管理员默认配置上限为 100 MiB；Telegram 最高 50 MiB、Discord 25 MiB、Hugging Face 35 MiB。后端服务的更低上限仍然生效。
 
-管理员可在 `/storage-settings` 或 `/app/storage` 为同一类型添加多个命名 Profile，并分别编辑、测试、启用、设为该类型默认或删除。Docker R2 Profile 使用 S3-compatible endpoint、bucket、access key 与 secret；每次管理员写入都保存精确 `storageId`。禁用 Profile 仅禁止新写入，历史读取/删除/迁移仍使用文件持久化的 Profile，不回退 `.env` 旧凭据。
+管理员可在 `/storage-settings.html` 为同一类型添加多个命名 Profile，并分别编辑、测试、启用、设为该类型默认或删除。Docker R2 Profile 使用 S3-compatible endpoint、bucket、access key 与 secret；每次管理员写入都保存精确 `storageId`。禁用 Profile 仅禁止新写入，历史读取/删除/迁移仍使用文件持久化的 Profile，不回退 `.env` 旧凭据。
 
 访客上传遵循不可放宽的隔离边界：
 
@@ -74,7 +74,7 @@ node scripts/security/migrate-storage-profiles.mjs \
 ## 验证与排错
 
 ```bash
-npm run frontend:build
+npm run build
 npm test -- --reporter dot
 npm run docker:doctor
 npm run docker:smoke:ci

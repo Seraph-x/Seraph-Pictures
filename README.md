@@ -10,7 +10,7 @@ A private media workspace for Cloudflare and Docker with multiple storage backen
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Cloudflare](https://img.shields.io/badge/Cloudflare-Pages%20%2B%20Workers-F38020?logo=cloudflare&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-supported-2496ED?logo=docker&logoColor=white)
-![Vue 3](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)
+![Vue 2](https://img.shields.io/badge/Vue-2-4FC08D?logo=vuedotjs&logoColor=white)
 </div>
 
 ## Security warnings
@@ -50,7 +50,7 @@ The admin console is at `/admin.html`, WebDAV at `/webdav.html`, health at `/api
 
 | K-Vault (upstream) | This repository |
 | --- | --- |
-| Repository root published as static pages, Pages Functions only | Vue app built into `frontend/dist` and uploaded with `wrangler pages deploy frontend/dist`, plus a coordinator Worker hosting the `AUTH_COORDINATOR` and `UPLOAD_COORDINATOR` Durable Objects |
+| Repository root published as static pages, Pages Functions only | Legacy pages packaged into `frontend/dist` with `npm run build` and uploaded with `wrangler pages deploy frontend/dist`, plus a coordinator Worker hosting the `AUTH_COORDINATOR` and `UPLOAD_COORDINATOR` Durable Objects |
 | `TG_Bot_Token`, `TG_Chat_ID` | `TG_BOT_TOKEN`, `TG_CHAT_ID`, plus dedicated `TG_GUEST_BOT_TOKEN` and `TG_GUEST_CHAT_ID` for guest uploads |
 | Admin login with `BASIC_USER` / `BASIC_PASS` | Password plus Passkey/WebAuthn (`WEBAUTHN_RP_ID`, `WEBAUTHN_ORIGIN`, `MIGRATION_AUDIENCE`); `AUTH_DISABLED` is refused outside local runs |
 | Default backend chosen by `DEFAULT_STORAGE_TYPE` plus an environment block | Also multi-instance Storage Profiles managed from the console |
@@ -67,7 +67,7 @@ Telegram-side prerequisites are unchanged, and upstream's `/api/status`, `/admin
 - Folder tree, filtering, batch move/delete, rename, visibility controls, and previews.
 - Isolated Telegram bot/channel, fixed quotas, and content authenticity checks for public guest image hosting.
 - Stable Legacy UI: `/`, `/login.html`, `/admin.html`, `/gallery.html`, `/webdav.html`, `/storage-settings.html`.
-- Vue UI: `/app/`, `/app/drive`, `/app/storage`, `/app/status`; both runtimes implement its Storage, Drive, and Share APIs.
+- The Legacy pages retain their Vue 2 runtime. The former `/app` UI and its subpaths return HTTP 404; both runtimes continue to provide the shared Storage, Drive, and Share APIs.
 
 | Upload | Gallery | Administration | Passkey |
 | :---: | :---: | :---: | :---: |
@@ -77,7 +77,7 @@ Telegram-side prerequisites are unchanged, and upstream's `/api/status`, `/admin
 
 ```mermaid
 flowchart LR
-  browser[Browser / API client] --> frontend[Legacy + Vue UI]
+  browser[Browser / API client] --> frontend[Legacy UI / Vue 2]
   frontend --> runtime{Runtime}
   runtime --> pages[Pages Functions]
   runtime --> docker[Docker Hono API]
@@ -101,7 +101,7 @@ Cloudflare coordinates authentication and R2 multipart state with Durable Object
 
 ```bash
 npm ci
-npm run frontend:build
+npm run build
 npm run docker:init-env
 docker compose up -d --build
 npm run docker:doctor
@@ -131,7 +131,7 @@ npx wrangler r2 bucket lifecycle list <R2_BUCKET>
 npx wrangler r2 bucket lifecycle add <R2_BUCKET> abort-incomplete-uploads multipart/ --abort-multipart-days 1
 npx wrangler r2 bucket lifecycle list <R2_BUCKET>
 npx wrangler deploy --config workers/coordinator/wrangler.jsonc --env production
-npm run frontend:build
+npm run build
 npx wrangler pages deploy frontend/dist --project-name <PAGES_PROJECT> --branch main
 node scripts/probe-coordinator-binding.mjs --base-url https://<YOUR_DOMAIN>
 ```
@@ -196,7 +196,7 @@ See [.env.example](.env.example) for the base Docker template. Public Docker gue
 
 ## API examples
 
-UI routes `/app/storage` and `/app/drive` are not API routes. Every operation below requires administrator authentication:
+Both runtimes provide the shared Storage, Drive, and Share APIs independently of the retired `/app` UI. Every operation below requires administrator authentication:
 
 | Scope | Method and path |
 | --- | --- |
@@ -219,7 +219,7 @@ For scripts, issue a scoped Bearer token in the admin UI and call `/api/v1/*`; n
 ## Verification
 
 ```bash
-npm run frontend:build
+npm run build
 npm test -- --reporter dot
 npm audit --omit=dev
 npm run test:storage-e2e
@@ -245,7 +245,7 @@ Manifest ranges are support declarations, lockfiles record current exact resolut
 
 ## Maintenance and license
 
-Key directories: `frontend/` (Vue and Legacy build), `functions/` (Pages Functions), `workers/coordinator/` (DO Worker), `server/` (Docker API), `shared/` (cross-runtime contracts), `test/` and `e2e/` (verification), and `docs/` (deployment/security reports). See [Cloudflare Pages + R2](docs/cloudflare-pages-r2.md) and the [Chinese Docker guide](README-DOCKER.md).
+Key directories: `frontend/` (Legacy deployment output at `frontend/dist` and the frontend image definition at `frontend/Dockerfile`), `functions/` (Pages Functions), `workers/coordinator/` (DO Worker), `server/` (Docker API), `shared/` (cross-runtime contracts), `test/` and `e2e/` (verification), and `docs/` (deployment/security reports). See [Cloudflare Pages + R2](docs/cloudflare-pages-r2.md) and the [Chinese Docker guide](README-DOCKER.md).
 
 The [project introduction](PROJECT_INTRO.md) ([中文](PROJECT_INTRO-ZH.md)) summarises the current goals, the main route flow, the technical structure, and what has been removed from this version.
 

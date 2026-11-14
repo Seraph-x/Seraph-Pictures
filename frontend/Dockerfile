@@ -1,15 +1,16 @@
 # syntax=docker/dockerfile:1.7
 
-# Stage 1: build the canonical frontend bundle (legacy root pages + Vue /app/),
+# Stage 1: package the canonical Legacy static site,
 # the exact same artifact deployed to Cloudflare Pages (frontend/dist). Build
 # it on the native runner because the output is architecture-independent; this
 # avoids executing npm tooling through QEMU during multi-platform image builds.
 FROM --platform=$BUILDPLATFORM node:22-alpine AS build
 WORKDIR /repo
-COPY . .
-# `npm run build` installs frontend deps (prefrontend:build hook), runs vite,
-# then copy-legacy.mjs which lays out dist/ with legacy pages at the root and
-# the Vue app under dist/app/.
+COPY package.json *.html *.css *.js *.ico *.svg *.png ./
+COPY scripts/build-static.mjs scripts/build-static.mjs
+COPY legacy legacy
+COPY assets assets
+# The static packager uses Node built-ins and requires no npm install.
 RUN npm run build
 
 # Stage 2: serve the built bundle with nginx.

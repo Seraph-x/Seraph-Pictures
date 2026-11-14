@@ -60,7 +60,7 @@ async function start() {
   await waitFor('http://127.0.0.1:8792');
 
   const pages = startWrangler([
-    'pages', 'dev', '.', '--ip', '127.0.0.1', '--port', '4184', '--inspector-port', '9241',
+    'pages', 'dev', 'frontend/dist', '--ip', '127.0.0.1', '--port', '4184', '--inspector-port', '9241',
     '--do', 'AUTH_COORDINATOR=AuthCoordinator@k-vault-coordinator',
     '--do', 'UPLOAD_COORDINATOR=UploadCoordinator@k-vault-coordinator',
     '--kv', 'img_url', '--r2', 'R2_BUCKET',

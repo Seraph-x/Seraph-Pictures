@@ -17,7 +17,7 @@ npm run docker:doctor
 docker compose logs api
 ```
 
-Open `http://localhost:8080/`; administration is `/admin.html`, while Vue Drive and storage settings are `/app/drive` and `/app/storage`. Authentication is enabled by default. `AUTH_DISABLED=true` is only for an explicitly isolated local environment and is not a production repair mechanism.
+Open the Legacy home page at `http://localhost:8080/`; administration is `/admin.html` and storage settings are `/storage-settings.html`. The former `/app` UI and its subpaths return HTTP 404. Authentication is enabled by default. `AUTH_DISABLED=true` is only for an explicitly isolated local environment and is not a production repair mechanism.
 
 ## Data and configuration
 
@@ -43,7 +43,7 @@ For backup, stop writes and back up `kvault_data`; also take a consistent Redis 
 
 Docker supports Telegram, R2, S3, Discord, Hugging Face, WebDAV, and GitHub through direct or chunked uploads. The default configured administrator ceiling is 100 MiB; Telegram is capped at 50 MiB, Discord at 25 MiB, and Hugging Face at 35 MiB. Lower backend limits still apply.
 
-Administrators can add multiple named profiles of the same type at `/storage-settings` or `/app/storage`, then edit, test, enable, set the per-type default, or delete each profile. Docker R2 profiles use an S3-compatible endpoint, bucket, access key, and secret. Every administrator write persists the exact `storageId`. Disabling a profile blocks only new writes; historical reads, deletion, and migration keep using the file's persisted profile and never fall back to old `.env` credentials.
+Administrators can add multiple named profiles of the same type at `/storage-settings.html`, then edit, test, enable, set the per-type default, or delete each profile. Docker R2 profiles use an S3-compatible endpoint, bucket, access key, and secret. Every administrator write persists the exact `storageId`. Disabling a profile blocks only new writes; historical reads, deletion, and migration keep using the file's persisted profile and never fall back to old `.env` credentials.
 
 Guest uploads enforce boundaries that administrators cannot relax:
 
@@ -74,7 +74,7 @@ The proxy should terminate TLS, preserve `Host` and the forwarded protocol, and 
 ## Verification and troubleshooting
 
 ```bash
-npm run frontend:build
+npm run build
 npm test -- --reporter dot
 npm run docker:doctor
 npm run docker:smoke:ci

@@ -2,7 +2,7 @@
 
 **English** | [中文](PROJECT_INTRO-ZH.md)
 
-Seraph's Pictures is a private media workspace for hosting images, files, audio, video, and documents. Cloudflare Pages is currently the primary deployment target: the legacy pages served from the root path are the stable main interface, while the `/app` Vue app is kept as the new experience and the entry point for the upcoming migration.
+Seraph's Pictures is a private media workspace for hosting images, files, audio, video, and documents. Cloudflare Pages is currently the primary deployment target: the Legacy pages served from the root path are the supported interface and retain their Vue 2 runtime.
 
 ## Current goals
 
@@ -20,16 +20,16 @@ Seraph's Pictures is a private media workspace for hosting images, files, audio,
 /admin.html    admin console
 /gallery.html  image gallery
 /webdav.html   WebDAV upload center
-/app/status    Vue status page
+/storage-settings.html  storage settings
 ```
 
 ## Technical structure
 
-- Legacy HTML: the main flow that is live today.
-- Vue/Vite: builds into `/app` for the new upload, Drive, Storage, and Status pages.
+- Legacy HTML and Vue 2 runtime: the supported UI, packaged into `frontend/dist` with `npm run build`.
+- `frontend/Dockerfile`: the static frontend image definition for Docker deployments.
 - Cloudflare Functions: authentication, upload, status, admin, and file-access APIs.
-- Docker runtime: the fuller self-hosted backend and the new Vue APIs.
+- Docker runtime: the self-hosted backend. Both runtimes retain the shared Storage, Drive, and Share APIs.
 
 ## Removed content
 
-The old `admin-imgtc.html`, `admin-waterfall.html`, and `_nuxt/` have been removed from the current version so that stale pages and historical build output are no longer exposed.
+The Vue 3 `/app` UI has been removed; `/app` and its subpaths return HTTP 404 without redirecting. The old `admin-imgtc.html`, `admin-waterfall.html`, and `_nuxt/` have also been removed from the current version so that stale pages and historical build output are no longer exposed.

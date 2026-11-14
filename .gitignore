@@ -6,9 +6,7 @@ workers/**/.wrangler/
 data/*
 tmpclaude*
 server/node_modules/*
-frontend/node_modules/*
 frontend/dist/*
-app/*.html
 .env
 .dev.vars
 .dev.vars.*

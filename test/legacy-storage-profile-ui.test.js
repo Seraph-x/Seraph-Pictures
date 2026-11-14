@@ -20,13 +20,6 @@ describe('legacy storage profile settings', function () {
     assert.match(html, /data-i18n="storage\.title"/);
   });
 
-  it('declares required legacy assets and fails when an entry is absent', function () {
-    const copyScript = read('frontend/scripts/copy-legacy.mjs');
-    assert.match(copyScript, /const legacyDirs = \['legacy'\]/);
-    assert.doesNotMatch(copyScript, /if \(!fs\.existsSync\(from\)\) return/);
-    assert.match(copyScript, /throw new Error\([^)]*legacy asset/i);
-  });
-
   it('renders the approved per-card selectors, actions, locks, and masked fields', function () {
     const renderer = read('legacy/storage/settings-renderer.js');
     assert.match(renderer, /data-storage-profile-select/);

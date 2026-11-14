@@ -5,8 +5,6 @@ const path = require('path');
 const repoRoot = path.resolve(__dirname, '..');
 const distIndexPath = path.join(repoRoot, 'frontend', 'dist', 'index.html');
 const distAdminPath = path.join(repoRoot, 'frontend', 'dist', 'admin.html');
-const appIndexPath = path.join(repoRoot, 'frontend', 'dist', 'app', 'index.html');
-const redirectsPath = path.join(repoRoot, 'frontend', 'dist', '_redirects');
 const webdavPath = path.join(repoRoot, 'frontend', 'dist', 'webdav.html');
 const legacyIndexPath = path.join(repoRoot, 'frontend', 'dist', 'legacy', 'index.html');
 const legacyAdminPath = path.join(repoRoot, 'frontend', 'dist', 'legacy', 'admin.html');
@@ -15,8 +13,6 @@ const sourceIndexPath = path.join(repoRoot, 'index.html');
 const sourceAdminPath = path.join(repoRoot, 'admin.html');
 const sourceGalleryPath = path.join(repoRoot, 'gallery.html');
 const sourceWebdavPath = path.join(repoRoot, 'webdav.html');
-const appShellPath = path.join(repoRoot, 'frontend', 'src', 'components', 'AppShell.vue');
-const appDeepLinks = ['login', 'drive', 'admin', 'storage', 'status'];
 const extensionfulLegacyNavigation = /(?:href=|url: |window\.location\.(?:href|replace)\s*=\s*)['"]\/(?:gallery|admin|webdav|login|storage-settings)\.html\b/;
 
 function readDistFile(filePath) {
@@ -49,30 +45,11 @@ describe('frontend Pages entrypoint', function () {
     assert.doesNotMatch(indexHtml, /Start Uploading/);
   });
 
-  it('keeps API upload and legacy routes separate from the optional Vue app', function () {
-    const redirects = readDistFile(redirectsPath);
-    const appIndexHtml = readDistFile(appIndexPath);
-
-    assert.doesNotMatch(redirects, /^\/upload\s+/m);
-    assert.match(redirects, /^\/app\s+\/app\/index\.html\s+200$/m);
-    assert.match(redirects, /^\/app\/\*\s+\/app\/index\.html\s+200$/m);
-    assert.doesNotMatch(redirects, /^\/drive\s+\/index\.html\s+200$/m);
-    assert.doesNotMatch(redirects, /^\/status\s+\/index\.html\s+200$/m);
-    assert.match(appIndexHtml, /<title>Seraph's Pictures App<\/title>/);
-    assert.match(appIndexHtml, /\/app\/assets\//);
-  });
-
-  it('emits physical Vue app entry files for Cloudflare extensionless deep links', function () {
-    const appIndexHtml = readDistFile(appIndexPath);
-
-    for (const route of appDeepLinks) {
-      const routeIndexPath = path.join(repoRoot, 'frontend', 'dist', 'app', route, 'index.html');
-      const routeHtmlPath = path.join(repoRoot, 'frontend', 'dist', 'app', `${route}.html`);
-      assert.ok(fs.existsSync(routeIndexPath), `/app/${route}/index.html should exist`);
-      assert.ok(fs.existsSync(routeHtmlPath), `/app/${route}.html should exist`);
-      assert.strictEqual(readDistFile(routeIndexPath), appIndexHtml);
-      assert.strictEqual(readDistFile(routeHtmlPath), appIndexHtml);
-    }
+  it('publishes a real 404 document without SPA rewrites or app entries', function () {
+    const dist = path.join(repoRoot, 'frontend', 'dist');
+    assert.match(readDistFile(path.join(dist, '404.html')), /页面不存在/);
+    assert.strictEqual(fs.existsSync(path.join(dist, '_redirects')), false);
+    assert.strictEqual(fs.existsSync(path.join(dist, 'app')), false);
   });
 
   it('keeps the legacy WebDAV entrypoint reachable from the root UI', function () {
@@ -114,7 +91,7 @@ describe('frontend Pages entrypoint', function () {
     assert.doesNotMatch(webdavHtml, /request\("\.\/upload"/);
   });
 
-  it('uses absolute app links from legacy pages so nested copies do not resolve under /legacy', function () {
+  it('keeps retired app navigation out of Legacy pages', function () {
     const pages = [
       sourceBundle(sourceIndexPath),
       sourceBundle(sourceAdminPath),
@@ -132,7 +109,6 @@ describe('frontend Pages entrypoint', function () {
   });
 
   it('anchors legacy navigation and auth API calls at the site root', function () {
-    const appShell = readDistFile(appShellPath);
     const sourceIndex = sourceBundle(sourceIndexPath);
     const sourceAdmin = sourceBundle(sourceAdminPath);
     const sourceGallery = readDistFile(sourceGalleryPath);
@@ -140,10 +116,6 @@ describe('frontend Pages entrypoint', function () {
     const legacyIndex = distBundle(legacyIndexPath);
     const legacyAdmin = distBundle(legacyAdminPath);
     const legacyWebdav = readDistFile(legacyWebdavPath);
-
-    assert.match(appShell, /<a class="nav-link" href="\/">\{\{ t\('nav\.legacy'\) \}\}<\/a>/);
-    assert.doesNotMatch(appShell, /href="\/legacy\/index\.html"/);
-    assert.doesNotMatch(appShell, /target="_blank"/);
 
     for (const html of [sourceIndex, legacyIndex, sourceWebdav, legacyWebdav]) {
       assert.doesNotMatch(html, /href="\.\/(?:gallery|admin|webdav)\.html"/);

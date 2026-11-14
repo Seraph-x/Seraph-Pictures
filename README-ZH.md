@@ -10,7 +10,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Cloudflare](https://img.shields.io/badge/Cloudflare-Pages%20%2B%20Workers-F38020?logo=cloudflare&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-supported-2496ED?logo=docker&logoColor=white)
-![Vue 3](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)
+![Vue 2](https://img.shields.io/badge/Vue-2-4FC08D?logo=vuedotjs&logoColor=white)
 </div>
 
 ## 安全警告
@@ -50,7 +50,7 @@ docker run -d --name kvault --restart unless-stopped -p 8080:8080 \
 
 | K-Vault（原仓库） | 本仓库 |
 | --- | --- |
-| 直接发布仓库根目录静态页面，仅 Pages Functions | Vue 构建到 `frontend/dist` 后由 `wrangler pages deploy frontend/dist` 上传，另加承载 `AUTH_COORDINATOR`、`UPLOAD_COORDINATOR` 两个 Durable Object 的 Coordinator Worker |
+| 直接发布仓库根目录静态页面，仅 Pages Functions | Legacy 页面通过 `npm run build` 打包到 `frontend/dist` 后由 `wrangler pages deploy frontend/dist` 上传，另加承载 `AUTH_COORDINATOR`、`UPLOAD_COORDINATOR` 两个 Durable Object 的 Coordinator Worker |
 | `TG_Bot_Token`、`TG_Chat_ID` | `TG_BOT_TOKEN`、`TG_CHAT_ID`，访客上传另用独立 `TG_GUEST_BOT_TOKEN`、`TG_GUEST_CHAT_ID` |
 | `BASIC_USER` / `BASIC_PASS` 密码登录 | 密码 + Passkey/WebAuthn（`WEBAUTHN_RP_ID`、`WEBAUTHN_ORIGIN`、`MIGRATION_AUDIENCE`）；`AUTH_DISABLED` 仅允许本地运行 |
 | 由 `DEFAULT_STORAGE_TYPE` 加一组环境变量决定默认后端 | 另有可在管理端维护的多实例 Storage Profile |
@@ -67,7 +67,7 @@ Telegram 侧的准备步骤仍然通用，原仓库的 `/api/status`、`/admin.h
 - 目录树、筛选、批量移动/删除、重命名、可见性管理和在线预览。
 - 开放访客图床时使用隔离的 Telegram Bot/频道、固定配额和内容真实性校验。
 - Legacy 稳定界面：`/`、`/login.html`、`/admin.html`、`/gallery.html`、`/webdav.html`、`/storage-settings.html`。
-- Vue 界面：`/app/`、`/app/drive`、`/app/storage`、`/app/status`；两种运行时均已实现其 Storage、Drive 和 Share API。
+- Legacy 页面保留 Vue 2 runtime。旧 `/app` 界面及其子路径返回 HTTP 404；两种运行时继续提供共用的 Storage、Drive 和 Share API。
 
 | 上传 | 图库 | 管理 | Passkey |
 | :---: | :---: | :---: | :---: |
@@ -77,7 +77,7 @@ Telegram 侧的准备步骤仍然通用，原仓库的 `/api/status`、`/admin.h
 
 ```mermaid
 flowchart LR
-  browser[Browser / API client] --> frontend[Legacy + Vue UI]
+  browser[Browser / API client] --> frontend[Legacy UI / Vue 2]
   frontend --> runtime{Runtime}
   runtime --> pages[Pages Functions]
   runtime --> docker[Docker Hono API]
@@ -101,7 +101,7 @@ Cloudflare 以 Durable Objects 协调认证与 R2 multipart 状态，以 KV 保�
 
 ```bash
 npm ci
-npm run frontend:build
+npm run build
 npm run docker:init-env
 docker compose up -d --build
 npm run docker:doctor
@@ -131,7 +131,7 @@ npx wrangler r2 bucket lifecycle list <R2_BUCKET>
 npx wrangler r2 bucket lifecycle add <R2_BUCKET> abort-incomplete-uploads multipart/ --abort-multipart-days 1
 npx wrangler r2 bucket lifecycle list <R2_BUCKET>
 npx wrangler deploy --config workers/coordinator/wrangler.jsonc --env production
-npm run frontend:build
+npm run build
 npx wrangler pages deploy frontend/dist --project-name <PAGES_PROJECT> --branch main
 node scripts/probe-coordinator-binding.mjs --base-url https://<YOUR_DOMAIN>
 ```
@@ -196,7 +196,7 @@ Docker 基础模板见 [.env.example](.env.example)。开放 Docker 访客上传
 
 ## API 示例
 
-UI 路由 `/app/storage`、`/app/drive` 不等于 API。以下操作均要求管理员认证：
+两种运行时继续提供共用的 Storage、Drive 和 Share API，不依赖已退休的 `/app` 界面。以下操作均要求管理员认证：
 
 | 范围 | 方法与路径 |
 | --- | --- |
@@ -219,7 +219,7 @@ curl --fail-with-body -u '<ADMIN_USER>:<ADMIN_PASSWORD>' --json '{"fileId":"<FIL
 ## 验证
 
 ```bash
-npm run frontend:build
+npm run build
 npm test -- --reporter dot
 npm audit --omit=dev
 npm run test:storage-e2e
@@ -245,7 +245,7 @@ npm run test:visual
 
 ## 维护与许可
 
-核心目录：`frontend/`（Vue 与 Legacy 构建）、`functions/`（Pages Functions）、`workers/coordinator/`（DO Worker）、`server/`（Docker API）、`shared/`（跨运行时契约）、`test/` 与 `e2e/`（验证）、`docs/`（部署与安全报告）。R2 专项说明见 [Cloudflare Pages + R2](docs/cloudflare-pages-r2.md)，Docker English guide 见 [README-DOCKER-EN.md](README-DOCKER-EN.md)。
+核心目录：`frontend/`（Legacy 部署产物 `frontend/dist` 与前端镜像定义 `frontend/Dockerfile`）、`functions/`（Pages Functions）、`workers/coordinator/`（DO Worker）、`server/`（Docker API）、`shared/`（跨运行时契约）、`test/` 与 `e2e/`（验证）、`docs/`（部署与安全报告）。R2 专项说明见 [Cloudflare Pages + R2](docs/cloudflare-pages-r2.md)，Docker English guide 见 [README-DOCKER-EN.md](README-DOCKER-EN.md)。
 
 [项目介绍](PROJECT_INTRO-ZH.md)（[English](PROJECT_INTRO.md)）概述当前目标、主流程路由、技术结构与本版本已移除的内容。
 

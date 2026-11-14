@@ -19,7 +19,7 @@ describe('Claude layout balance contract', function () {
   it('loads a shared layout balancing stylesheet for legacy pages', function () {
     const indexHtml = readRepoFile('index.html');
     const loginHtml = readRepoFile('login.html');
-    const copyLegacy = readRepoFile('frontend/scripts/copy-legacy.mjs');
+    const copyLegacy = readRepoFile('scripts/build-static.mjs');
 
     assert.match(indexHtml, /href="\/claude-layout\.css"/);
     assert.match(loginHtml, /href="\/claude-layout\.css"/);
@@ -28,7 +28,7 @@ describe('Claude layout balance contract', function () {
 
   it('loads a scoped admin layout stylesheet for the management page', function () {
     const adminHtml = readRepoFile('admin.html');
-    const copyLegacy = readRepoFile('frontend/scripts/copy-legacy.mjs');
+    const copyLegacy = readRepoFile('scripts/build-static.mjs');
 
     assert.match(adminHtml, /href="\/claude-admin-layout\.css\?v=20260611-grid-pagination"/);
     assert.match(adminHtml, /href="\/seraph-admin-polish\.css\?v=20260611-grid-pagination"/);
@@ -47,17 +47,11 @@ describe('Claude layout balance contract', function () {
     assert.match(layout, /\.upload-methods[\s\S]*grid-template-columns:\s*repeat\(3,/);
   });
 
-  it('keeps login surfaces centered in both legacy and Vue entrypoints', function () {
+  it('keeps the legacy login surface centered', function () {
     const legacyLayout = readRepoFile('claude-layout.css');
-    const vueLayout = readRepoFile('frontend/src/claude-layout.css');
-    const main = readRepoFile('frontend/src/main.js');
 
     assert.match(legacyLayout, /body\.login-page[\s\S]*place-items:\s*center\s*!important/);
     assert.match(legacyLayout, /\.login-container[\s\S]*margin-inline:\s*auto\s*!important/);
-    assert.match(main, /import\('\.\/claude-layout\.css'\)/);
-    assert.match(vueLayout, /\.app-bg[\s\S]*margin:\s*16px auto 40px\s*!important/);
-    assert.match(vueLayout, /\.claude-login-page[\s\S]*place-items:\s*center/);
-    assert.match(vueLayout, /\.claude-login-shell[\s\S]*margin:\s*auto/);
   });
 
   it('keeps the admin toolbar single-line and moves record totals into the folder sidebar', function () {
@@ -149,7 +143,7 @@ describe('Claude layout balance contract', function () {
   it('keeps upload results and uploaded file cards evenly sized as content grows', function () {
     const indexHtml = readRepoFile('index.html');
     const layout = readRepoFile('seraph-ui-polish.css');
-    const copyLegacy = readRepoFile('frontend/scripts/copy-legacy.mjs');
+    const copyLegacy = readRepoFile('scripts/build-static.mjs');
 
     assert.match(indexHtml, /href="\/seraph-ui-polish\.css"/);
     assert.match(copyLegacy, /'seraph-ui-polish\.css'/);
@@ -162,7 +156,7 @@ describe('Claude layout balance contract', function () {
   it('splits the admin header into balanced control groups and adds storage configuration access', function () {
     const adminHtml = readLegacyBundle('admin.html');
     const layout = readRepoFile('seraph-admin-polish.css');
-    const copyLegacy = readRepoFile('frontend/scripts/copy-legacy.mjs');
+    const copyLegacy = readRepoFile('scripts/build-static.mjs');
 
     assert.match(adminHtml, /href="\/seraph-admin-polish\.css\?v=20260611-grid-pagination"/);
     assert.match(copyLegacy, /'seraph-admin-polish\.css'/);

@@ -9,36 +9,10 @@ function readRepoFile(relativePath) {
 }
 
 describe('Claude-inspired theme contract', function () {
-  it('uses warm dark Claude-style tokens in the Vue app theme', function () {
-    const main = readRepoFile('frontend/src/main.js');
-    const styles = readRepoFile('frontend/src/claude-theme.css');
-
-    assert.match(main, /import\('\.\/claude-theme\.css'\)/);
-    assert.match(styles, /--claude-bg:\s*#1f1f1d/);
-    assert.match(styles, /--claude-accent:\s*#d97757/);
-    assert.match(styles, /font-family:\s*"Inter", "SF Pro Text"/);
-    assert.doesNotMatch(styles, /#8a4bff/i);
-    assert.doesNotMatch(styles, /#ffd7e4/i);
-    assert.doesNotMatch(styles, /#c8f1ff/i);
-  });
-
-  it('renders the Vue login page as a Claude-style prompt surface', function () {
-    const loginView = readRepoFile('frontend/src/views/LoginView.vue');
-
-    assert.match(loginView, /claude-login-page/);
-    assert.match(loginView, /claude-mark/);
-    assert.match(loginView, /t\('login\.welcome'\)/);
-    assert.match(loginView, /t\('login\.workspace'\)/);
-    assert.doesNotMatch(loginView, />K-Vault private workspace</);
-    assert.match(loginView, /class="claude-login-box"/);
-  });
-
-  it('uses Seraph branding on legacy login and the optional Vue shell', function () {
+  it('uses Seraph branding on legacy login, gallery, and WebDAV', function () {
     const legacyLogin = readRepoFile('login.html');
     const galleryHtml = readRepoFile('gallery.html');
     const webdavHtml = readRepoFile('webdav.html');
-    const appShell = readRepoFile('frontend/src/components/AppShell.vue');
-    const appIndex = readRepoFile('frontend/index.html');
 
     assert.match(legacyLogin, /<title>Seraph's Pictures<\/title>/);
     assert.match(legacyLogin, /<h1 class="title">Seraph's Pictures<\/h1>/);
@@ -46,9 +20,6 @@ describe('Claude-inspired theme contract', function () {
     assert.match(galleryHtml, /<title>Seraph's Pictures<\/title>/);
     assert.match(webdavHtml, /<title>Seraph's Pictures<\/title>/);
     assert.match(webdavHtml, /alt="Seraph's Pictures Logo"/);
-    assert.match(appShell, /<h1>Seraph's Pictures<\/h1>/);
-    assert.doesNotMatch(appShell, /<h1>K-Vault<\/h1>/);
-    assert.match(appIndex, /<title>Seraph's Pictures App<\/title>/);
   });
 
   it('removes the legacy purple-pink gradient from default pages', function () {

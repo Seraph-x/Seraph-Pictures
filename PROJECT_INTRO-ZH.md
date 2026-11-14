@@ -2,7 +2,7 @@
 
 **中文** | [English](PROJECT_INTRO.md)
 
-Seraph's Pictures 是一个私有媒体工作区，面向图片、文件、音频、视频和文档托管场景。项目当前以 Cloudflare Pages 为主要部署目标，使用根路径 Legacy 页面作为稳定主界面，同时保留 `/app` Vue App 作为新版体验和后续迁移入口。
+Seraph's Pictures 是一个私有媒体工作区，面向图片、文件、音频、视频和文档托管场景。项目当前以 Cloudflare Pages 为主要部署目标，使用根路径 Legacy 页面作为支持的界面，并保留其 Vue 2 runtime。
 
 ## 当前目标
 
@@ -20,16 +20,16 @@ Seraph's Pictures 是一个私有媒体工作区，面向图片、文件、音�
 /admin.html    管理后台
 /gallery.html  图片浏览
 /webdav.html   WebDAV 上传中心
-/app/status    Vue 状态页
+/storage-settings.html  存储设置
 ```
 
 ## 技术结构
 
-- Legacy HTML：当前线上主流程。
-- Vue/Vite：构建到 `/app`，用于新版上传、Drive、Storage、Status 页面。
+- Legacy HTML 与 Vue 2 runtime：当前支持的界面，通过 `npm run build` 打包到 `frontend/dist`。
+- `frontend/Dockerfile`：Docker 部署所用静态前端镜像的定义。
 - Cloudflare Functions：提供认证、上传、状态、管理、文件访问等 API。
-- Docker runtime：提供更完整的自托管后端和新版 Vue API。
+- Docker runtime：提供自托管后端。两种运行时均保留共用的 Storage、Drive 和 Share API。
 
 ## 已清理内容
 
-旧 `admin-imgtc.html`、`admin-waterfall.html` 和 `_nuxt/` 已从当前版本移除，避免继续暴露过期页面和历史构建产物。
+Vue 3 `/app` 界面已移除；`/app` 及其子路径返回 HTTP 404，不做重定向。旧 `admin-imgtc.html`、`admin-waterfall.html` 和 `_nuxt/` 也已从当前版本移除，避免继续暴露过期页面和历史构建产物。

@@ -14,15 +14,12 @@ const REQUIRED_ROUTES = Object.freeze([
   '/preview',
   '/webdav',
   '/storage-settings',
-  '/app/drive',
-  '/app/storage',
-  '/app/status',
 ]);
 const REQUIRED_VIEWPORTS = Object.freeze(['desktop', 'mobile']);
 const FEATURE_BASE = '43f46fd';
 const APPROVED_CHANGED_ENTRIES = Object.freeze([
-  '/::desktop', '/admin::desktop', '/storage-settings::desktop', '/app/drive::desktop',
-  '/::mobile', '/admin::mobile', '/storage-settings::mobile', '/app/drive::mobile',
+  '/::desktop', '/admin::desktop', '/storage-settings::desktop',
+  '/::mobile', '/admin::mobile', '/storage-settings::mobile',
 ]);
 
 function readManifest() {
