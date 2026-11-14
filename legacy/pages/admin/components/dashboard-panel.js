@@ -1,7 +1,8 @@
 {
   'use strict';
   globalThis.LegacyAdminComponents = globalThis.LegacyAdminComponents || {};
-  globalThis.LegacyAdminComponents.dashboardPanel = `        <div class="disk-layout" :class="{ 'is-list-view': viewMode === 'list' }">
+  globalThis.LegacyAdminComponents.dashboardPanel = `${globalThis.LegacyAdminComponents.fileTools}
+        <div class="disk-layout" :class="{ 'is-list-view': viewMode === 'list' }">
           <aside class="folder-sidebar">
             <div class="folder-stats" role="status" aria-live="polite">
               <i class="fas fa-chart-line"></i>

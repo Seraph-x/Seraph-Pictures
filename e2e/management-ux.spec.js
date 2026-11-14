@@ -57,12 +57,6 @@ test('data saver and safe mode hide thumbnails but allow an explicit preview', a
   ];
   const probe = await installManagementFixtures(page, { files, preferences: { loadMode: 'dataSaver' } });
   await readyAdmin(page, files.length);
-  const headerContainsTools = await page.evaluate(() => {
-    const header = document.querySelector('.header-content').getBoundingClientRect();
-    const tools = document.querySelector('.admin-header-tools').getBoundingClientRect();
-    return tools.bottom <= header.bottom;
-  });
-  expect(headerContainsTools).toBe(true);
   await expect(page.locator('.media-placeholder')).toHaveCount(2);
   await expect.poll(() => probe.mediaRequests.includes('/file/r2:small')).toBe(true);
   expect(probe.mediaRequests).not.toContain('/file/r2:large');

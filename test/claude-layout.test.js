@@ -54,20 +54,17 @@ describe('Claude layout balance contract', function () {
     assert.match(legacyLayout, /\.login-container[\s\S]*margin-inline:\s*auto\s*!important/);
   });
 
-  it('keeps the admin toolbar single-line and moves record totals into the folder sidebar', function () {
+  it('keeps record totals in the folder sidebar outside page navigation', function () {
     const admin = readLegacyBundle('admin.html');
     const layout = readRepoFile('claude-admin-layout.css');
-    const header = admin.match(/<div class="header-content">[\s\S]*?<\/el-header>/)?.[0] || '';
+    const header = admin.match(/<div class="header-content admin-navigation">[\s\S]*?<\/el-header>/)?.[0] || '';
     const sidebar = admin.match(/<aside class="folder-sidebar">[\s\S]*?<\/aside>/)?.[0] || '';
 
     assert.match(admin, /<body class="admin-page">/);
     assert.doesNotMatch(header, /class="stats"/);
     assert.match(sidebar, /class="folder-stats"/);
     assert.match(sidebar, /\{\{\s*t\('admin\.totalRecords'\)\s*\}\}\s*\{\{\s*totalCount\s*\|\|\s*Number\s*\}\}/);
-    assert.match(layout, /\.admin-page\s+\.header-content[\s\S]*flex-wrap:\s*nowrap\s*!important/);
-    assert.match(layout, /\.header-content\s+\.actions[\s\S]*justify-content:\s*flex-end\s*!important/);
-    assert.match(layout, /\.header-content\s+\.actions[\s\S]*flex-wrap:\s*nowrap\s*!important/);
-    assert.match(layout, /\.header-content\s+\.actions\s+>\s+\*[\s\S]*order:\s*0\s*!important/);
+    assert.ok(header, 'the navigation header must be present');
     assert.doesNotMatch(header, /class="status-panel"/);
     assert.doesNotMatch(layout, /\.status-panel/);
     assert.match(layout, /\.main-container[\s\S]*display:\s*block\s*!important/);
@@ -153,15 +150,16 @@ describe('Claude layout balance contract', function () {
     assert.match(layout, /\.result-section[\s\S]*align-self:\s*stretch/);
   });
 
-  it('splits the admin header into balanced control groups and adds storage configuration access', function () {
+  it('separates page navigation from file controls and keeps settings accessible', function () {
     const adminHtml = readLegacyBundle('admin.html');
-    const layout = readRepoFile('seraph-admin-polish.css');
+    const layout = readRepoFile('legacy/pages/admin/styles/file-navigation.css');
     const copyLegacy = readRepoFile('scripts/build-static.mjs');
 
     assert.match(adminHtml, /href="\/seraph-admin-polish\.css\?v=20260611-grid-pagination"/);
     assert.match(copyLegacy, /'seraph-admin-polish\.css'/);
-    assert.match(adminHtml, /class="admin-header-primary"/);
-    assert.match(adminHtml, /class="actions admin-header-tools"/);
+    assert.match(adminHtml, /<nav class="admin-primary-nav"/);
+    assert.match(adminHtml, /href="\/admin" aria-current="page"/);
+    assert.match(adminHtml, /class="admin-file-controls"/);
     assert.match(adminHtml, /class="admin-header-system"/);
     assert.match(adminHtml, /showStorageConfigPanel/);
     assert.doesNotMatch(adminHtml, /<el-dropdown @command="handleWebsite">/);
@@ -173,13 +171,10 @@ describe('Claude layout balance contract', function () {
     assert.doesNotMatch(adminHtml, /editWebsites|编辑快捷方式/);
     assert.doesNotMatch(adminHtml, /window\.open\(url, '_blank'\)/);
     assert.doesNotMatch(adminHtml, /command="uiDesign"/);
-    assert.match(layout, /\.admin-page\s+\.header-content[\s\S]*display:\s*grid\s*!important/);
-    assert.match(layout, /grid-template-columns:\s*minmax\(300px,\s*0\.85fr\)\s+minmax\(520px,\s*1\.45fr\)\s+minmax\(160px,\s*0\.45fr\)\s*!important/);
-    assert.match(layout, /\.admin-header-tools[\s\S]*justify-content:\s*center\s*!important/);
-    assert.match(layout, /\.admin-header-system[\s\S]*justify-content:\s*end\s*!important/);
-    assert.match(layout, /\.admin-header-system[\s\S]*gap:\s*12px\s*!important/);
-    assert.doesNotMatch(layout, /\.admin-header-system\s+\.status-panel/);
-    assert.match(layout, /@media\s*\(max-width:\s*1180px\)[\s\S]*grid-template-columns:\s*1fr\s*!important/);
+    assert.match(layout, /\.admin-primary-nav/);
+    assert.match(layout, /\.admin-file-controls/);
+    assert.match(layout, /:focus-visible/);
+    assert.doesNotMatch(adminHtml, /:class="\{ disabled: selectedFiles.length === 0 \}"/);
   });
 
   it('shows storage status dialog without config navigation actions', function () {

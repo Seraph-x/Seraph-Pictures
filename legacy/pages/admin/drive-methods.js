@@ -64,7 +64,8 @@ handleGlobalKeydown(event) {
         if (this.folderMoveDialogVisible) return;
         if (this.selectedFiles.length === 0) return;
         const target = event.target;
-        const inputTags = ['INPUT', 'TEXTAREA'];
+        if (target?.closest?.('[role="menu"], [aria-haspopup="menu"]')) return;
+        const inputTags = ['INPUT', 'TEXTAREA', 'SELECT'];
         const isInput = target ? inputTags.includes(target.tagName) || target.isContentEditable : false;
         if (isInput) return;
         const key = event.key.toLowerCase();
