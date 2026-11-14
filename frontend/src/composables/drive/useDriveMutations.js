@@ -13,8 +13,10 @@ function joinPath(base, extra) {
 
 async function run(context, options) {
   context.error.value = '';
+  context.message.value = '';
   try {
-    await options.operation();
+    const result = await options.operation();
+    if (result === false) return;
     await (options.refresh || context.refreshAll)();
   } catch (cause) {
     context.error.value = cause.message || context.t(options.errorKey);
@@ -30,18 +32,26 @@ function updatePathAfterMove(context, source, target) {
 
 async function deleteFolderAction(context, folder) {
   if (!window.confirm(context.t('dv.confirmDeleteFolder', { name: folder.name }))) return;
+  await run(context, {
+    operation: async () => {
+      if (!await deleteConfirmedFolder(context, folder.path)) return false;
+      const current = context.currentPath.value;
+      if (current === folder.path || current.startsWith(`${folder.path}/`)) context.currentPath.value = '';
+    },
+    errorKey: 'dv.errDeleteFolder',
+  });
+}
+
+async function deleteConfirmedFolder(context, path) {
   try {
-    await context.api.deleteFolder(folder.path, false);
+    await context.api.deleteFolder(path, false);
   } catch (cause) {
-    if (!String(cause.message || '').includes('not empty')) {
-      context.error.value = cause.message || context.t('dv.errDeleteFolder');
-      return;
-    }
-    if (!window.confirm(context.t('dv.confirmDeleteRecursive'))) return;
-    await context.api.deleteFolder(folder.path, true);
+    const code = cause.payload?.error?.code || cause.code || cause.message;
+    if (code !== 'DRIVE_FOLDER_NOT_EMPTY' && !/not empty/i.test(cause.message || '')) throw cause;
+    if (!window.confirm(context.t('dv.confirmDeleteRecursive'))) return false;
+    await context.api.deleteFolder(path, true);
   }
-  if (context.currentPath.value.startsWith(folder.path)) context.currentPath.value = '';
-  await context.refreshAll();
+  return true;
 }
 
 function fileName(file) {
@@ -145,9 +155,14 @@ function batchActions(context) {
 }
 
 function linkActions(context) {
-  async function copyDirect(file) {
-    await navigator.clipboard.writeText(context.fileLink(file.name));
-    context.message.value = context.t('dv.msgDirectCopied');
+  async function copyText(text) {
+    await run(context, {
+      operation: async () => {
+        await navigator.clipboard.writeText(text);
+        context.message.value = context.t('dv.msgDirectCopied');
+      },
+      errorKey: 'dv.errCopyLink', refresh: async () => {},
+    });
   }
   async function copyShare(file) {
     await run(context, {
@@ -162,7 +177,7 @@ function linkActions(context) {
       errorKey: 'dv.errShareLink', refresh: async () => {},
     });
   }
-  return Object.freeze({ copyDirect, copyShare });
+  return Object.freeze({ copyDirect: (file) => copyText(context.fileLink(file.name)), copyText, copyShare });
 }
 
 export function useDriveMutations(options) {

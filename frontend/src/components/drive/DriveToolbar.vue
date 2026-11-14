@@ -10,14 +10,22 @@
         {{ crumb.name }}
       </button>
     </div>
+    <form class="drive-search" role="search" @submit.prevent="$emit('reload')">
+      <label for="drive-search">{{ t('dv.searchLabel') }}</label>
+      <div class="drive-search-controls">
+        <input
+          id="drive-search" name="search" type="search" enterkeyhint="search"
+          autocapitalize="none" autocorrect="off" :spellcheck="false"
+          :value="search" :placeholder="t('dv.searchPh')"
+          @input="$emit('update:search', $event.target.value)"
+        />
+        <button class="btn" type="submit">{{ t('dv.searchButton') }}</button>
+      </div>
+    </form>
     <div class="toolbar">
-      <input
-        :value="search"
-        :placeholder="t('dv.searchPh')"
-        @input="$emit('update:search', $event.target.value)"
-        @keyup.enter="$emit('reload')"
-      />
+      <label for="drive-storage-filter">{{ t('dv.colStorage') }}</label>
       <select
+        id="drive-storage-filter"
         data-testid="drive-storage-profile"
         :value="storageId"
         @change="$emit('update:storageId', $event.target.value)"
@@ -27,11 +35,14 @@
           {{ profileLabel(profile) }}
         </option>
       </select>
-      <select :value="viewMode" @change="$emit('update:viewMode', $event.target.value)">
+      <label for="drive-view-mode">{{ t('dv.viewMode') }}</label>
+      <select id="drive-view-mode" :value="viewMode" @change="$emit('update:viewMode', $event.target.value)">
         <option value="list">{{ t('dv.viewList') }}</option>
         <option value="grid">{{ t('dv.viewGrid') }}</option>
       </select>
+      <label for="drive-migration-target">{{ t('dv.migrationDestination') }}</label>
       <select
+        id="drive-migration-target"
         data-testid="drive-migration-destination"
         :value="migrationDestinationId"
         :disabled="!hasSelection || !migrationDestinations.length"
@@ -56,6 +67,7 @@
       <button class="btn btn-danger" :disabled="!hasSelection" @click="$emit('delete')">
         {{ t('dv.delete') }}
       </button>
+      <p v-if="hasSelection" class="muted" role="status">{{ t('dv.selectedCount', { n: selectedCount }) }}</p>
     </div>
   </div>
 </template>
@@ -92,3 +104,13 @@ function profileLabel(profile) {
   return `${getStorageLabel(profile.type)} · ${profile.name} · ${state}`;
 }
 </script>
+
+<style scoped>
+.drive-search { display: grid; gap: 6px; }
+.drive-search-controls { display: flex; gap: 8px; }
+.drive-search-controls input { flex: 1; min-width: 0; font-size: 1rem; }
+.drive-search-controls button { flex-shrink: 0; }
+.toolbar > label { width: 100%; }
+.drive-search button:focus-visible,
+.drive-search input:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+</style>
