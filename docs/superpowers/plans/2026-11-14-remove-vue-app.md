@@ -29,3 +29,5 @@ Test cleanup and documentation updates can proceed independently of packaging wi
 The initial implementation was verified locally. Commit, push and Pages deployment were subsequently authorized by the user, with a pre-push privacy audit. Production domain and resource identifiers are intentionally retained; new commits use the GitHub noreply identity. No data migration is part of this release.
 
 The release authentication check exposed missing font files in the temporary unbound test server. Its asset list now includes `assets`; real coordinator login, credential rotation, logout and outage checks pass without ignoring resource failures.
+
+Production verification found a cached `/app/login` asset on the custom domain even though the versioned deployment and uncached URL returned 404. Cache purge was rejected by the available Cloudflare credentials. An explicit Pages retirement route now reads only the 404 document and returns HTTP 404 with `Cache-Control: no-store`, bypassing stale Vue asset lookup. The asset failure remains explicit. Unit coverage and real Pages routing checks were added; 523 unit/integration tests pass.
