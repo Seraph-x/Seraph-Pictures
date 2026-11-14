@@ -38,16 +38,23 @@
       @select-decision="setImageUploadDecision"
       @update:url-input="urlInput = $event"
       @upload-url="uploadUrl"
-      @copy="copyText"
+      @copy="mutations.copyText"
       @retry="retryUpload"
       @cancel="cancelUpload"
     />
 
+    <p v-if="message" class="muted" role="status">{{ message }}</p>
+    <p v-if="error" class="error" role="alert">{{ error }}</p>
     <div class="drive-layout">
       <aside class="folder-tree card-lite">
         <div class="folder-tree-head">
           <h3>{{ t('dv.folders') }}</h3>
           <button class="btn btn-ghost" @click="mutations.createFolder">{{ t('dv.new') }}</button>
+        </div>
+        <p v-if="treeLoading" class="muted">{{ t('dv.loading') }}</p>
+        <div v-if="treeError" role="alert">
+          <p class="error">{{ t('dv.errLoadTree') }}：{{ treeError }}</p>
+          <button class="btn btn-ghost" @click="reloadTree">{{ t('dv.retry') }}</button>
         </div>
         <ul class="tree-list">
           <li
@@ -57,7 +64,7 @@
             :class="{ active: currentPath === node.path }"
             :style="{ paddingLeft: `${12 + node.depth * 14}px` }"
           >
-            <button class="tree-link" @click="openPath(node.path)">
+            <button class="tree-link" :aria-current="currentPath === node.path ? 'location' : undefined" @click="openPath(node.path)">
               <span>{{ node.name }}</span><small>{{ node.fileCount }}</small>
             </button>
           </li>
@@ -88,18 +95,18 @@
           :folders="folders" :files="files" :view-mode="viewMode"
           :selected-set="selectedSet" :all-selected="allSelected"
           :loading="loading" :next-cursor="nextCursor"
+          :error="explorerError" :filtered="Boolean(appliedSearch || storageId)"
           :file-link="fileLink" :format-size="formatSize" :format-time="formatTime"
           @open-folder="openPath" @rename-folder="mutations.renameFolder"
           @move-folder="mutations.moveFolder" @delete-folder="mutations.deleteFolder"
           @toggle-file="toggleFileSelection" @toggle-all="toggleSelectAll" @load-more="loadMore"
+          @retry="retryExplorer" @clear-filters="clearFilters"
           @direct="mutations.copyDirect" @share="mutations.copyShare"
           @rename-file="mutations.renameFile" @move-file="mutations.moveFile"
           @delete-file="mutations.deleteFile"
         />
       </article>
     </div>
-    <p v-if="message" class="muted">{{ message }}</p>
-    <p v-if="error" class="error">{{ error }}</p>
   </section>
 
   <UploadPreparationDialog
@@ -137,7 +144,8 @@ const explorer = useDriveExplorer({ api: driveApi, t });
 const {
   folders, files, breadcrumbs, currentPath, storageId, search, nextCursor, loading, viewMode,
   selectedFileIds, error, selectedSet, allSelected, flatTreeNodes, refreshAll, reloadExplorer,
-  loadMore, openPath, toggleFileSelection, toggleSelectAll,
+  loadMore, openPath, toggleFileSelection, toggleSelectAll, appliedSearch, explorerError,
+  treeError, treeLoading, reloadTree, retryExplorer,
 } = explorer;
 const upload = useDriveUpload({ t, profiles: storageProfiles, status, currentPath, error, refreshAll });
 const {
@@ -190,10 +198,10 @@ onMounted(async () => {
     status.value = await apiFetch('/api/status');
     const first = STORAGE_TYPES.find((item) => storageProfiles.choices(item.value).length);
     if (first) selectStorageMode(first.value);
-    await refreshAll();
   } catch (cause) {
     error.value = cause.message || t('dv.errLoadStatus');
   }
+  await refreshAll();
 });
 async function changeStorageFilter(id) {
   storageId.value = id;
@@ -202,5 +210,8 @@ async function changeStorageFilter(id) {
 }
 function fileLink(id) { return absoluteFileUrl(id); }
 function formatTime(timestamp) { return timestamp ? new Date(Number(timestamp)).toLocaleString() : '-'; }
-async function copyText(text) { await navigator.clipboard.writeText(text); }
+function clearFilters() {
+  search.value = '';
+  return changeStorageFilter('');
+}
 </script>
